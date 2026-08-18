@@ -168,3 +168,91 @@ export async function streamChat(
   }
   return streamZai(messages, settings.zaiThinking);
 }
+
+// ---- Non-streaming completion (for agent loop iterations) -----------------
+
+async function completeOllama(
+  url: string,
+  model: string,
+  messages: { role: "system" | "user" | "assistant"; content: string }[]
+): Promise<string> {
+  const res = await fetch(`${url.replace(/\/$/, "")}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, stream: false }),
+  });
+  if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+  const data = (await res.json()) as { message?: { content?: string } };
+  return data.message?.content || "";
+}
+
+async function completeZai(
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  thinking: boolean
+): Promise<string> {
+  const zai = await ZAI.create();
+  const response = (await zai.chat.completions.create({
+    messages,
+    stream: false,
+    thinking: { type: thinking ? "enabled" : "disabled" },
+  } as {
+    messages: typeof messages;
+    stream: boolean;
+    thinking: { type: "enabled" | "disabled" };
+  })) as { choices?: Array<{ message?: { content?: string } }> } | ReadableStream<Uint8Array>;
+
+  // ZAI returns a JSON object when stream:false
+  if (response && typeof response === "object" && !("getReader" in response)) {
+    const r = response as { choices?: Array<{ message?: { content?: string } }> };
+    return r.choices?.[0]?.message?.content || "";
+  }
+  // Fallback: consume the stream if the API insisted on streaming
+  if (response && typeof response === "object" && "getReader" in response) {
+    let out = "";
+    for await (const delta of (async function* () {
+      const reader = (response as ReadableStream<Uint8Array>).getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (payload === "[DONE]") return;
+          try {
+            const json = JSON.parse(payload);
+            const d = json?.choices?.[0]?.delta?.content;
+            if (d) yield d as string;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    })()) {
+      out += delta;
+    }
+    return out;
+  }
+  throw new Error("استجابة غير متوقعة من Z.ai");
+}
+
+export async function completeChat(
+  settings: ProviderSettings,
+  messages: { role: "system" | "user" | "assistant"; content: string }[]
+): Promise<string> {
+  if (settings.provider === "ollama") {
+    const reachable = await ollamaIsReachable(settings.ollamaUrl);
+    if (!reachable) {
+      throw new Error(
+        `تعذر الوصول إلى Ollama على ${settings.ollamaUrl}. تأكد من تشغيله محلياً (ollama serve).`
+      );
+    }
+    return completeOllama(settings.ollamaUrl, settings.ollamaModel, messages);
+  }
+  return completeZai(messages, settings.zaiThinking);
+}

@@ -12,7 +12,7 @@ datasource db {
 
 model Conversation {
   id        String   @id @default(cuid())
-  title     String   @default("New Chat")
+  title     String   @default("محادثة جديدة")
   model     String   @default("default")
   pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -29,6 +29,8 @@ model Message {
   role           String   // 'user' | 'assistant' | 'system'
   content        String
   model          String?
+  // JSON-encoded array of ToolResult objects (for assistant turns that called tools)
+  toolCalls      String?
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

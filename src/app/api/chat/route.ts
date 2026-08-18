@@ -1,63 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { streamChat, type ProviderSettings } from "@/lib/llm-provider";
-import type { Role } from "@/types/chat";
+import { runAgentLoop } from "@/lib/agent";
+import type { ProviderSettings } from "@/lib/llm-provider";
+import type { Role, ToolCallRecord } from "@/types/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const SYSTEM_PROMPT = [
-  'أنت "MiMo X"، مساعد ذكاء اصطناعي محلي يعمل على جهاز المستخدم.',
-  "ساعد المستخدم في هندسة البرمجيات، الكتابة، البحث، والأسئلة العامة.",
-  "- نفّذ الإجابات بصيغة Markdown نظيفة.",
-  "- استخدم كتل كود محاطة بوسوم اللغة (مثل python و javascript).",
-  "- كن موجزاً ومتكاملاً. استخدم العناوين والقوائم للإجابات الطويلة.",
-  "- إذا كتب المستخدم بالعربية فأجب بالعربية، وإذا كتب بالإنجليزية فأجب بالإنجليزية.",
-].join("\n");
-
 function makeTitle(text: string): string {
   const clean = text.trim().replace(/\s+/g, " ");
   if (!clean) return "محادثة جديدة";
   return clean.length > 48 ? clean.slice(0, 48) + "…" : clean;
-}
-
-interface SSELine {
-  choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
-  [k: string]: unknown;
-}
-
-// Parse Z.ai-style SSE stream (data: {...} \n\n) into text deltas
-async function* parseZaiSSE(
-  stream: ReadableStream<Uint8Array>
-): AsyncGenerator<string> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buffer.indexOf("\n")) >= 0) {
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
-        if (!line.startsWith("data:")) continue;
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") return;
-        try {
-          const json = JSON.parse(data) as SSELine;
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) yield delta;
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -109,27 +63,24 @@ export async function POST(req: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
-    // Build the messages payload
-    const llmMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...history
-        .filter((m) => m && m.content)
-        .slice(-20)
-        .map((m) => ({
-          role: (m.role === "system" ? "system" : m.role === "assistant" ? "assistant" : "user") as
-            | "system"
-            | "user"
-            | "assistant",
-          content: m.content,
-        })),
-      { role: "user", content: userMsgText },
-    ];
-
-    // Resolve provider settings (request > server cache > defaults)
+    // Resolve provider settings
     const { getSettings } = await import("@/lib/llm-provider");
     const settings = providerSettings || getSettings();
 
-    // Set up the outbound SSE stream
+    // Build the agent's message list (no system prompt — the loop adds it)
+    const agentMessages = history
+      .filter((m) => m && m.content)
+      .slice(-20)
+      .map((m) => ({
+        role: (m.role === "assistant" ? "assistant" : m.role === "system" ? "system" : "user") as
+          | "system"
+          | "user"
+          | "assistant",
+        content: m.content,
+      }));
+    agentMessages.push({ role: "user", content: userMsgText });
+
+    // Outbound SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -144,58 +95,94 @@ export async function POST(req: NextRequest) {
           provider: settings.provider,
         });
 
-        let fullText = "";
+        const collectedToolCalls: ToolCallRecord[] = [];
+        let finalText = "";
+
         try {
-          // Get the async generator for the chosen provider
-          const gen = await streamChat(settings, llmMessages);
-
-          // Ollama yields strings directly. Z.ai (via streamZai) also yields strings.
-          // We normalize both through the same consumer below.
-          if (settings.provider === "ollama") {
-            // streamOllama already yields strings
-            for await (const delta of gen) {
-              fullText += delta;
-              enqueue({ type: "delta", delta });
-            }
-          } else {
-            // Z.ai: gen could be either a ReadableStream (raw from SDK) or already
-            // an AsyncGenerator<string> (streamZai). Both yield string deltas.
-            for await (const delta of gen) {
-              fullText += delta;
-              enqueue({ type: "delta", delta });
-            }
-          }
-
-          if (fullText.trim()) {
-            await db.message.create({
-              data: {
-                conversationId: conversation!.id,
-                role: "assistant",
-                content: fullText,
-                model: settings.provider,
+          const result = await runAgentLoop({
+            messages: agentMessages,
+            settings,
+            signal: req.signal,
+            events: {
+              onThought: (text) => {
+                // Stream pre-tool reasoning as deltas so the UI shows progress
+                enqueue({ type: "delta", delta: text });
+                finalText += text;
               },
-            });
-            await db.conversation.update({
-              where: { id: conversation!.id },
-              data: { updatedAt: new Date() },
-            });
-          }
+              onToolCall: (call) => {
+                enqueue({
+                  type: "tool_call",
+                  call: { id: call.id, name: call.name, args: call.args },
+                });
+              },
+              onToolResult: (r) => {
+                const record: ToolCallRecord = {
+                  id: r.id,
+                  name: r.name,
+                  args: r.args,
+                  result: r.result,
+                  status: r.status,
+                  error: r.error,
+                  durationMs: r.durationMs,
+                };
+                collectedToolCalls.push(record);
+                enqueue({ type: "tool_result", result: record });
+              },
+              onFinalDelta: (chunk) => {
+                enqueue({ type: "delta", delta: chunk });
+                finalText += chunk;
+              },
+              onError: (err) => {
+                enqueue({ type: "error", error: err });
+              },
+            },
+          });
 
-          enqueue({ type: "done", conversationId: conversation!.id });
+          finalText = result.finalText || finalText;
+
+          // Persist the assistant turn (text + tool calls)
+          const textToSave = finalText.trim() || "(لا إجابة نصية)";
+          await db.message.create({
+            data: {
+              conversationId: conversation!.id,
+              role: "assistant",
+              content: textToSave,
+              model: settings.provider,
+              toolCalls:
+                collectedToolCalls.length > 0
+                  ? JSON.stringify(collectedToolCalls)
+                  : null,
+            },
+          });
+          await db.conversation.update({
+            where: { id: conversation!.id },
+            data: { updatedAt: new Date() },
+          });
+
+          enqueue({
+            type: "done",
+            conversationId: conversation!.id,
+            iterations: result.iterations,
+            stopped: result.stopped,
+          });
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "خطأ غير معروف أثناء البث";
-          console.error("[POST /api/chat] stream error:", err);
+            err instanceof Error ? err.message : "خطأ غير معروف أثناء حلقة الوكيل";
+          console.error("[POST /api/chat] agent loop:", err);
           enqueue({ type: "error", error: message });
 
-          if (fullText.trim()) {
+          if (finalText.trim()) {
             try {
               await db.message.create({
                 data: {
                   conversationId: conversation!.id,
                   role: "assistant",
-                  content: fullText,
+                  content: finalText,
                   model: settings.provider,
+                  toolCalls:
+                    collectedToolCalls.length > 0
+                      ? JSON.stringify(collectedToolCalls)
+                      : null,
                 },
               });
             } catch {
@@ -228,6 +215,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-// Keep parseZaiSSE exported for potential reuse / tests
-export { parseZaiSSE };

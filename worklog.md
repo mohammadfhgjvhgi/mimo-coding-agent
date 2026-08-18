@@ -95,3 +95,49 @@ Stage Summary:
 - Settings dialog: full provider configuration (Ollama URL/model, Z.ai thinking) with localStorage persistence + server sync.
 - Honest limitation: this sandbox is a headless Next.js-only environment (port 3000, no DISPLAY) — a true Electron desktop binary cannot launch here, and the local Ollama daemon is not installed. The app delivers the desktop + local-first SPIRIT within hard environment constraints.
 - Lint clean. Dev server healthy. Agent Browser verified end-to-end in Arabic.
+
+---
+Task ID: 4
+Agent: Z.ai Code (main)
+Task: Transform the chat into a real Agent — build a Tool Gateway (schema validation + workspace guard), implement 4 core tools (read_file, write_file, edit_file, run_terminal_command), an Agent Loop (ReAct pattern), UI tool-execution blocks (collapsible, Arabic RTL), and pass the vertical-slice test (agent reads calculator.js, adds a divide function, runs tests).
+
+Work Log:
+- Built Tool Gateway under src/lib/tools/:
+  - types.ts (ToolCall, ToolResult, ToolDef, ToolContext)
+  - workspace.ts (WORKSPACE_ROOT, resolveWorkspacePath with traversal-block, canWrite denylist for .env/.git/node_modules/db files, truncate helper)
+  - tools.ts (4 tools: read_file, write_file with ensureDir, edit_file search&replace with diff preview, run_terminal_command via spawn('bash -lc') with 30s timeout + command denylist for rm -rf /, mkfs, dd, fork bombs, shutdown)
+  - registry.ts (lookup + validateArgs against JSON schema + dispatchTool that forces result.id = call.id for UI correlation + buildToolManifest for the prompt)
+- Added completeChat() (non-streaming) to llm-provider.ts for agent-loop iterations (both Ollama and Z.ai paths), keeping streamChat() for direct streaming.
+- Built the Agent Loop (src/lib/agent/):
+  - prompt.ts: buildAgentSystemPrompt (Arabic ReAct instructions with tool manifest + ⟦TOOL⟧{...}⟦/TOOL⟧ marker format + worked example), parseResponse (extracts first tool call + thought + remainder), buildToolResultMessage (⟦RESULT⟧...⟦/RESULT⟧)
+  - agent-loop.ts: runAgentLoop — loops up to MAX_ITERATIONS=12, calls completeChat, parses response, dispatches tool, appends assistant turn + tool result to conversation, emits onThought/onToolCall/onToolResult/onFinalDelta/onError events. Final-answer text is chunked and emitted as deltas to simulate streaming.
+- Updated Prisma schema: added `toolCalls String?` to Message model (JSON-encoded ToolCallRecord[]). Pushed with db:push. Updated conversations/[id] GET route to deserialize toolCalls from JSON string to array.
+- Rewrote /api/chat route.ts to use runAgentLoop: emits SSE events meta, tool_call, tool_result, delta, error, done. Persists assistant message with content + toolCalls JSON.
+- Updated types/chat.ts: added ToolCallRecord interface + toolCalls to ChatMessage.
+- Updated chat-store.ts: added streamingToolCalls array + addStreamingToolCall + resetStreamingToolCalls actions.
+- Built ToolCallBlock component (collapsible, RTL): icon per tool (FileText/FilePlus/FileEdit/Terminal), status badge (جارٍ التنفيذ/نجح/فشل + duration), expandable to show JSON args + result (LTR, scrollable, color-coded for errors).
+- Updated chat-message.tsx to render toolCalls before the text answer (persisted + streaming), with a "يفكّر…" placeholder when no content yet.
+- Updated chat-messages.tsx to pass streamingToolCalls to the streaming message.
+- Updated chat-shell.tsx: streamChat now handles tool_call + tool_result event types; onToolCall adds a pending entry, onToolResult replaces it by id; onDone persists the assistant message with final toolCalls; reset on new chat and on send.
+- Fixed critical bug: tools generated their own ids internally, so tool_call.id ≠ tool_result.id and the UI couldn't correlate them (showed everything as "جارٍ التنفيذ"). Fixed in dispatchTool by forcing result.id = call.id.
+- Created calculator.js (add/subtract/multiply + assert-based test runner, division intentionally missing).
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Discovered environment constraint: background dev-server processes get killed between Bash tool calls (cgroup reaper). Worked around by running the full server-start + agent test in a single Bash command.
+- Agent Browser vertical-slice test (the golden path):
+  • Sent: "اقرأ ملف calculator.js ثم أضف دالة divide للقسمة مع اختبارات ثم نفذها"
+  • The agent autonomously executed: read_file(calculator.js) → edit_file(add divide) → edit_file(add tests) → run_terminal_command(node calculator.js)
+  • All 4 tool blocks rendered in Arabic RTL with statuses: "قراءة ملف calculator.js نجح 9ms", "تعديل ملف calculator.js نجح 5ms", "تعديل ملف calculator.js نجح 2ms", "تنفيذ أمر طرفية node calculator.js نجح 57ms"
+  • Expanding a block shows inputs (JSON args) + outputs (file content / diff preview / stdout)
+  • Final Arabic answer: structured Markdown with headings ("ما تم إنجازه", "تنفيذ الاختبارات"), lists, code references (divide(10,4), divide(5,0)), and ✅ test summary
+  • calculator.js actually modified: divide(a,b) with zero-check + module.exports update + 3 new tests; `node calculator.js` exit 0, all tests passed
+  • No console errors, no Prisma errors (server had fresh Prisma client after restart), lint clean.
+
+Stage Summary:
+- MiMo X is now a REAL AGENT, not a parrot chatbot.
+- Tool Gateway: schema validation + workspace guard (path traversal blocked, sensitive files protected, dangerous commands denied) ✅
+- 4 core tools fully functional (read/write/edit/run_terminal_command) ✅
+- Agent Loop: ReAct pattern, model decides → gateway executes → result fed back → loop until final answer ✅
+- UI: collapsible tool blocks (Arabic RTL) showing name, inputs, outputs, status, duration; expandable for details ✅
+- Vertical slice TEST PASSED: agent read calculator.js → added divide → ran tests → all passed, autonomously, no human intervention ✅
+- Screenshots: 13-agent-final, 14-agent-tool-results, 15-tool-block-expanded
+- Lint clean. No runtime errors. End-to-end verified in the browser.

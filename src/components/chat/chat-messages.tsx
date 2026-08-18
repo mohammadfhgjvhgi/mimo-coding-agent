@@ -3,11 +3,12 @@
 import * as React from "react"
 import { ChatMessageItem } from "./chat-message"
 import { ChatEmptyState } from "./chat-empty-state"
-import type { ChatMessage } from "@/types/chat"
+import type { ChatMessage, ToolCallRecord } from "@/types/chat"
 
 interface ChatMessagesProps {
   messages: ChatMessage[]
   streamingContent: string
+  streamingToolCalls: ToolCallRecord[]
   isStreaming: boolean
   streamingRole: "assistant" | null
   conversationId: string | null
@@ -18,6 +19,7 @@ interface ChatMessagesProps {
 export function ChatMessages({
   messages,
   streamingContent,
+  streamingToolCalls,
   isStreaming,
   streamingRole,
   conversationId,
@@ -28,15 +30,14 @@ export function ChatMessages({
   const bottomRef = React.useRef<HTMLDivElement>(null)
   const [pinned, setPinned] = React.useState(false)
 
-  // Auto-scroll to bottom on new content unless user has scrolled up
   React.useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight
-    if (!pinned || distance < 120) {
+    if (!pinned || distance < 160) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
     }
-  }, [messages, streamingContent, pinned])
+  }, [messages, streamingContent, streamingToolCalls, pinned])
 
   const onScroll = () => {
     const el = scrollRef.current
@@ -45,7 +46,6 @@ export function ChatMessages({
     setPinned(distance > 200)
   }
 
-  // Build the visible message list (existing + currently streaming assistant message)
   const visible: ChatMessage[] = [...messages]
   if (isStreaming && streamingRole === "assistant") {
     visible.push({
@@ -72,11 +72,13 @@ export function ChatMessages({
           <div className="min-h-full pb-6">
             {visible.map((m, i) => {
               const isLast = i === visible.length - 1
+              const isStreamingMsg = isStreaming && isLast && m.id === "streaming"
               return (
                 <ChatMessageItem
                   key={m.id}
                   message={m}
-                  isStreaming={isStreaming && isLast && m.id === "streaming"}
+                  isStreaming={isStreamingMsg}
+                  streamingToolCalls={isStreamingMsg ? streamingToolCalls : undefined}
                   onRegenerate={onRegenerate}
                 />
               )

@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import type { ToolCallRecord } from "@/types/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 interface Params {
   params: Promise<{ id: string }>;
+}
+
+function parseToolCalls(raw?: string | null): ToolCallRecord[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as ToolCallRecord[];
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
@@ -25,7 +37,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
         { status: 404 }
       );
     }
-    return NextResponse.json({ conversation });
+    const messages = conversation.messages.map((m) => ({
+      ...m,
+      toolCalls: parseToolCalls(m.toolCalls),
+    }));
+    return NextResponse.json({ conversation: { ...conversation, messages } });
   } catch (error) {
     console.error("[GET /api/conversations/:id]", error);
     return NextResponse.json(

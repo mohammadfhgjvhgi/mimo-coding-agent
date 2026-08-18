@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { Conversation, ChatMessage } from "@/types/chat"
+import type { Conversation, ChatMessage, ToolCallRecord } from "@/types/chat"
 
 interface ChatState {
   // Conversations
@@ -16,6 +16,7 @@ interface ChatState {
   // Streaming
   isStreaming: boolean
   streamingContent: string
+  streamingToolCalls: ToolCallRecord[]
   streamingError: string | null
   abortController: AbortController | null
 
@@ -32,6 +33,8 @@ interface ChatState {
   setIsStreaming: (v: boolean) => void
   setStreamingContent: (c: string) => void
   appendStreamingContent: (c: string) => void
+  addStreamingToolCall: (c: ToolCallRecord) => void
+  resetStreamingToolCalls: () => void
   setStreamingError: (e: string | null) => void
   setAbortController: (c: AbortController | null) => void
   setSidebarOpen: (v: boolean) => void
@@ -51,6 +54,7 @@ export const useChatStore = create<ChatState>((set) => ({
   loadingMessages: false,
   isStreaming: false,
   streamingContent: "",
+  streamingToolCalls: [],
   streamingError: null,
   abortController: null,
   sidebarOpen: true,
@@ -65,6 +69,9 @@ export const useChatStore = create<ChatState>((set) => ({
   setStreamingContent: (streamingContent) => set({ streamingContent }),
   appendStreamingContent: (chunk) =>
     set((s) => ({ streamingContent: s.streamingContent + chunk })),
+  addStreamingToolCall: (call) =>
+    set((s) => ({ streamingToolCalls: [...s.streamingToolCalls, call] })),
+  resetStreamingToolCalls: () => set({ streamingToolCalls: [] }),
   setStreamingError: (streamingError) => set({ streamingError }),
   setAbortController: (abortController) => set({ abortController }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),

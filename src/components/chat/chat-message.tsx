@@ -7,22 +7,30 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { MarkdownRenderer } from "./markdown-renderer"
-import type { ChatMessage } from "@/types/chat"
+import { ToolCallBlock } from "./tool-call-block"
+import type { ChatMessage, ToolCallRecord } from "@/types/chat"
 
 interface ChatMessageItemProps {
   message: ChatMessage
   isStreaming?: boolean
+  streamingToolCalls?: ToolCallRecord[]
   onRegenerate?: () => void
 }
 
 export function ChatMessageItem({
   message,
   isStreaming,
+  streamingToolCalls,
   onRegenerate,
 }: ChatMessageItemProps) {
   const [copied, setCopied] = React.useState(false)
   const isUser = message.role === "user"
   const content = message.content
+
+  // For the streaming assistant message, merge persisted toolCalls (none) with
+  // the live streaming tool calls so the UI updates in real time.
+  const toolCalls: (ToolCallRecord | { id: string; name: string; args: Record<string, unknown>; status: "pending" })[] =
+    isStreaming && streamingToolCalls ? streamingToolCalls : message.toolCalls || []
 
   const handleCopy = async () => {
     try {
@@ -64,6 +72,20 @@ export function ChatMessageItem({
             )}
           </div>
 
+          {/* Tool calls (rendered before the text answer) */}
+          {toolCalls.length > 0 && (
+            <div className="mb-2 space-y-0">
+              {toolCalls.map((c, i) => (
+                <ToolCallBlock
+                  key={c.id || i}
+                  call={c as ToolCallRecord}
+                  pending={c.status === "pending"}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Text content */}
           <div
             className={cn(
               "min-w-0 text-[0.95rem] leading-7",
@@ -76,9 +98,11 @@ export function ChatMessageItem({
               <div>
                 {content ? (
                   <MarkdownRenderer content={content} />
-                ) : (
-                  <span className="text-muted-foreground">…</span>
-                )}
+                ) : toolCalls.length === 0 ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Sparkles className="h-3 w-3 animate-pulse" /> يفكّر…
+                  </span>
+                ) : null}
                 {isStreaming && content && (
                   <span className="streaming-caret" aria-hidden />
                 )}
@@ -86,7 +110,7 @@ export function ChatMessageItem({
             )}
           </div>
 
-          {/* Actions (hidden while streaming) */}
+          {/* Actions */}
           {!isStreaming && message.content && (
             <div className="mt-2 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
               <Button

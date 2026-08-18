@@ -57,6 +57,8 @@ async function streamChat(
   handlers: {
     onDelta: (delta: string) => void
     onMeta: (meta: { conversationId?: string; title?: string; provider?: string }) => void
+    onToolCall: (call: { id: string; name: string; args: Record<string, unknown> }) => void
+    onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -108,6 +110,10 @@ async function streamChat(
             handlers.onMeta(meta)
           } else if (json.type === "delta") {
             handlers.onDelta(json.delta || "")
+          } else if (json.type === "tool_call") {
+            handlers.onToolCall(json.call)
+          } else if (json.type === "tool_result") {
+            handlers.onToolResult(json.result)
           } else if (json.type === "error") {
             handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
@@ -134,6 +140,7 @@ export function ChatShell() {
     messages,
     isStreaming,
     streamingContent,
+    streamingToolCalls,
     streamingError,
     sidebarOpen,
     setSidebarOpen,
@@ -145,6 +152,8 @@ export function ChatShell() {
     setIsStreaming,
     setStreamingContent,
     appendStreamingContent,
+    addStreamingToolCall,
+    resetStreamingToolCalls,
     setStreamingError,
     setAbortController,
     upsertConversation,
@@ -211,6 +220,7 @@ export function ChatShell() {
     setCurrentConversationId(null)
     setMessages([])
     setStreamingContent("")
+    resetStreamingToolCalls()
     setIsStreaming(false)
     setStreamingError(null)
     setMobileSidebarOpen(false)
@@ -218,6 +228,7 @@ export function ChatShell() {
     setCurrentConversationId,
     setMessages,
     setStreamingContent,
+    resetStreamingToolCalls,
     setIsStreaming,
     setStreamingError,
   ])
@@ -251,6 +262,7 @@ export function ChatShell() {
       ]
 
       setStreamingContent("")
+      resetStreamingToolCalls()
       setIsStreaming(true)
       const controller = new AbortController()
       setAbortController(controller)
@@ -273,11 +285,30 @@ export function ChatShell() {
                 setCurrentConversationId(meta.conversationId)
               }
             },
+            onToolCall: (call) => {
+              addStreamingToolCall({
+                id: call.id,
+                name: call.name,
+                args: call.args,
+                result: "",
+                status: "pending",
+                durationMs: 0,
+              })
+            },
+            onToolResult: (r) => {
+              // Replace the pending placeholder with the completed result
+              const current = useChatStore.getState().streamingToolCalls
+              const updated = current.map((c) =>
+                c.id === r.id ? r : c
+              )
+              useChatStore.setState({ streamingToolCalls: updated })
+            },
             onError: (err) => setStreamingError(err),
             onDone: (info) => {
               setIsStreaming(false)
               setAbortController(null)
               const finalContent = useChatStore.getState().streamingContent
+              const finalToolCalls = useChatStore.getState().streamingToolCalls
               const assistantMsg: ChatMessage = {
                 id: `a_${Date.now()}`,
                 conversationId:
@@ -286,9 +317,11 @@ export function ChatShell() {
                 content: finalContent,
                 createdAt: new Date().toISOString(),
                 model: providerSettings.provider,
+                toolCalls: finalToolCalls.length > 0 ? finalToolCalls : null,
               }
               setMessages([...useChatStore.getState().messages, assistantMsg])
               setStreamingContent("")
+              resetStreamingToolCalls()
               loadConversations()
             },
           },
@@ -297,7 +330,8 @@ export function ChatShell() {
       } catch (e) {
         if ((e as Error)?.name === "AbortError") {
           const finalContent = useChatStore.getState().streamingContent
-          if (finalContent.trim()) {
+          const finalToolCalls = useChatStore.getState().streamingToolCalls
+          if (finalContent.trim() || finalToolCalls.length > 0) {
             const assistantMsg: ChatMessage = {
               id: `a_${Date.now()}`,
               conversationId: currentConversationId || "",
@@ -305,10 +339,12 @@ export function ChatShell() {
               content: finalContent,
               createdAt: new Date().toISOString(),
               model: providerSettings.provider,
+              toolCalls: finalToolCalls.length > 0 ? finalToolCalls : null,
             }
             setMessages([...useChatStore.getState().messages, assistantMsg])
           }
           setStreamingContent("")
+          resetStreamingToolCalls()
         } else {
           setStreamingError((e as Error).message || "فشل إرسال الرسالة")
         }
@@ -323,9 +359,11 @@ export function ChatShell() {
       settings,
       addMessage,
       setStreamingContent,
+      resetStreamingToolCalls,
       setIsStreaming,
       setAbortController,
       appendStreamingContent,
+      addStreamingToolCall,
       setCurrentConversationId,
       setStreamingError,
       setMessages,
@@ -457,6 +495,7 @@ export function ChatShell() {
           <ChatMessages
             messages={messages}
             streamingContent={streamingContent}
+            streamingToolCalls={streamingToolCalls}
             isStreaming={isStreaming}
             streamingRole="assistant"
             conversationId={currentConversationId}
