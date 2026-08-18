@@ -107,6 +107,7 @@ export async function runAgentLoop(opts: {
   const tokenBudget = tokenBudgetForProvider(settings.provider)
 
   const toolResults: ToolResult[] = []
+  const toolSignatures: import("@/lib/agent/loop-detector").ToolSignature[] = []
   let iterations = 0
   let stopped: AgentRunResult["stopped"] = "complete"
 
@@ -126,9 +127,46 @@ export async function runAgentLoop(opts: {
       events?.onContextCompressed?.(formatCompressionStats(stats))
     }
 
+    // Plan-tracker: detect plan from conversation and inject anchor
+    let planInjected = compressed
+    try {
+      const { detectPlanFromConversation, formatPlanAnchor, advancePlan } = await import("@/lib/agent/plan-tracker")
+      const plan = detectPlanFromConversation(compressed)
+      if (plan) {
+        const anchor = formatPlanAnchor(plan)
+        // Inject the plan anchor into the last user message
+        const lastUserIdx = planInjected.length - 1
+        if (planInjected[lastUserIdx] && planInjected[lastUserIdx].role === "user") {
+          planInjected = [...planInjected]
+          planInjected[lastUserIdx] = {
+            ...planInjected[lastUserIdx],
+            content: planInjected[lastUserIdx].content + anchor,
+          }
+        }
+      }
+    } catch { /* best-effort */ }
+
+    // Loop-detection: check if the agent is repeating tool calls
+    try {
+      const { detectLoop, getLoopBreakerPrompt } = await import("@/lib/agent/loop-detector")
+      if (toolSignatures.length >= 6) {
+        const loopCheck = detectLoop(toolSignatures)
+        if (loopCheck.inLoop) {
+          // Inject the loop-breaker prompt
+          const breaker = getLoopBreakerPrompt(loopCheck.repeatedHash)
+          const lastIdx = planInjected.length - 1
+          planInjected = [...planInjected]
+          planInjected[lastIdx] = {
+            ...planInjected[lastIdx],
+            content: planInjected[lastIdx].content + breaker,
+          }
+        }
+      }
+    } catch { /* best-effort */ }
+
     let raw: string
     try {
-      const result = await completeChatRouted(settings, compressed)
+      const result = await completeChatRouted(settings, planInjected)
       raw = result.text
       events?.onRouterDecision?.(result.worker, result.reason)
     } catch (e) {
@@ -138,15 +176,27 @@ export async function runAgentLoop(opts: {
       return { finalText: "", toolResults, iterations, stopped }
     }
 
+    // Forgiving Parser: try strict first, then fallback methods
     const parsed = parseResponse(raw)
+    let toolCall = parsed.toolCall
+    if (!parsed.hasToolCall) {
+      // Strict parser failed — try the forgiving parser
+      try {
+        const { forgivingParseToolCall } = await import("@/lib/agent/forgiving-parser")
+        const recovered = forgivingParseToolCall(raw)
+        if (recovered) {
+          toolCall = { name: recovered.name, args: recovered.args }
+        }
+      } catch { /* best-effort */ }
+    }
 
     // Emit any reasoning text that preceded the tool call (or the whole
     // text if there was no tool call — handled below).
-    if (parsed.hasToolCall && parsed.thought) {
+    if ((parsed.hasToolCall || toolCall) && parsed.thought) {
       events?.onThought?.(parsed.thought + "\n\n")
     }
 
-    if (!parsed.hasToolCall || !parsed.toolCall) {
+    if (!parsed.hasToolCall && !toolCall) {
       // This is the final answer. Emit it as deltas (simulated streaming).
       const finalText = raw.trim()
       for (const chunk of chunkText(finalText)) {
@@ -156,13 +206,20 @@ export async function runAgentLoop(opts: {
       return { finalText, toolResults, iterations, stopped: "complete" }
     }
 
-    // Execute the tool call
+    // Execute the tool call (use toolCall which may come from the forgiving parser)
+    const toolToCall = toolCall || parsed.toolCall!
     const call: ToolCall = {
-      id: newId(parsed.toolCall.name),
-      name: parsed.toolCall.name,
-      args: parsed.toolCall.args,
+      id: newId(toolToCall.name),
+      name: toolToCall.name,
+      args: toolToCall.args,
     }
     events?.onToolCall?.(call)
+
+    // Sign the tool call for loop-detection
+    try {
+      const { signToolCall } = await import("@/lib/agent/loop-detector")
+      toolSignatures.push(signToolCall(call.name, call.args))
+    } catch { /* best-effort */ }
 
     const result = await dispatchTool(call, ctx)
     toolResults.push(result)

@@ -2,6 +2,7 @@
 // The model emits tool calls between ⟦TOOL⟧ ... ⟦/TOOL⟧ markers as JSON.
 
 import { buildToolManifest } from "@/lib/tools/registry"
+import { buildCategoryPrompt, estimateTokenSavings } from "@/lib/agent/tool-routing"
 
 export const TOOL_OPEN = "⟦TOOL⟧"
 export const TOOL_CLOSE = "⟦/TOOL⟧"
@@ -26,7 +27,10 @@ export function buildAgentSystemPrompt(): string {
     "- **Skills**: حزم معرفة متخصصة تُحقن حسب نوع المهمة.",
     "- **Memory**: ذاكرة دائمة تحفظ القرارات والأخطاء السابقة.",
     "",
-    "## الأدوات المتاحة",
+    "## الأدوات المتاحة (2-stage routing — مضغوط)",
+    buildCategoryPrompt(),
+    "",
+    "## تفاصيل الأدوات",
     manifest,
     "",
     "## كيف تستدعي أداة",
