@@ -8,6 +8,12 @@ import {
   type ToolResult,
   type ToolContext,
 } from "@/lib/tools"
+import { getProjectMemoryBlock } from "@/lib/tools/memory"
+import {
+  compressConversation,
+  tokenBudgetForProvider,
+  formatCompressionStats,
+} from "@/lib/context-os"
 import {
   buildAgentSystemPrompt,
   parseResponse,
@@ -25,6 +31,7 @@ export interface AgentEvents {
   onToolResult?: (result: ToolResult) => void
   onFinalDelta?: (chunk: string) => void
   onError?: (error: string) => void
+  onContextCompressed?: (stats: string) => void
 }
 
 export interface AgentRunResult {
@@ -64,11 +71,17 @@ export async function runAgentLoop(opts: {
     allowedExtensions: opts.ctx?.allowedExtensions ?? null,
   }
 
-  const systemPrompt = buildAgentSystemPrompt()
+  // Build the system prompt with project memory injected (Memory OS)
+  const basePrompt = buildAgentSystemPrompt()
+  const memoryBlock = await getProjectMemoryBlock()
+  const systemPrompt = basePrompt + memoryBlock
+
   const conversation: AgentMessage[] = [
     { role: "system", content: systemPrompt },
     ...messages,
   ]
+
+  const tokenBudget = tokenBudgetForProvider(settings.provider)
 
   const toolResults: ToolResult[] = []
   let iterations = 0
@@ -81,9 +94,18 @@ export async function runAgentLoop(opts: {
     }
     iterations++
 
+    // Context OS: compress old tool results to fit the token budget
+    const { messages: compressed, stats } = compressConversation(
+      conversation,
+      tokenBudget
+    )
+    if (stats.messagesCompressed > 0) {
+      events?.onContextCompressed?.(formatCompressionStats(stats))
+    }
+
     let raw: string
     try {
-      raw = await completeChat(settings, conversation)
+      raw = await completeChat(settings, compressed)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       events?.onError?.(msg)

@@ -8,6 +8,8 @@ import {
   Terminal,
   FolderTree,
   GitCommitHorizontal,
+  Brain,
+  Lightbulb,
   ChevronRight,
   Check,
   X,
@@ -30,6 +32,8 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   run_terminal_command: Terminal,
   list_files: FolderTree,
   git_checkpoint: GitCommitHorizontal,
+  save_memory: Brain,
+  recall_memory: Lightbulb,
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -39,6 +43,8 @@ const TOOL_LABELS: Record<string, string> = {
   run_terminal_command: "تنفيذ أمر طرفية",
   list_files: "خريطة المستودع",
   git_checkpoint: "نقطة استرجاع",
+  save_memory: "حفظ ذاكرة",
+  recall_memory: "استرجاع ذاكرة",
 }
 
 function prettyArgs(name: string, args: Record<string, unknown>): string {
@@ -54,6 +60,9 @@ function prettyArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "git_checkpoint") {
     return String(args.message || "MiMo X Checkpoint")
+  }
+  if (name === "save_memory" || name === "recall_memory") {
+    return String(args.key || "(الكل)")
   }
   return JSON.stringify(args, null, 2)
 }

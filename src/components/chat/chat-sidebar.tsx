@@ -12,6 +12,7 @@ import {
   Github,
   Settings,
   FolderTree,
+  Brain,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +39,7 @@ import { cn } from "@/lib/utils"
 import { useChatStore } from "@/store/chat-store"
 import { ThemeToggle } from "./theme-toggle"
 import { WorkspaceExplorer } from "./workspace-explorer"
+import { MemoryPanel } from "./memory-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -347,6 +349,7 @@ export function ChatSidebar({
   const setSidebarTab = useChatStore((s) => s.setSidebarTab)
   const activeFile = useChatStore((s) => s.activeFile)
   const explorerRefreshSignal = useChatStore((s) => s.explorerRefreshSignal)
+  const memoryRefreshSignal = useChatStore((s) => s.memoryRefreshSignal)
 
   return (
     <div className="flex h-full w-full flex-col bg-sidebar">
@@ -369,11 +372,11 @@ export function ChatSidebar({
       </div>
 
       {/* Tab bar */}
-      <div className="mx-3 mb-2 flex rounded-lg bg-muted/60 p-0.5 text-xs">
+      <div className="mx-3 mb-2 grid grid-cols-3 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
             sidebarTab === "conversations"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
@@ -384,13 +387,24 @@ export function ChatSidebar({
         <button
           onClick={() => setSidebarTab("explorer")}
           className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
             sidebarTab === "explorer"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
           <FolderTree className="h-3.5 w-3.5" /> الملفات
+        </button>
+        <button
+          onClick={() => setSidebarTab("memory")}
+          className={cn(
+            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "memory"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Brain className="h-3.5 w-3.5" /> الذاكرة
         </button>
       </div>
 
@@ -404,12 +418,16 @@ export function ChatSidebar({
           onRename={onRename}
           onClearAll={onClearAll}
         />
-      ) : (
+      ) : sidebarTab === "explorer" ? (
         <div className="flex flex-1 flex-col overflow-hidden">
           <WorkspaceExplorer
             activeFile={activeFile}
             refreshSignal={explorerRefreshSignal}
           />
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <MemoryPanel refreshSignal={memoryRefreshSignal} />
         </div>
       )}
     </div>

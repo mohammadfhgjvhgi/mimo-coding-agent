@@ -59,6 +59,7 @@ async function streamChat(
     onMeta: (meta: { conversationId?: string; title?: string; provider?: string }) => void
     onToolCall: (call: { id: string; name: string; args: Record<string, unknown> }) => void
     onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
+    onContextCompressed?: (stats: string) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -114,6 +115,8 @@ async function streamChat(
             handlers.onToolCall(json.call)
           } else if (json.type === "tool_result") {
             handlers.onToolResult(json.result)
+          } else if (json.type === "context_compressed") {
+            handlers.onContextCompressed?.(json.stats)
           } else if (json.type === "error") {
             handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
@@ -158,6 +161,7 @@ export function ChatShell() {
     setAbortController,
     setActiveFile,
     triggerExplorerRefresh,
+    triggerMemoryRefresh,
     setSidebarTab,
     upsertConversation,
     removeConversation,
@@ -320,6 +324,13 @@ export function ChatShell() {
               if (fsMutators.includes(r.name)) {
                 triggerExplorerRefresh()
               }
+              // Refresh memory panel after save_memory
+              if (r.name === "save_memory") {
+                triggerMemoryRefresh()
+              }
+            },
+            onContextCompressed: (stats) => {
+              console.info("[Context OS]", stats)
             },
             onError: (err) => setStreamingError(err),
             onDone: (info) => {
@@ -384,6 +395,7 @@ export function ChatShell() {
       addStreamingToolCall,
       setActiveFile,
       triggerExplorerRefresh,
+      triggerMemoryRefresh,
       setSidebarTab,
       setCurrentConversationId,
       setStreamingError,

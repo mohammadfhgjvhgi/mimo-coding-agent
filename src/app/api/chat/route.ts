@@ -132,6 +132,9 @@ export async function POST(req: NextRequest) {
                 enqueue({ type: "delta", delta: chunk });
                 finalText += chunk;
               },
+              onContextCompressed: (stats) => {
+                enqueue({ type: "context_compressed", stats });
+              },
               onError: (err) => {
                 enqueue({ type: "error", error: err });
               },

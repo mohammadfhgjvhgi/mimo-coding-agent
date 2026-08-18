@@ -6,6 +6,8 @@ import {
   listFilesTool,
   gitCheckpointTool,
 } from "./tools"
+import { saveMemoryTool, recallMemoryTool } from "./memory"
+import { verifyFile } from "./auto-verify"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
@@ -16,6 +18,8 @@ const REGISTRY: Record<string, ToolDef> = {
   run_terminal_command: runTerminalTool,
   list_files: listFilesTool,
   git_checkpoint: gitCheckpointTool,
+  save_memory: saveMemoryTool,
+  recall_memory: recallMemoryTool,
 }
 
 export function listToolNames(): string[] {
@@ -93,6 +97,30 @@ export async function dispatchTool(
     // tool_call ↔ tool_result events reliably (tools generate their own ids
     // internally; we override here to keep them consistent with the agent loop).
     result.id = call.id
+
+    // Auto-Verification Hook: after write_file/edit_file, run lint/syntax
+    // check automatically so the agent sees errors and can self-correct.
+    if (
+      (call.name === "write_file" || call.name === "edit_file") &&
+      result.status === "success" &&
+      typeof call.args?.path === "string"
+    ) {
+      try {
+        const verification = await verifyFile(String(call.args.path))
+        if (!verification.ok) {
+          // Append verification errors to the tool result so the agent sees them
+          result.result +=
+            `\n\n🔍 ${verification.summary}\n${verification.details}`
+          result.status = "success" // keep success — the file was written, just has lint issues
+          result.error = `verification: ${verification.summary}`
+        } else {
+          result.result += `\n\n🔍 ${verification.summary}`
+        }
+      } catch {
+        // verification is best-effort; never fail the tool because of it
+      }
+    }
+
     return result
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

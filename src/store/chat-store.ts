@@ -25,7 +25,8 @@ interface ChatState {
   theme: "light" | "dark" | "system"
   activeFile: string | null
   explorerRefreshSignal: number
-  sidebarTab: "conversations" | "explorer"
+  memoryRefreshSignal: number
+  sidebarTab: "conversations" | "explorer" | "memory"
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -44,7 +45,8 @@ interface ChatState {
   toggleSidebar: () => void
   setActiveFile: (f: string | null) => void
   triggerExplorerRefresh: () => void
-  setSidebarTab: (t: "conversations" | "explorer") => void
+  triggerMemoryRefresh: () => void
+  setSidebarTab: (t: "conversations" | "explorer" | "memory") => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -67,6 +69,7 @@ export const useChatStore = create<ChatState>((set) => ({
   theme: "system",
   activeFile: null,
   explorerRefreshSignal: 0,
+  memoryRefreshSignal: 0,
   sidebarTab: "conversations",
 
   setConversations: (conversations) => set({ conversations }),
@@ -88,6 +91,8 @@ export const useChatStore = create<ChatState>((set) => ({
   setActiveFile: (activeFile) => set({ activeFile }),
   triggerExplorerRefresh: () =>
     set((s) => ({ explorerRefreshSignal: s.explorerRefreshSignal + 1 })),
+  triggerMemoryRefresh: () =>
+    set((s) => ({ memoryRefreshSignal: s.memoryRefreshSignal + 1 })),
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
 
   upsertConversation: (c) =>

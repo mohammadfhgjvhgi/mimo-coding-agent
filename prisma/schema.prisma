@@ -29,7 +29,6 @@ model Message {
   role           String   // 'user' | 'assistant' | 'system'
   content        String
   model          String?
-  // JSON-encoded array of ToolResult objects (for assistant turns that called tools)
   toolCalls      String?
   createdAt      DateTime @default(now())
 
@@ -37,4 +36,16 @@ model Message {
 
   @@index([conversationId])
   @@index([createdAt])
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  category  String   @default("general") // general | decision | fact | preference | project
+  source    String   @default("agent") // agent | user
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
 }
