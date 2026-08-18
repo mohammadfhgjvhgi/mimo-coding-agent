@@ -3,7 +3,6 @@
 // For JS: node -e. For Python: python3 -c.
 // NOT as secure as Docker isolation, but works in environments without Docker.
 
-import { spawn } from "node:child_process"
 import type { ToolDef, ToolResult, ToolContext } from "./types"
 import { truncate } from "./workspace"
 
@@ -17,8 +16,14 @@ function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 }
 
+// Dynamic import to avoid Turbopack static analysis issues
+async function getSpawn(): Promise<typeof import("node:child_process").spawn> {
+  const mod = await import("node:child_process")
+  return mod.spawn
+}
+
 function runCode(language: string, code: string, timeoutMs = 10000): Promise<{ stdout: string; stderr: string; code: number }> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     let cmd: string
     let args: string[]
 
@@ -33,24 +38,29 @@ function runCode(language: string, code: string, timeoutMs = 10000): Promise<{ s
       return
     }
 
-    const child = spawn(cmd, args, {
-      cwd: "/tmp",
-      env: { ...process.env, NODE_NO_WARNINGS: "1" },
-      timeout: timeoutMs,
-    })
+    try {
+      const spawn = await getSpawn()
+      const child = spawn(cmd, args, {
+        cwd: "/tmp",
+        env: { ...process.env, NODE_NO_WARNINGS: "1" },
+        timeout: timeoutMs,
+      })
 
-    let stdout = ""
-    let stderr = ""
-    child.stdout?.on("data", (d) => {
-      const chunk = d.toString()
-      if (stdout.length < 10000) stdout += chunk.slice(0, 10000 - stdout.length)
-    })
-    child.stderr?.on("data", (d) => {
-      const chunk = d.toString()
-      if (stderr.length < 5000) stderr += chunk.slice(0, 5000 - stderr.length)
-    })
-    child.on("close", (code) => resolve({ stdout, stderr, code: code ?? -1 }))
-    child.on("error", () => resolve({ stdout, stderr: "Failed to spawn process", code: -1 }))
+      let stdout = ""
+      let stderr = ""
+      child.stdout?.on("data", (d: Buffer) => {
+        const chunk = d.toString()
+        if (stdout.length < 10000) stdout += chunk.slice(0, 10000 - stdout.length)
+      })
+      child.stderr?.on("data", (d: Buffer) => {
+        const chunk = d.toString()
+        if (stderr.length < 5000) stderr += chunk.slice(0, 5000 - stderr.length)
+      })
+      child.on("close", (code: number | null) => resolve({ stdout, stderr, code: code ?? -1 }))
+      child.on("error", () => resolve({ stdout, stderr: "Failed to spawn process", code: -1 }))
+    } catch {
+      resolve({ stdout: "", stderr: "Failed to import child_process", code: -1 })
+    }
   })
 }
 
@@ -93,7 +103,7 @@ export const runCodeTool: ToolDef = {
     ]
     for (const pattern of dangerous) {
       if (pattern.test(code)) {
-        return fail(id, "run_code", args, `الكود يحوي نمطاً خطراً ممنوعاً: ${pattern}`, 0)
+        return fail(id, "run_code", args, `الكود يحوي نمطاً خطراً ممنوعاً`, 0)
       }
     }
 
