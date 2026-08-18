@@ -9,8 +9,8 @@ import {
   Pin,
   PinOff,
   MoreHorizontal,
-  Settings,
   Github,
+  Settings,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,6 +45,7 @@ interface ChatSidebarProps {
   onTogglePin: (id: string, pinned: boolean) => void
   onRename: (id: string, title: string) => void
   onClearAll: () => void
+  onOpenSettings: () => void
 }
 
 function groupByDate(items: Conversation[]) {
@@ -54,11 +55,11 @@ function groupByDate(items: Conversation[]) {
   const week = new Date(today.getTime() - 7 * 86400000)
 
   const groups: { label: string; items: Conversation[] }[] = [
-    { label: "Pinned", items: [] },
-    { label: "Today", items: [] },
-    { label: "Yesterday", items: [] },
-    { label: "Previous 7 days", items: [] },
-    { label: "Older", items: [] },
+    { label: "مُثبّتة", items: [] },
+    { label: "اليوم", items: [] },
+    { label: "الأمس", items: [] },
+    { label: "آخر ٧ أيام", items: [] },
+    { label: "أقدم", items: [] },
   ]
 
   for (const c of items) {
@@ -136,31 +137,28 @@ function ConversationItem({
         <span className="min-w-0 flex-1 truncate">{conv.title}</span>
       )}
 
-      <div
-        className="flex shrink-0 items-center"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className="rounded p-1 opacity-0 transition group-hover:opacity-100 hover:bg-background/60"
-              aria-label="Conversation options"
+              aria-label="خيارات المحادثة"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="start" className="w-40">
             <DropdownMenuItem onClick={() => setEditing(true)}>
-              <span>Rename</span>
+              إعادة تسمية
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onTogglePin(!conv.pinned)}>
               {conv.pinned ? (
                 <>
-                  <PinOff className="mr-2 h-3.5 w-3.5" /> Unpin
+                  <PinOff className="ml-2 h-3.5 w-3.5" /> إلغاء التثبيت
                 </>
               ) : (
                 <>
-                  <Pin className="mr-2 h-3.5 w-3.5" /> Pin
+                  <Pin className="ml-2 h-3.5 w-3.5" /> تثبيت
                 </>
               )}
             </DropdownMenuItem>
@@ -168,24 +166,23 @@ function ConversationItem({
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10">
-                  <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                  <Trash2 className="ml-2 h-3.5 w-3.5" /> حذف
                 </button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                  <AlertDialogTitle>حذف المحادثة؟</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This permanently removes “{conv.title}” and all its
-                    messages. This action cannot be undone.
+                    سيتم حذف «{conv.title}» وجميع رسائلها نهائياً. لا يمكن التراجع عن هذا الإجراء.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={onDelete}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Delete
+                    حذف
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -204,6 +201,7 @@ export function ChatSidebar({
   onTogglePin,
   onRename,
   onClearAll,
+  onOpenSettings,
 }: ChatSidebarProps) {
   const { conversations, currentConversationId, loadingConversations } =
     useChatStore()
@@ -224,10 +222,17 @@ export function ChatSidebar({
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-sm">
           <MessageSquare className="h-4 w-4" />
         </div>
-        <span className="flex-1 text-sm font-semibold tracking-tight">
-          MiMo X
-        </span>
-        <ThemeToggle />
+        <span className="flex-1 text-sm font-bold tracking-tight">MiMo X</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenSettings}
+          className="h-8 w-8 rounded-lg"
+          aria-label="الإعدادات"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+        <ThemeToggle onOpenSettings={onOpenSettings} />
       </div>
 
       {/* New chat */}
@@ -237,19 +242,19 @@ export function ChatSidebar({
           className="w-full justify-start gap-2 rounded-xl"
           variant="default"
         >
-          <Plus className="h-4 w-4" /> New Chat
+          <Plus className="h-4 w-4" /> محادثة جديدة
         </Button>
       </div>
 
       {/* Search */}
       <div className="px-3 pb-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search conversations…"
-            className="h-9 rounded-lg pl-8 text-sm"
+            placeholder="ابحث في المحادثات…"
+            className="h-9 rounded-lg pr-8 text-sm"
           />
         </div>
       </div>
@@ -267,13 +272,13 @@ export function ChatSidebar({
           </div>
         ) : groups.length === 0 ? (
           <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-            No conversations yet. Start a new chat!
+            لا محادثات بعد. ابدأ محادثة جديدة!
           </div>
         ) : (
           <div className="space-y-4 py-1">
             {groups.map((group) => (
               <div key={group.label}>
-                <p className="px-2.5 py-1 text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="px-2.5 py-1 text-[0.7rem] font-medium tracking-wider text-muted-foreground">
                   {group.label}
                 </p>
                 <div className="space-y-0.5">
@@ -305,24 +310,23 @@ export function ChatSidebar({
               className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
               disabled={conversations.length === 0}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Clear all conversations
+              <Trash2 className="h-3.5 w-3.5" /> مسح كل المحادثات
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clear all conversations?</AlertDialogTitle>
+              <AlertDialogTitle>مسح كل المحادثات؟</AlertDialogTitle>
               <AlertDialogDescription>
-                This will permanently delete every conversation and message.
-                This action cannot be undone.
+                سيتم حذف جميع المحادثات والرسائل نهائياً. لا يمكن التراجع عن هذا الإجراء.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
               <AlertDialogAction
                 onClick={onClearAll}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Delete everything
+                حذف كل شيء
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -330,8 +334,7 @@ export function ChatSidebar({
 
         <div className="mt-1 flex items-center justify-between px-1 py-1">
           <span className="text-[0.7rem] text-muted-foreground">
-            {conversations.length} conversation
-            {conversations.length === 1 ? "" : "s"}
+            {conversations.length} محادثة
           </span>
           <a
             href="https://github.com"

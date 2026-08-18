@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -14,18 +14,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const tajawal = Tajawal({
+  variable: "--font-tajawal",
+  subsets: ["arabic", "latin"],
+  weight: ["400", "500", "700", "800"],
+});
+
 export const metadata: Metadata = {
-  title: "MiMo X — AI Chat",
+  title: "MiMo X — مساعد ذكاء اصطناعي محلي",
   description:
-    "A local-first AI chat workspace. Conversations, streaming responses, code highlighting, and dark mode — built on Next.js 16.",
-  keywords: ["AI", "Chat", "Next.js", "TypeScript", "Tailwind", "Z.ai"],
+    "بيئة تشغيل ذكية محلية لهندسة البرمجيات والمحادثة. يعمل مع Ollama محلياً أو Z.ai السحابية. واجهة عربية RTL كاملة.",
+  keywords: ["MiMo X", "Ollama", "ذكاء اصطناعي", "مساعد", "Next.js"],
   authors: [{ name: "MiMo X" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "MiMo X — AI Chat",
-    description: "Local-first AI chat workspace",
+    title: "MiMo X — مساعد ذكاء اصطناعي محلي",
+    description: "بيئة تشغيل ذكية محلية",
     siteName: "MiMo X",
     type: "website",
   },
@@ -37,9 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${tajawal.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
       >
         <ThemeProvider
           attribute="class"

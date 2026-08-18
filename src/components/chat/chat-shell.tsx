@@ -3,24 +3,28 @@
 import * as React from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { useChatStore } from "@/store/chat-store"
+import { useSettingsStore } from "@/store/settings-store"
 import { ChatSidebar } from "./chat-sidebar"
 import { ChatHeader } from "./chat-header"
 import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
+import { TitleBar } from "./title-bar"
+import { SettingsDialog } from "./settings-dialog"
 import type { Conversation, ChatMessage, Role } from "@/types/chat"
+import type { ProviderSettings } from "@/lib/llm-provider"
 
 // ---- API helpers ----------------------------------------------------------
 
 async function fetchConversations(): Promise<Conversation[]> {
   const res = await fetch("/api/conversations", { cache: "no-store" })
-  if (!res.ok) throw new Error("Failed to load conversations")
+  if (!res.ok) throw new Error("فشل تحميل المحادثات")
   const data = await res.json()
   return data.conversations as Conversation[]
 }
 
 async function fetchConversation(id: string): Promise<Conversation> {
   const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" })
-  if (!res.ok) throw new Error("Failed to load conversation")
+  if (!res.ok) throw new Error("فشل تحميل المحادثة")
   const data = await res.json()
   return data.conversation as Conversation
 }
@@ -48,11 +52,11 @@ async function streamChat(
     message: string
     conversationId?: string
     history: { role: Role; content: string }[]
-    thinking?: boolean
+    settings: ProviderSettings
   },
   handlers: {
     onDelta: (delta: string) => void
-    onMeta: (meta: { conversationId?: string; title?: string }) => void
+    onMeta: (meta: { conversationId?: string; title?: string; provider?: string }) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -66,16 +70,16 @@ async function streamChat(
   })
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => "Request failed")
+    const errText = await res.text().catch(() => "فشل الطلب")
     throw new Error(errText)
   }
 
-  if (!res.body) throw new Error("No response body")
+  if (!res.body) throw new Error("لا يوجد جسم استجابة")
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
-  let meta: { conversationId?: string; title?: string } = {}
+  let meta: { conversationId?: string; title?: string; provider?: string } = {}
 
   try {
     while (true) {
@@ -96,12 +100,16 @@ async function streamChat(
         try {
           const json = JSON.parse(payload)
           if (json.type === "meta") {
-            meta = { conversationId: json.conversationId, title: json.title }
+            meta = {
+              conversationId: json.conversationId,
+              title: json.title,
+              provider: json.provider,
+            }
             handlers.onMeta(meta)
           } else if (json.type === "delta") {
             handlers.onDelta(json.delta || "")
           } else if (json.type === "error") {
-            handlers.onError(json.error || "Unknown error")
+            handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
             meta = { ...meta, conversationId: json.conversationId }
           }
@@ -144,11 +152,23 @@ export function ChatShell() {
     addMessage,
   } = store
 
-  const [thinking, setThinking] = React.useState(false)
+  const settings = useSettingsStore()
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false)
   const [initialized, setInitialized] = React.useState(false)
 
-  // Load conversations on mount
+  // Persist server-side settings whenever they change (best-effort)
+  React.useEffect(() => {
+    if (!settings.loaded) return
+    fetch("/api/providers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings.snapshot()),
+    }).catch(() => {})
+  }, [settings.provider, settings.ollamaUrl, settings.ollamaModel, settings.zaiThinking, settings.loaded])
+
+  const thinking = settings.provider === "zai" ? settings.zaiThinking : false
+
   const loadConversations = React.useCallback(async () => {
     setLoadingConversations(true)
     try {
@@ -164,8 +184,10 @@ export function ChatShell() {
   React.useEffect(() => {
     if (initialized) return
     setInitialized(true)
+    settings.load()
     loadConversations()
-  }, [initialized, loadConversations])
+
+  }, [initialized])
 
   const selectConversation = React.useCallback(
     async (id: string) => {
@@ -211,7 +233,8 @@ export function ChatShell() {
       if (isStreaming) return
       setStreamingError(null)
 
-      // Optimistic: add user message immediately
+      const providerSettings = settings.snapshot()
+
       const tempId = `u_${Date.now()}`
       const userMsg: ChatMessage = {
         id: tempId,
@@ -222,7 +245,6 @@ export function ChatShell() {
       }
       addMessage(userMsg)
 
-      // Build history from current messages + the new user message
       const history: { role: Role; content: string }[] = [
         ...messages.map((m) => ({ role: m.role, content: m.content })),
         { role: "user" as const, content: text },
@@ -239,7 +261,7 @@ export function ChatShell() {
             message: text,
             conversationId: currentConversationId || undefined,
             history,
-            thinking,
+            settings: providerSettings,
           },
           {
             onDelta: (delta) => appendStreamingContent(delta),
@@ -263,7 +285,7 @@ export function ChatShell() {
                 role: "assistant",
                 content: finalContent,
                 createdAt: new Date().toISOString(),
-                model: thinking ? "thinking" : "default",
+                model: providerSettings.provider,
               }
               setMessages([...useChatStore.getState().messages, assistantMsg])
               setStreamingContent("")
@@ -282,13 +304,13 @@ export function ChatShell() {
               role: "assistant",
               content: finalContent,
               createdAt: new Date().toISOString(),
-              model: "default",
+              model: providerSettings.provider,
             }
             setMessages([...useChatStore.getState().messages, assistantMsg])
           }
           setStreamingContent("")
         } else {
-          setStreamingError((e as Error).message || "Failed to send message")
+          setStreamingError((e as Error).message || "فشل إرسال الرسالة")
         }
         setIsStreaming(false)
         setAbortController(null)
@@ -298,7 +320,7 @@ export function ChatShell() {
       isStreaming,
       messages,
       currentConversationId,
-      thinking,
+      settings,
       addMessage,
       setStreamingContent,
       setIsStreaming,
@@ -388,6 +410,7 @@ export function ChatShell() {
       onTogglePin={(id, p) => handleTogglePin(id, p)}
       onRename={(id, t) => handleRename(id, t)}
       onClearAll={handleClearAll}
+      onOpenSettings={() => setSettingsOpen(true)}
     />
   )
 
@@ -400,63 +423,71 @@ export function ChatShell() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
-      {/* Desktop sidebar */}
-      {sidebarOpen && (
-        <div className="hidden md:block h-full w-72 shrink-0 border-r border-sidebar-border">
-          {sidebar}
-        </div>
-      )}
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
+      {/* Desktop title bar */}
+      <TitleBar onOpenSettings={() => setSettingsOpen(true)} />
 
-      {/* Mobile sidebar (drawer) */}
-      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0 sm:w-80">
-          {sidebar}
-        </SheetContent>
-      </Sheet>
-
-      {/* Main panel */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <ChatHeader
-          onToggleSidebar={toggleSidebar}
-          onNewChat={startNewChat}
-          onRename={(t) =>
-            currentConversationId && handleRename(currentConversationId, t)
-          }
-          thinking={thinking}
-        />
-
-        <ChatMessages
-          messages={messages}
-          streamingContent={streamingContent}
-          isStreaming={isStreaming}
-          streamingRole="assistant"
-          conversationId={currentConversationId}
-          onPickSuggestion={(p) => sendMessage(p)}
-          onRegenerate={regenerate}
-        />
-
-        {streamingError && (
-          <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Error: {streamingError}
-            </div>
+      <div className="flex min-h-0 flex-1">
+        {/* Desktop sidebar */}
+        {sidebarOpen && (
+          <div className="hidden md:block h-full w-72 shrink-0 border-l border-sidebar-border">
+            {sidebar}
           </div>
         )}
 
-        <ChatInput
-          onSend={sendMessage}
-          onStop={stopGeneration}
-          isStreaming={isStreaming}
-          thinking={thinking}
-          onToggleThinking={setThinking}
-          placeholder={
-            currentConversationId
-              ? "Message MiMo X…"
-              : "Send a message to start a new chat…"
-          }
-        />
+        {/* Mobile sidebar (drawer) */}
+        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <SheetContent side="right" className="w-72 p-0 sm:w-80">
+            {sidebar}
+          </SheetContent>
+        </Sheet>
+
+        {/* Main panel */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <ChatHeader
+            onToggleSidebar={toggleSidebar}
+            onNewChat={startNewChat}
+            onRename={(t) =>
+              currentConversationId && handleRename(currentConversationId, t)
+            }
+            thinking={thinking}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+
+          <ChatMessages
+            messages={messages}
+            streamingContent={streamingContent}
+            isStreaming={isStreaming}
+            streamingRole="assistant"
+            conversationId={currentConversationId}
+            onPickSuggestion={(p) => sendMessage(p)}
+            onRegenerate={regenerate}
+          />
+
+          {streamingError && (
+            <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                خطأ: {streamingError}
+              </div>
+            </div>
+          )}
+
+          <ChatInput
+            onSend={sendMessage}
+            onStop={stopGeneration}
+            isStreaming={isStreaming}
+            thinking={thinking}
+            onToggleThinking={(v) => settings.setZaiThinking(v)}
+            placeholder={
+              currentConversationId
+                ? "راسل MiMo X…"
+                : "أرسل رسالة لبدء محادثة جديدة…"
+            }
+          />
+        </div>
       </div>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
 }

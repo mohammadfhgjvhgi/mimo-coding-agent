@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import { Check, Copy, RefreshCw, User } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { MarkdownRenderer } from "./markdown-renderer"
-import { Sparkles } from "lucide-react"
 import type { ChatMessage } from "@/types/chat"
 
 interface ChatMessageItemProps {
@@ -22,7 +22,7 @@ export function ChatMessageItem({
 }: ChatMessageItemProps) {
   const [copied, setCopied] = React.useState(false)
   const isUser = message.role === "user"
-  const content = isStreaming ? message.content : message.content
+  const content = message.content
 
   const handleCopy = async () => {
     try {
@@ -55,8 +55,13 @@ export function ChatMessageItem({
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-sm font-semibold">
-              {isUser ? "You" : "MiMo X"}
+              {isUser ? "أنت" : "MiMo X"}
             </span>
+            {message.model && message.model !== "default" && !isStreaming && (
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] text-muted-foreground" dir="ltr">
+                {message.model}
+              </span>
+            )}
           </div>
 
           <div
@@ -68,7 +73,7 @@ export function ChatMessageItem({
             {isUser ? (
               content
             ) : (
-              <div className={isStreaming && !content ? "" : ""}>
+              <div>
                 {content ? (
                   <MarkdownRenderer content={content} />
                 ) : (
@@ -92,11 +97,11 @@ export function ChatMessageItem({
               >
                 {copied ? (
                   <>
-                    <Check className="h-3 w-3" /> Copied
+                    <Check className="h-3 w-3" /> نُسخ
                   </>
                 ) : (
                   <>
-                    <Copy className="h-3 w-3" /> Copy
+                    <Copy className="h-3 w-3" /> نسخ
                   </>
                 )}
               </Button>
@@ -107,7 +112,7 @@ export function ChatMessageItem({
                   onClick={onRegenerate}
                   className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <RefreshCw className="h-3 w-3" /> Regenerate
+                  <RefreshCw className="h-3 w-3" /> إعادة التوليد
                 </Button>
               )}
             </div>

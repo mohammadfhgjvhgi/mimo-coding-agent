@@ -1,68 +1,51 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import ZAI from "z-ai-web-dev-sdk";
+import { streamChat, type ProviderSettings } from "@/lib/llm-provider";
 import type { Role } from "@/types/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// System prompt for the assistant
-const SYSTEM_PROMPT = `You are MiMo X, a knowledgeable and friendly AI assistant integrated into a local-first workspace.
-You help with software engineering, writing, research, and general questions.
-- Format answers in clean Markdown.
-- Use fenced code blocks with language tags for code.
-- Be concise but complete. Prefer clear structure (headings, lists) for long answers.
-- When the user writes in Arabic, respond in Arabic. When they write in English, respond in English.`;
+const SYSTEM_PROMPT = [
+  'أنت "MiMo X"، مساعد ذكاء اصطناعي محلي يعمل على جهاز المستخدم.',
+  "ساعد المستخدم في هندسة البرمجيات، الكتابة، البحث، والأسئلة العامة.",
+  "- نفّذ الإجابات بصيغة Markdown نظيفة.",
+  "- استخدم كتل كود محاطة بوسوم اللغة (مثل python و javascript).",
+  "- كن موجزاً ومتكاملاً. استخدم العناوين والقوائم للإجابات الطويلة.",
+  "- إذا كتب المستخدم بالعربية فأجب بالعربية، وإذا كتب بالإنجليزية فأجب بالإنجليزية.",
+].join("\n");
 
 function makeTitle(text: string): string {
   const clean = text.trim().replace(/\s+/g, " ");
-  if (!clean) return "New Chat";
+  if (!clean) return "محادثة جديدة";
   return clean.length > 48 ? clean.slice(0, 48) + "…" : clean;
 }
 
 interface SSELine {
-  choices?: Array<{
-    delta?: { content?: string; role?: string };
-    finish_reason?: string | null;
-  }>;
+  choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
   [k: string]: unknown;
 }
 
-// Parse an SSE stream from the SDK into text deltas
-async function* parseSSE(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+// Parse Z.ai-style SSE stream (data: {...} \n\n) into text deltas
+async function* parseZaiSSE(
+  stream: ReadableStream<Uint8Array>
+): AsyncGenerator<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-
       let idx: number;
       while ((idx = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, idx).trim();
         buffer = buffer.slice(idx + 1);
-        if (!line) continue;
         if (!line.startsWith("data:")) continue;
         const data = line.slice(5).trim();
         if (data === "[DONE]") return;
-        try {
-          const json = JSON.parse(data) as SSELine;
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) yield delta;
-        } catch {
-          // ignore malformed line
-        }
-      }
-    }
-    // flush remaining buffer
-    const tail = buffer.trim();
-    if (tail.startsWith("data:")) {
-      const data = tail.slice(5).trim();
-      if (data && data !== "[DONE]") {
         try {
           const json = JSON.parse(data) as SSELine;
           const delta = json.choices?.[0]?.delta?.content;
@@ -79,18 +62,16 @@ async function* parseSSE(stream: ReadableStream<Uint8Array>): AsyncGenerator<str
 
 export async function POST(req: NextRequest) {
   let conversationId: string | undefined;
-  let userMsgText = "";
-
   try {
     const body = await req.json().catch(() => ({}));
-    userMsgText = (body.message as string)?.trim() || "";
+    const userMsgText = (body.message as string)?.trim() || "";
     conversationId = body.conversationId as string | undefined;
     const history = (body.history as { role: Role; content: string }[]) || [];
-    const thinking = body.thinking === true;
+    const providerSettings = (body.settings as ProviderSettings) || undefined;
 
     if (!userMsgText) {
       return new Response(
-        JSON.stringify({ error: "Message is required" }),
+        JSON.stringify({ error: "الرسالة مطلوبة" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -104,11 +85,11 @@ export async function POST(req: NextRequest) {
       conversation = await db.conversation.create({
         data: {
           title: makeTitle(userMsgText),
-          model: "default",
+          model: providerSettings?.provider || "default",
         },
       });
       conversationId = conversation.id;
-    } else if (conversation.title === "New Chat") {
+    } else if (conversation.title === "محادثة جديدة" || conversation.title === "New Chat") {
       await db.conversation.update({
         where: { id: conversation.id },
         data: { title: makeTitle(userMsgText) },
@@ -128,23 +109,27 @@ export async function POST(req: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
-    // Build the messages payload for the LLM
+    // Build the messages payload
     const llmMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPT },
       ...history
         .filter((m) => m && m.content)
         .slice(-20)
         .map((m) => ({
-          role: m.role === "system" ? ("system" as const) : m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+          role: (m.role === "system" ? "system" : m.role === "assistant" ? "assistant" : "user") as
+            | "system"
+            | "user"
+            | "assistant",
           content: m.content,
         })),
       { role: "user", content: userMsgText },
     ];
 
-    // Initialize the ZAI SDK
-    const zai = await ZAI.create();
+    // Resolve provider settings (request > server cache > defaults)
+    const { getSettings } = await import("@/lib/llm-provider");
+    const settings = providerSettings || getSettings();
 
-    // Send an initial metadata event then start the stream
+    // Set up the outbound SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -152,47 +137,42 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
         };
 
-        // Tell the client which conversation this belongs to (so a freshly
-        // created conversation can be linked in the UI).
         enqueue({
           type: "meta",
           conversationId: conversation!.id,
           title: conversation!.title,
+          provider: settings.provider,
         });
 
         let fullText = "";
         try {
-          const response = (await zai.chat.completions.create({
-            messages: llmMessages,
-            stream: true,
-            thinking: { type: thinking ? "enabled" : "disabled" },
-          } as { messages: typeof llmMessages; stream: boolean; thinking: { type: "enabled" | "disabled" } })) as
-            | ReadableStream<Uint8Array>
-            | { choices: Array<{ message?: { content?: string } }>; usage?: unknown };
+          // Get the async generator for the chosen provider
+          const gen = await streamChat(settings, llmMessages);
 
-          // The SDK returns a ReadableStream when streaming, otherwise a JSON object
-          if (response instanceof ReadableStream) {
-            for await (const delta of parseSSE(response)) {
+          // Ollama yields strings directly. Z.ai (via streamZai) also yields strings.
+          // We normalize both through the same consumer below.
+          if (settings.provider === "ollama") {
+            // streamOllama already yields strings
+            for await (const delta of gen) {
               fullText += delta;
               enqueue({ type: "delta", delta });
             }
-          } else if (response && typeof response === "object" && Array.isArray((response as any).choices)) {
-            const text = (response as any).choices?.[0]?.message?.content || "";
-            fullText = text;
-            // Emit as a single delta to keep the UX consistent
-            enqueue({ type: "delta", delta: text });
           } else {
-            enqueue({ type: "error", error: "Unexpected response shape from model" });
+            // Z.ai: gen could be either a ReadableStream (raw from SDK) or already
+            // an AsyncGenerator<string> (streamZai). Both yield string deltas.
+            for await (const delta of gen) {
+              fullText += delta;
+              enqueue({ type: "delta", delta });
+            }
           }
 
-          // Persist the assistant message
           if (fullText.trim()) {
             await db.message.create({
               data: {
                 conversationId: conversation!.id,
                 role: "assistant",
                 content: fullText,
-                model: thinking ? "thinking" : "default",
+                model: settings.provider,
               },
             });
             await db.conversation.update({
@@ -204,11 +184,10 @@ export async function POST(req: NextRequest) {
           enqueue({ type: "done", conversationId: conversation!.id });
         } catch (err) {
           const message =
-            err instanceof Error ? err.message : "Unknown streaming error";
+            err instanceof Error ? err.message : "خطأ غير معروف أثناء البث";
           console.error("[POST /api/chat] stream error:", err);
           enqueue({ type: "error", error: message });
 
-          // Persist whatever we received so far, if anything
           if (fullText.trim()) {
             try {
               await db.message.create({
@@ -216,7 +195,7 @@ export async function POST(req: NextRequest) {
                   conversationId: conversation!.id,
                   role: "assistant",
                   content: fullText,
-                  model: "default",
+                  model: settings.provider,
                 },
               });
             } catch {
@@ -243,9 +222,12 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({
         error:
-          error instanceof Error ? error.message : "Failed to process chat",
+          error instanceof Error ? error.message : "فشل معالجة المحادثة",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
+
+// Keep parseZaiSSE exported for potential reuse / tests
+export { parseZaiSSE };

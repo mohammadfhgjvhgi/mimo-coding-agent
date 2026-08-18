@@ -5,7 +5,12 @@ import { ArrowUp, Square, Brain, Paperclip } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ChatInputProps {
   onSend: (message: string) => void
@@ -29,7 +34,6 @@ export function ChatInput({
   const [value, setValue] = React.useState("")
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
-  // Auto-resize the textarea
   React.useEffect(() => {
     const el = textareaRef.current
     if (!el) return
@@ -67,12 +71,12 @@ export function ChatInput({
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground"
                 disabled
-                aria-label="Attachments (coming soon)"
+                aria-label="مرفقات (قريباً)"
               >
                 <Paperclip className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Attachments</TooltipContent>
+            <TooltipContent>مرفقات</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
@@ -81,7 +85,7 @@ export function ChatInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder || "Send a message…"}
+          placeholder={placeholder || "أرسل رسالة…"}
           rows={1}
           disabled={disabled}
           className="min-h-[40px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[0.95rem] shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
@@ -101,13 +105,13 @@ export function ChatInput({
                     ? "text-amber-500 hover:text-amber-600"
                     : "text-muted-foreground"
                 )}
-                aria-label="Toggle reasoning"
+                aria-label="تفعيل التفكير"
               >
                 <Brain className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {thinking ? "Reasoning: on" : "Reasoning: off"}
+              {thinking ? "التفكير: مُفعّل" : "التفكير: مُعطّل"}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -118,7 +122,7 @@ export function ChatInput({
             size="icon"
             onClick={onStop}
             className="h-9 w-9 shrink-0 rounded-xl"
-            aria-label="Stop generating"
+            aria-label="إيقاف التوليد"
           >
             <Square className="h-3.5 w-3.5 fill-current" />
           </Button>
@@ -129,22 +133,22 @@ export function ChatInput({
             onClick={submit}
             disabled={!value.trim() || disabled}
             className="h-9 w-9 shrink-0 rounded-xl"
-            aria-label="Send message"
+            aria-label="إرسال الرسالة"
           >
             <ArrowUp className="h-4 w-4" />
           </Button>
         )}
       </div>
       <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
-        MiMo X can make mistakes. Verify important info. Press{" "}
+        قد يخطئ MiMo X. تحقّق من المعلومات المهمة. اضغط{" "}
         <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[0.65rem]">
           Enter
         </kbd>{" "}
-        to send,{" "}
+        للإرسال،{" "}
         <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[0.65rem]">
           Shift + Enter
         </kbd>{" "}
-        for a new line.
+        لسطر جديد.
       </p>
     </div>
   )

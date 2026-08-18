@@ -9,24 +9,24 @@ interface ChatEmptyStateProps {
 
 const SUGGESTIONS: { title: string; prompt: string; icon: string }[] = [
   {
-    title: "Explain a concept",
+    title: "اشرح لي مفهوماً",
     icon: "💡",
-    prompt: "Explain the difference between server-side rendering and client-side rendering in Next.js, with a concrete example.",
+    prompt: "اشرح لي الفرق بين الـ Server-Side Rendering و الـ Client-Side Rendering في Next.js مع مثال عملي.",
   },
   {
-    title: "Write code",
+    title: "اكتب لي كوداً",
     icon: "⚙️",
-    prompt: "Write a TypeScript function that debounces an async function, with comments explaining each step.",
+    prompt: "اكتب دالة TypeScript تنفّذ debounce لدالة async، مع تعليقات تشرح كل خطوة.",
   },
   {
-    title: "Brainstorm",
+    title: "أعطني أفكاراً",
     icon: "🧠",
-    prompt: "Give me 5 creative ideas for a local-first productivity app that works offline and syncs when online.",
+    prompt: "أعطني 5 أفكار إبداعية لتطبيق إنتاجية محلي (local-first) يعمل دون إنترنت ويزامن عند الاتصال.",
   },
   {
-    title: "Summarize",
+    title: "لخّص لي",
     icon: "📝",
-    prompt: "Summarize the key principles of clean architecture in software engineering as a short bulleted list.",
+    prompt: "لخّص المبادئ الأساسية للهندسة البرمجية النظيفة (clean architecture) كقائمة نقاط قصيرة.",
   },
 ]
 
@@ -36,12 +36,11 @@ export function ChatEmptyState({ onPick }: ChatEmptyStateProps) {
       <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-sm">
         <Sparkles className="h-7 w-7 text-primary" />
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-        How can I help you today?
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        كيف يمكنني مساعدتك اليوم؟
       </h1>
       <p className="mt-2 max-w-md text-center text-sm text-muted-foreground">
-        Ask anything — code, writing, research. MiMo X streams answers in real
-        time and remembers your conversation.
+        اسألني عن أي شيء — برمجة، كتابة، بحث. MiMo X يبثّ الإجابات لحظياً ويتذكّر محادثتك.
       </p>
 
       <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
@@ -49,7 +48,7 @@ export function ChatEmptyState({ onPick }: ChatEmptyStateProps) {
           <button
             key={s.title}
             onClick={() => onPick(s.prompt)}
-            className="group rounded-xl border border-border bg-card p-4 text-left transition hover:border-primary/40 hover:bg-accent/40 hover:shadow-sm"
+            className="group rounded-xl border border-border bg-card p-4 text-right transition hover:border-primary/40 hover:bg-accent/40 hover:shadow-sm"
           >
             <div className="mb-1 flex items-center gap-2">
               <span className="text-base">{s.icon}</span>
