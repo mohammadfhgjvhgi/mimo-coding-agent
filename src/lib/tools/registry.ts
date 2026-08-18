@@ -1,4 +1,11 @@
-import { readFileTool, writeFileTool, editFileTool, runTerminalTool } from "./tools"
+import {
+  readFileTool,
+  writeFileTool,
+  editFileTool,
+  runTerminalTool,
+  listFilesTool,
+  gitCheckpointTool,
+} from "./tools"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
@@ -7,6 +14,8 @@ const REGISTRY: Record<string, ToolDef> = {
   write_file: writeFileTool,
   edit_file: editFileTool,
   run_terminal_command: runTerminalTool,
+  list_files: listFilesTool,
+  git_checkpoint: gitCheckpointTool,
 }
 
 export function listToolNames(): string[] {

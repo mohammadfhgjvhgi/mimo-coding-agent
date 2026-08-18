@@ -23,6 +23,9 @@ interface ChatState {
   // UI
   sidebarOpen: boolean
   theme: "light" | "dark" | "system"
+  activeFile: string | null
+  explorerRefreshSignal: number
+  sidebarTab: "conversations" | "explorer"
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -39,6 +42,9 @@ interface ChatState {
   setAbortController: (c: AbortController | null) => void
   setSidebarOpen: (v: boolean) => void
   toggleSidebar: () => void
+  setActiveFile: (f: string | null) => void
+  triggerExplorerRefresh: () => void
+  setSidebarTab: (t: "conversations" | "explorer") => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -59,6 +65,9 @@ export const useChatStore = create<ChatState>((set) => ({
   abortController: null,
   sidebarOpen: true,
   theme: "system",
+  activeFile: null,
+  explorerRefreshSignal: 0,
+  sidebarTab: "conversations",
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -76,6 +85,10 @@ export const useChatStore = create<ChatState>((set) => ({
   setAbortController: (abortController) => set({ abortController }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setActiveFile: (activeFile) => set({ activeFile }),
+  triggerExplorerRefresh: () =>
+    set((s) => ({ explorerRefreshSignal: s.explorerRefreshSignal + 1 })),
+  setSidebarTab: (sidebarTab) => set({ sidebarTab }),
 
   upsertConversation: (c) =>
     set((s) => {

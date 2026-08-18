@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Github,
   Settings,
+  FolderTree,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useChatStore } from "@/store/chat-store"
 import { ThemeToggle } from "./theme-toggle"
+import { WorkspaceExplorer } from "./workspace-explorer"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -194,15 +196,14 @@ function ConversationItem({
   )
 }
 
-export function ChatSidebar({
+function ConversationList({
   onNewChat,
   onSelect,
   onDelete,
   onTogglePin,
   onRename,
   onClearAll,
-  onOpenSettings,
-}: ChatSidebarProps) {
+}: Omit<ChatSidebarProps, "onOpenSettings">) {
   const { conversations, currentConversationId, loadingConversations } =
     useChatStore()
   const [query, setQuery] = React.useState("")
@@ -216,25 +217,7 @@ export function ChatSidebar({
   const groups = React.useMemo(() => groupByDate(filtered), [filtered])
 
   return (
-    <div className="flex h-full w-full flex-col bg-sidebar">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-sm">
-          <MessageSquare className="h-4 w-4" />
-        </div>
-        <span className="flex-1 text-sm font-bold tracking-tight">MiMo X</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onOpenSettings}
-          className="h-8 w-8 rounded-lg"
-          aria-label="الإعدادات"
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-        <ThemeToggle onOpenSettings={onOpenSettings} />
-      </div>
-
+    <>
       {/* New chat */}
       <div className="px-3 pb-2">
         <Button
@@ -347,6 +330,88 @@ export function ChatSidebar({
           </a>
         </div>
       </div>
+    </>
+  )
+}
+
+export function ChatSidebar({
+  onNewChat,
+  onSelect,
+  onDelete,
+  onTogglePin,
+  onRename,
+  onClearAll,
+  onOpenSettings,
+}: ChatSidebarProps) {
+  const sidebarTab = useChatStore((s) => s.sidebarTab)
+  const setSidebarTab = useChatStore((s) => s.setSidebarTab)
+  const activeFile = useChatStore((s) => s.activeFile)
+  const explorerRefreshSignal = useChatStore((s) => s.explorerRefreshSignal)
+
+  return (
+    <div className="flex h-full w-full flex-col bg-sidebar">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-sm">
+          <MessageSquare className="h-4 w-4" />
+        </div>
+        <span className="flex-1 text-sm font-bold tracking-tight">MiMo X</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onOpenSettings}
+          className="h-8 w-8 rounded-lg"
+          aria-label="الإعدادات"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+        <ThemeToggle onOpenSettings={onOpenSettings} />
+      </div>
+
+      {/* Tab bar */}
+      <div className="mx-3 mb-2 flex rounded-lg bg-muted/60 p-0.5 text-xs">
+        <button
+          onClick={() => setSidebarTab("conversations")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "conversations"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <MessageSquare className="h-3.5 w-3.5" /> محادثات
+        </button>
+        <button
+          onClick={() => setSidebarTab("explorer")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "explorer"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <FolderTree className="h-3.5 w-3.5" /> الملفات
+        </button>
+      </div>
+
+      {/* Content */}
+      {sidebarTab === "conversations" ? (
+        <ConversationList
+          onNewChat={onNewChat}
+          onSelect={onSelect}
+          onDelete={onDelete}
+          onTogglePin={onTogglePin}
+          onRename={onRename}
+          onClearAll={onClearAll}
+        />
+      ) : (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <WorkspaceExplorer
+            activeFile={activeFile}
+            refreshSignal={explorerRefreshSignal}
+          />
+        </div>
+      )}
     </div>
   )
 }

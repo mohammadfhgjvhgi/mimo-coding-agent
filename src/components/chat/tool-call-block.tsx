@@ -6,6 +6,8 @@ import {
   FilePlus,
   FileEdit,
   Terminal,
+  FolderTree,
+  GitCommitHorizontal,
   ChevronRight,
   Check,
   X,
@@ -13,6 +15,7 @@ import {
   Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { DiffViewer } from "./diff-viewer"
 import type { ToolCallRecord } from "@/types/chat"
 
 interface ToolCallBlockProps {
@@ -25,6 +28,8 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   write_file: FilePlus,
   edit_file: FileEdit,
   run_terminal_command: Terminal,
+  list_files: FolderTree,
+  git_checkpoint: GitCommitHorizontal,
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -32,6 +37,8 @@ const TOOL_LABELS: Record<string, string> = {
   write_file: "كتابة ملف",
   edit_file: "تعديل ملف",
   run_terminal_command: "تنفيذ أمر طرفية",
+  list_files: "خريطة المستودع",
+  git_checkpoint: "نقطة استرجاع",
 }
 
 function prettyArgs(name: string, args: Record<string, unknown>): string {
@@ -40,6 +47,13 @@ function prettyArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "run_terminal_command") {
     return String(args.command || "")
+  }
+  if (name === "list_files") {
+    const p = args.path ? String(args.path) : ""
+    return p || "جذر المشروع"
+  }
+  if (name === "git_checkpoint") {
+    return String(args.message || "MiMo X Checkpoint")
   }
   return JSON.stringify(args, null, 2)
 }
@@ -79,7 +93,19 @@ export function ToolCallBlock({ call, pending }: ToolCallBlockProps) {
   const summary = prettyArgs(call.name, call.args)
 
   const isTerminal = call.name === "run_terminal_command"
+  const isEdit = call.name === "edit_file"
+  const isList = call.name === "list_files"
+  const isGit = call.name === "git_checkpoint"
   const resultText = "result" in call && call.result ? String(call.result) : ""
+
+  // For edit_file, extract search & replace to render a visual diff
+  const searchStr = isEdit ? String((call.args as Record<string, unknown>).search || "") : ""
+  const replaceStr = isEdit ? String((call.args as Record<string, unknown>).replace || "") : ""
+
+  // Auto-open edit_file blocks to show the diff
+  React.useEffect(() => {
+    if (isEdit && call.status === "success") setOpen(true)
+  }, [call.status])
 
   return (
     <div className="my-2 overflow-hidden rounded-lg border border-border bg-muted/30">
@@ -98,9 +124,9 @@ export function ToolCallBlock({ call, pending }: ToolCallBlockProps) {
         <span
           className={cn(
             "min-w-0 flex-1 truncate text-xs text-muted-foreground",
-            isTerminal && "font-mono"
+            (isTerminal || isGit) && "font-mono"
           )}
-          dir={isTerminal || call.name !== "run_terminal_command" && /[a-zA-Z0-9_/]/.test(summary) ? "ltr" : "rtl"}
+          dir={isTerminal || isGit || /[a-zA-Z0-9_/]/.test(summary) ? "ltr" : "rtl"}
         >
           {summary}
         </span>
@@ -109,18 +135,27 @@ export function ToolCallBlock({ call, pending }: ToolCallBlockProps) {
 
       {open && (
         <div className="border-t border-border bg-background/60 px-3 py-2">
-          {/* Args */}
-          <div className="mb-2">
-            <p className="mb-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
-              المدخلات
-            </p>
-            <pre
-              dir="ltr"
-              className="overflow-x-auto chat-scroll rounded-md bg-muted/60 p-2 text-[0.75rem] leading-relaxed"
-            >
-              {JSON.stringify(call.args, null, 2)}
-            </pre>
-          </div>
+          {/* For edit_file: show visual diff */}
+          {isEdit && searchStr ? (
+            <div className="mb-2">
+              <DiffViewer search={searchStr} replace={replaceStr} />
+            </div>
+          ) : null}
+
+          {/* Args (skip for edit_file since the diff shows them, and for list_files since the result IS the tree) */}
+          {!isEdit && !isList && (
+            <div className="mb-2">
+              <p className="mb-1 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+                المدخلات
+              </p>
+              <pre
+                dir="ltr"
+                className="overflow-x-auto chat-scroll rounded-md bg-muted/60 p-2 text-[0.75rem] leading-relaxed"
+              >
+                {JSON.stringify(call.args, null, 2)}
+              </pre>
+            </div>
+          )}
 
           {/* Result */}
           {resultText && (
@@ -131,7 +166,7 @@ export function ToolCallBlock({ call, pending }: ToolCallBlockProps) {
               <pre
                 dir="ltr"
                 className={cn(
-                  "chat-scroll max-h-64 overflow-auto whitespace-pre-wrap rounded-md p-2 text-[0.75rem] leading-relaxed",
+                  "chat-scroll max-h-72 overflow-auto whitespace-pre-wrap rounded-md p-2 text-[0.75rem] leading-relaxed",
                   call.status === "error"
                     ? "bg-destructive/10 text-destructive"
                     : "bg-emerald-500/5"

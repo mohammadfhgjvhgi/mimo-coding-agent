@@ -319,3 +319,249 @@ export const runTerminalTool: ToolDef = {
     })
   },
 }
+
+// ---- list_files (repo map) ------------------------------------------------
+import { readdirSync, statSync } from "node:fs"
+
+const IGNORED_DIRS = new Set([
+  "node_modules",
+  ".git",
+  ".next",
+  ".turbo",
+  ".cache",
+  "dist",
+  "build",
+  "out",
+  "coverage",
+  ".vercel",
+  "__pycache__",
+  ".aider-desk",
+  "tool-results",
+])
+
+export interface TreeNode {
+  name: string
+  path: string
+  type: "dir" | "file"
+  children?: TreeNode[]
+}
+
+export function buildTree(dirAbs: string, rel: string, depth: number, maxDepth: number): TreeNode[] {
+  if (depth > maxDepth) return []
+  let entries: ReturnType<typeof readdirSync>
+  try {
+    entries = readdirSync(dirAbs, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const nodes: TreeNode[] = []
+  // sort: dirs first, then files, alphabetical
+  entries
+    .filter((e) => !IGNORED_DIRS.has(e.name) && !e.name.startsWith("."))
+    .sort((a, b) => {
+      if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1
+      return a.name.localeCompare(b.name)
+    })
+    .slice(0, 200)
+    .forEach((entry) => {
+      const childAbs = path.join(dirAbs, entry.name)
+      const childRel = rel ? `${rel}/${entry.name}` : entry.name
+      if (entry.isDirectory()) {
+        nodes.push({
+          name: entry.name,
+          path: childRel,
+          type: "dir",
+          children: buildTree(childAbs, childRel, depth + 1, maxDepth),
+        })
+      } else {
+        nodes.push({ name: entry.name, path: childRel, type: "file" })
+      }
+    })
+  return nodes
+}
+
+function renderTree(nodes: TreeNode[], prefix: string, lines: string[]) {
+  nodes.forEach((node, i) => {
+    const isLast = i === nodes.length - 1
+    const branch = isLast ? "└── " : "├── "
+    if (node.type === "dir") {
+      lines.push(`${prefix}${branch}${node.name}/`)
+      const childPrefix = prefix + (isLast ? "    " : "│   ")
+      renderTree(node.children || [], childPrefix, lines)
+    } else {
+      lines.push(`${prefix}${branch}${node.name}`)
+    }
+  })
+}
+
+export const listFilesTool: ToolDef = {
+  name: "list_files",
+  description:
+    "يُرجع شجرة ملفات المشروع الحالي (تجاهل node_modules و .git و .next وغيرها). استخدمها لرؤية هيكل المشروع قبل قراءة أو تعديل الملفات.",
+  schema: {
+    type: "object",
+    properties: {
+      path: {
+        type: "string",
+        description: "مسار فرعي لبدء الرسم منه (افتراضي: جذر المشروع)",
+      },
+      depth: {
+        type: "number",
+        description: "أقصى عمق للتشعب (افتراضي 4، أقصى 8)",
+      },
+    },
+    required: [],
+  },
+  async execute(args, ctx: ToolContext): Promise<ToolResult> {
+    const start = Date.now()
+    const id = `list_${start}_${Math.random().toString(36).slice(2, 7)}`
+    const subPath = String(args.path || "").trim()
+    const requestedDepth = Number(args.depth) || 4
+    const maxDepth = Math.min(Math.max(requestedDepth, 1), 8)
+
+    const resolved = resolveWorkspacePath(subPath || ".", ctx)
+    if (!resolved.ok) {
+      return fail(id, "list_files", args, resolved.error || "مسار غير صالح", 0)
+    }
+    try {
+      const st = statSync(resolved.absolute!)
+      if (!st.isDirectory()) {
+        return fail(id, "list_files", args, `ليس مجلداً: ${resolved.rel}`, 0)
+      }
+      const tree = buildTree(resolved.absolute!, resolved.rel, 0, maxDepth)
+      const lines: string[] = [`${resolved.rel || "."}/`]
+      renderTree(tree, "", lines)
+      const rendered = lines.join("\n")
+      const count = rendered.split("\n").length - 1
+      return ok(
+        id,
+        "list_files",
+        args,
+        `🗂️ خريطة المستودع (${count} عنصر، عمق ${maxDepth}):\n\n\`\`\`\n${rendered}\n\`\`\``,
+        Date.now() - start
+      )
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return fail(id, "list_files", args, `تعذر رسم الشجرة: ${msg}`, Date.now() - start)
+    }
+  },
+}
+
+// ---- git_checkpoint -------------------------------------------------------
+export const gitCheckpointTool: ToolDef = {
+  name: "git_checkpoint",
+  description:
+    "يحفظ نقطة استرجاع (Checkpoint) عبر git add و git commit برسالة موحدة. استخدمها بعد كل تعديل مهم ليتسنى للمستخدم التراجع عنه لاحقاً.",
+  schema: {
+    type: "object",
+    properties: {
+      message: {
+        type: "string",
+        description: "رسالة الـ commit (افتراضي: MiMo X Checkpoint)",
+      },
+    },
+    required: [],
+  },
+  async execute(args, ctx: ToolContext): Promise<ToolResult> {
+    const start = Date.now()
+    const id = `git_${start}_${Math.random().toString(36).slice(2, 7)}`
+    const message = String(args.message || "MiMo X Checkpoint").trim()
+
+    const run = (cmd: string) =>
+      new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
+        const child = spawn("bash", ["-lc", cmd], {
+          cwd: ctx.workspaceRoot,
+          env: { ...process.env },
+          timeout: 20000,
+        })
+        let stdout = ""
+        let stderr = ""
+        child.stdout?.on("data", (d) => (stdout += d.toString()))
+        child.stderr?.on("data", (d) => (stderr += d.toString()))
+        child.on("close", (code) =>
+          resolve({ stdout, stderr, code: code ?? -1 })
+        )
+        child.on("error", () =>
+          resolve({ stdout, stderr, code: -1 })
+        )
+      })
+
+    // Ensure git is initialized
+    const initCheck = await run("git rev-parse --is-inside-work-tree 2>/dev/null")
+    if (initCheck.code !== 0) {
+      const initRes = await run("git init")
+      if (initRes.code !== 0) {
+        return fail(
+          id,
+          "git_checkpoint",
+          args,
+          `تعذر تهيئة git: ${initRes.stderr || initRes.stdout}`,
+          Date.now() - start
+        )
+      }
+    }
+
+    // Ensure user config exists (for commits)
+    await run('git config user.email >/dev/null 2>&1 || git config user.email "mimo-x@local"')
+    await run('git config user.name >/dev/null 2>&1 || git config user.name "MiMo X"')
+
+    // Stage everything
+    const addRes = await run("git add -A")
+    if (addRes.code !== 0) {
+      return fail(
+        id,
+        "git_checkpoint",
+        args,
+        `فشل git add: ${addRes.stderr || addRes.stdout}`,
+        Date.now() - start
+      )
+    }
+
+    // Check if there is anything to commit
+    const statusRes = await run("git status --porcelain")
+    if (!statusRes.stdout.trim()) {
+      // Nothing to commit — return the current HEAD
+      const headRes = await run("git rev-parse --short HEAD")
+      return ok(
+        id,
+        "git_checkpoint",
+        args,
+        `ℹ️ لا توجد تغييرات جديدة للحفظ. HEAD الحالي: ${headRes.stdout.trim() || "(none)"}`,
+        Date.now() - start
+      )
+    }
+
+    // Commit
+    const commitRes = await run(`git commit -m ${JSON.stringify(message)}`)
+    if (commitRes.code !== 0) {
+      // Maybe nothing to commit after all (race) — report gracefully
+      if (/nothing to commit|no changes/i.test(commitRes.stdout + commitRes.stderr)) {
+        const headRes = await run("git rev-parse --short HEAD")
+        return ok(
+          id,
+          "git_checkpoint",
+          args,
+          `ℹ️ لا تغييرات. HEAD: ${headRes.stdout.trim()}`,
+          Date.now() - start
+        )
+      }
+      return fail(
+        id,
+        "git_checkpoint",
+        args,
+        `فشل git commit: ${commitRes.stderr || commitRes.stdout}`,
+        Date.now() - start
+      )
+    }
+
+    const headRes = await run("git rev-parse --short HEAD")
+    const hash = headRes.stdout.trim()
+    return ok(
+      id,
+      "git_checkpoint",
+      args,
+      `✅ تم حفظ نقطة الاسترجاع (${hash}).\nالرسالة: ${message}\nيمكن للمستخدم التراجع عن هذه التغييرات عبر زر "نقاط الاسترجاع" في الواجهة.`,
+      Date.now() - start
+    )
+  },
+}

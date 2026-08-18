@@ -156,6 +156,9 @@ export function ChatShell() {
     resetStreamingToolCalls,
     setStreamingError,
     setAbortController,
+    setActiveFile,
+    triggerExplorerRefresh,
+    setSidebarTab,
     upsertConversation,
     removeConversation,
     addMessage,
@@ -294,6 +297,16 @@ export function ChatShell() {
                 status: "pending",
                 durationMs: 0,
               })
+              // If the tool touches a file, highlight it in the explorer
+              const fileTools = ["read_file", "write_file", "edit_file"]
+              if (fileTools.includes(call.name)) {
+                const p = String(call.args?.path || "")
+                if (p) {
+                  setActiveFile(p)
+                  setSidebarTab("explorer")
+                  triggerExplorerRefresh()
+                }
+              }
             },
             onToolResult: (r) => {
               // Replace the pending placeholder with the completed result
@@ -302,6 +315,11 @@ export function ChatShell() {
                 c.id === r.id ? r : c
               )
               useChatStore.setState({ streamingToolCalls: updated })
+              // Refresh explorer after file mutations or git checkpoints
+              const fsMutators = ["write_file", "edit_file", "git_checkpoint", "run_terminal_command"]
+              if (fsMutators.includes(r.name)) {
+                triggerExplorerRefresh()
+              }
             },
             onError: (err) => setStreamingError(err),
             onDone: (info) => {
@@ -364,6 +382,9 @@ export function ChatShell() {
       setAbortController,
       appendStreamingContent,
       addStreamingToolCall,
+      setActiveFile,
+      triggerExplorerRefresh,
+      setSidebarTab,
       setCurrentConversationId,
       setStreamingError,
       setMessages,
@@ -490,6 +511,10 @@ export function ChatShell() {
             }
             thinking={thinking}
             onOpenSettings={() => setSettingsOpen(true)}
+            onRevert={() => {
+              triggerExplorerRefresh()
+              loadConversations()
+            }}
           />
 
           <ChatMessages

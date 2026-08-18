@@ -5,6 +5,7 @@ import { PanelRight, Plus, Pencil, Check, Brain } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "./theme-toggle"
+import { CheckpointMenu } from "./checkpoint-menu"
 import { useChatStore } from "@/store/chat-store"
 
 interface ChatHeaderProps {
@@ -13,6 +14,7 @@ interface ChatHeaderProps {
   onRename: (title: string) => void
   thinking: boolean
   onOpenSettings?: () => void
+  onRevert?: () => void
 }
 
 export function ChatHeader({
@@ -21,6 +23,7 @@ export function ChatHeader({
   onRename,
   thinking,
   onOpenSettings,
+  onRevert,
 }: ChatHeaderProps) {
   const { conversations, currentConversationId } = useChatStore()
   const current = conversations.find((c) => c.id === currentConversationId)
@@ -104,6 +107,8 @@ export function ChatHeader({
           </span>
         )}
       </div>
+
+      <CheckpointMenu onRevert={onRevert} />
 
       <Button
         variant="ghost"
