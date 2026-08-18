@@ -67,6 +67,12 @@ export async function POST(req: NextRequest) {
     const { getSettings } = await import("@/lib/llm-provider");
     const settings = providerSettings || getSettings();
 
+    // Inject ecosystem settings (GitHub token + MCP servers) before running
+    const { setGithubToken } = await import("@/lib/ecosystem/github-tool");
+    const { setMcpServers } = await import("@/lib/ecosystem/mcp-tool");
+    setGithubToken(settings.githubToken || null);
+    setMcpServers(settings.mcpServers || []);
+
     // Build the agent's message list (no system prompt — the loop adds it)
     const agentMessages = history
       .filter((m) => m && m.content)

@@ -12,6 +12,11 @@ import {
   Brain,
   Layers,
   Zap,
+  Globe,
+  Github,
+  Plug,
+  Plus,
+  Trash2,
 } from "lucide-react"
 import {
   Dialog,
@@ -404,6 +409,105 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </p>
           </div>
         )}
+
+        {/* External Ecosystem section (always visible) */}
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <div className="flex items-center gap-1.5">
+            <Plug className="h-3.5 w-3.5 text-purple-500" />
+            <span className="text-xs font-semibold">التكاملات الخارجية</span>
+          </div>
+
+          {/* GitHub Token */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1 text-xs">
+              <Github className="h-3 w-3" /> GitHub Personal Access Token
+            </Label>
+            <Input
+              type="password"
+              value={s.githubToken}
+              onChange={(e) => s.setGithubToken(e.target.value)}
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (اختياري — بدون توكن يعمل بحدود عامة)"
+              className="text-xs"
+              dir="ltr"
+            />
+            <p className="text-[0.7rem] text-muted-foreground">
+              يُستخدم لرفع حدود API. بدون توكن، يعمل بحدود 60 طلب/ساعة للمستودعات العامة.
+            </p>
+          </div>
+
+          {/* MCP Servers */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1 text-xs">
+              <Plug className="h-3 w-3" /> خوادم MCP
+            </Label>
+            <div className="space-y-1.5">
+              {s.mcpServers.length > 0 ? (
+                s.mcpServers.map((srv, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <Input
+                      value={srv.name}
+                      onChange={(e) => {
+                        const updated = [...s.mcpServers]
+                        updated[i] = { ...srv, name: e.target.value }
+                        s.setMcpServers(updated)
+                      }}
+                      placeholder="اسم"
+                      className="text-xs w-24"
+                      dir="ltr"
+                    />
+                    <Input
+                      value={srv.url}
+                      onChange={(e) => {
+                        const updated = [...s.mcpServers]
+                        updated[i] = { ...srv, url: e.target.value }
+                        s.setMcpServers(updated)
+                      }}
+                      placeholder="http://localhost:3001/mcp"
+                      className="text-xs flex-1"
+                      dir="ltr"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => {
+                        const updated = s.mcpServers.filter((_, idx) => idx !== i)
+                        s.setMcpServers(updated)
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[0.7rem] text-muted-foreground">
+                  لا خوادم MCP مكونة. أضف واحداً لربط أدوات خارجية بقاعدة بيانات أو API.
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                onClick={() =>
+                  s.setMcpServers([
+                    ...s.mcpServers,
+                    { name: `server-${s.mcpServers.length + 1}`, url: "" },
+                  ])
+                }
+              >
+                <Plus className="h-3 w-3" /> إضافة خادم MCP
+              </Button>
+            </div>
+          </div>
+
+          {/* Browser info */}
+          <div className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1.5">
+            <Globe className="h-3 w-3 text-cyan-500" />
+            <span className="text-[0.7rem] text-muted-foreground">
+              المتصفح: Playwright headless — جاهز (chromium مُثبّت)
+            </span>
+          </div>
+        </div>
 
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)}>تم</Button>

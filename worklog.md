@@ -391,3 +391,45 @@ Stage Summary:
 - Vertical Slice 5 PASSED: agent used find_symbol + get_references FIRST (13ms + 45ms) instead of reading all files — efficient codebase navigation.
 - 12 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory, set_goal, find_symbol, get_references, structural_search.
 - Lint clean. Server running via pm2. End-to-end verified in the browser.
+
+---
+Task ID: 10
+Agent: Z.ai Code (main)
+Task: External Ecosystem (MCP + Browser + GitHub) — open MiMo X to the outside world. Build MCP client (call_mcp_tool), browser tools (browser_navigate + browser_screenshot using Playwright), GitHub tools (github_get_issues + github_get_repo_info using Octokit), ecosystem settings UI, and pass Vertical Slice 6.
+
+Work Log:
+- Installed @modelcontextprotocol/sdk@1.30.0, octokit@5.0.5, playwright@1.62.1 + chromium binary (114.7 MiB download — headless shell ready).
+- Built MCP Client (src/lib/ecosystem/mcp-client.ts): callMcpTool(serverUrl, toolName, args) — stateless JSON-RPC 2.0 over HTTP: initialize handshake → notifications/initialized → tools/call. Handles both JSON and SSE responses. listMcpTools() for discovery.
+- Built call_mcp_tool tool (mcp-tool.ts): generic tool that looks up the server by name from cached configs, calls callMcpTool(). setMcpServers() + setGithubToken() for injecting settings before agent runs.
+- Built Browser Tools (browser-tool.ts):
+  • browser_navigate(url) — launches chromium headless, navigates, extracts title + headings (h1/h2/h3) + paragraphs + links + HTML. Fallback: if Playwright fails, uses fetch() + HTML tag stripping.
+  • browser_screenshot(url, fullPage) — captures PNG to upload/ folder, returns path + size.
+- Built GitHub Tools (github-tool.ts):
+  • github_get_issues(owner, repo, state, limit) — lists issues via Octokit, shows #/title/state/comments/author/labels/url. Detects rate-limit errors and suggests adding a token.
+  • github_get_repo_info(owner, repo) — fetches repo info (stars, forks, language, size, open issues, last update).
+- Registered all 5 new tools in the registry (now 17 tools total).
+- Updated ProviderSettings: added githubToken + mcpServers fields. Updated settings-store with setGithubToken/setMcpServers + snapshot. Updated DEFAULTS.
+- Updated /api/chat: injects setGithubToken() + setMcpServers() from settings before running the agent loop.
+- Updated settings-dialog: added "التكاملات الخارجية" section with GitHub PAT field (password input) + MCP servers management (add/remove/edit name+URL) + browser status indicator ("Playwright headless — جاهز (chromium مُثبّت)").
+- Updated ToolCallBlock: icons + labels for all 5 new tools (Globe/Camera/Github/Plug).
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Restarted pm2 server.
+- Agent Browser — Vertical Slice 6 test:
+  • Sent: "استخدم المتصفح لزيارة https://example.com واستخرج عنوان الصفحة الرئيسي ثم احفظه في ملف heading.txt"
+  • The agent executed 2 steps:
+    1. browser_navigate (https://example.com) → نجح 464ms — extracted title "Example Domain", heading "Example Domain", paragraphs, links, HTML (559 bytes)
+    2. write_file (heading.txt) → نجح 3ms — saved the extracted heading
+  • heading.txt created with content: "Example Domain"
+  • No console errors, no page errors, lint clean, server running.
+- Screenshots: 30-ecosystem.
+
+Stage Summary:
+- MiMo X is now connected to the external world.
+- MCP Client ✅: call_mcp_tool connects to external MCP servers via JSON-RPC over HTTP, settings UI manages servers.
+- Browser ✅: browser_navigate (Playwright headless chromium, extracts title/headings/paragraphs/links/HTML) + browser_screenshot (PNG to upload/). Fallback to fetch if Playwright unavailable.
+- GitHub ✅: github_get_issues + github_get_repo_info via Octokit, works with/without token (rate-limited without).
+- Ecosystem UI ✅: settings section with GitHub PAT + MCP servers management + browser status.
+- Vertical Slice 6 PASSED: agent used browser_navigate (464ms) → write_file (3ms), extracted "Example Domain" and saved to heading.txt.
+- 17 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory, set_goal, find_symbol, get_references, structural_search, browser_navigate, browser_screenshot, github_get_issues, github_get_repo_info, call_mcp_tool.
+- Lint clean. Server running via pm2. End-to-end verified in the browser.
+- ONE STEP REMAINING: Windows packaging (Step 15) to complete the 15-step plan.

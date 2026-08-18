@@ -7,22 +7,30 @@ export type ProviderKind = "ollama" | "zai" | "dual";
 
 export type WorkerKind = "cpu" | "gpu";
 
+export interface McpServerConfig {
+  name: string
+  url: string
+}
+
 export interface ProviderSettings {
   provider: ProviderKind;
   // Single Ollama (legacy / simple)
   ollamaUrl: string;
   ollamaModel: string;
   // Dual-Worker (MiMo Router)
-  cpuWorkerUrl: string; // e.g. http://localhost:8002
-  cpuWorkerModel: string; // e.g. qwen3:4b (planning/tool-calling)
-  gpuWorkerUrl: string; // e.g. http://localhost:8001
-  gpuWorkerModel: string; // e.g. qwen2.5-coder:7b (code writing)
-  routerMode: "auto" | "cpu" | "gpu"; // auto = classify each step
+  cpuWorkerUrl: string;
+  cpuWorkerModel: string;
+  gpuWorkerUrl: string;
+  gpuWorkerModel: string;
+  routerMode: "auto" | "cpu" | "gpu";
   zaiThinking: boolean;
+  // External Ecosystem
+  githubToken: string;
+  mcpServers: McpServerConfig[];
 }
 
 export const DEFAULT_SETTINGS: ProviderSettings = {
-  provider: "zai", // Z.ai works out-of-the-box in this sandbox
+  provider: "zai",
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "llama3.2",
   cpuWorkerUrl: "http://localhost:8002",
@@ -31,6 +39,8 @@ export const DEFAULT_SETTINGS: ProviderSettings = {
   gpuWorkerModel: "qwen2.5-coder:7b",
   routerMode: "auto",
   zaiThinking: false,
+  githubToken: "",
+  mcpServers: [],
 };
 
 // In-memory settings cache (per-process). The UI persists to localStorage on

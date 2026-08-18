@@ -14,6 +14,10 @@ import {
   Search,
   Link2,
   Code2,
+  Globe,
+  Camera,
+  Github,
+  Plug,
   ChevronRight,
   Check,
   X,
@@ -42,6 +46,11 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   find_symbol: Search,
   get_references: Link2,
   structural_search: Code2,
+  browser_navigate: Globe,
+  browser_screenshot: Camera,
+  github_get_issues: Github,
+  github_get_repo_info: Github,
+  call_mcp_tool: Plug,
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -57,6 +66,11 @@ const TOOL_LABELS: Record<string, string> = {
   find_symbol: "بحث عن رمز",
   get_references: "مراجع الرمز",
   structural_search: "بحث هيكلي",
+  browser_navigate: "تصفّح رابط",
+  browser_screenshot: "لقطة شاشة",
+  github_get_issues: "مشاكل GitHub",
+  github_get_repo_info: "معلومات مستودع",
+  call_mcp_tool: "استدعاء MCP",
 }
 
 function prettyArgs(name: string, args: Record<string, unknown>): string {
@@ -84,6 +98,15 @@ function prettyArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "structural_search") {
     return String(args.pattern || "")
+  }
+  if (name === "browser_navigate" || name === "browser_screenshot") {
+    return String(args.url || "")
+  }
+  if (name === "github_get_issues" || name === "github_get_repo_info") {
+    return `${args.owner || ""}/${args.repo || ""}`
+  }
+  if (name === "call_mcp_tool") {
+    return `${args.server_name || ""}/${args.tool_name || ""}`
   }
   return JSON.stringify(args, null, 2)
 }

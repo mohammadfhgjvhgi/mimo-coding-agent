@@ -15,6 +15,8 @@ const DEFAULTS: ProviderSettings = {
   gpuWorkerModel: "qwen2.5-coder:7b",
   routerMode: "auto",
   zaiThinking: false,
+  githubToken: "",
+  mcpServers: [],
 }
 
 interface SettingsState extends ProviderSettings {
@@ -28,6 +30,8 @@ interface SettingsState extends ProviderSettings {
   setGpuWorkerModel: (m: string) => void
   setRouterMode: (m: "auto" | "cpu" | "gpu") => void
   setZaiThinking: (v: boolean) => void
+  setGithubToken: (t: string) => void
+  setMcpServers: (s: { name: string; url: string }[]) => void
   load: () => void
   snapshot: () => ProviderSettings
 }
@@ -80,6 +84,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ zaiThinking })
     persist(get())
   },
+  setGithubToken: (githubToken) => {
+    set({ githubToken })
+    persist(get())
+  },
+  setMcpServers: (mcpServers) => {
+    set({ mcpServers })
+    persist(get())
+  },
   load: () => {
     if (typeof window === "undefined") return
     try {
@@ -106,6 +118,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       gpuWorkerModel: s.gpuWorkerModel,
       routerMode: s.routerMode,
       zaiThinking: s.zaiThinking,
+      githubToken: s.githubToken,
+      mcpServers: s.mcpServers,
     }
   },
 }))

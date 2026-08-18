@@ -10,6 +10,9 @@ import { saveMemoryTool, recallMemoryTool } from "./memory"
 import { setGoalTool } from "./goals"
 import { verifyFile } from "./auto-verify"
 import { findSymbolTool, getReferencesTool, structuralSearchTool } from "@/lib/code-intel/code-intel-tools"
+import { browserNavigateTool, browserScreenshotTool } from "@/lib/ecosystem/browser-tool"
+import { githubGetIssuesTool, githubGetRepoInfoTool } from "@/lib/ecosystem/github-tool"
+import { callMcpToolTool } from "@/lib/ecosystem/mcp-tool"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
@@ -26,6 +29,11 @@ const REGISTRY: Record<string, ToolDef> = {
   find_symbol: findSymbolTool,
   get_references: getReferencesTool,
   structural_search: structuralSearchTool,
+  browser_navigate: browserNavigateTool,
+  browser_screenshot: browserScreenshotTool,
+  github_get_issues: githubGetIssuesTool,
+  github_get_repo_info: githubGetRepoInfoTool,
+  call_mcp_tool: callMcpToolTool,
 }
 
 export function listToolNames(): string[] {
