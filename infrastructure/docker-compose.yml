@@ -1,0 +1,41 @@
+# ============================================================
+# MiMo X — Sandbox Container (Execution Isolation)
+# ============================================================
+# بيئة معزولة آمنة لتنفيذ أوامر الوكيل (Terminal Sandbox).
+# تمنع الكود الخاطئ من الإضرار بنظام التشغيل الأساسي.
+#
+# الاستخدام:
+#   docker compose up -d
+#   # ثم في MiMo X، فعّل وضع "Sandbox" في الإعدادات
+# ============================================================
+
+services:
+  mimo-sandbox:
+    image: node:20-slim
+    container_name: mimo-sandbox
+    working_dir: /workspace
+    volumes:
+      # ربط مجلد المشروع بالحاوية
+      - ../:/workspace
+      # عزل node_modules (لا نشاركه مع المضيف للأداء)
+      - mimo-node-modules:/workspace/node_modules
+    # الوصول لخوادم llama.cpp على المضيف (host.docker.internal)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - MIMO_WORKSPACE_ROOT=/workspace
+      - GPU_WORKER_URL=http://host.docker.internal:8001
+      - CPU_WORKER_URL=http://host.docker.internal:8002
+    # إبقاء الحاوية تعمل وانتظار الأوامر
+    command: tail -f /dev/null
+    # الموارد (مناسبة لعتاد i7-3770 / 12GB)
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2"
+    # إعادة التشغيل التلقائي
+    restart: unless-stopped
+
+volumes:
+  mimo-node-modules:

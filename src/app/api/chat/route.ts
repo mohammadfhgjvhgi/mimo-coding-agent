@@ -135,6 +135,9 @@ export async function POST(req: NextRequest) {
               onContextCompressed: (stats) => {
                 enqueue({ type: "context_compressed", stats });
               },
+              onRouterDecision: (worker, reason) => {
+                enqueue({ type: "router_decision", worker, reason });
+              },
               onError: (err) => {
                 enqueue({ type: "error", error: err });
               },

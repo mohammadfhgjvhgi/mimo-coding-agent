@@ -27,6 +27,8 @@ interface ChatState {
   explorerRefreshSignal: number
   memoryRefreshSignal: number
   sidebarTab: "conversations" | "explorer" | "memory"
+  currentWorker: "cpu" | "gpu" | "zai" | null
+  workerReason: string | null
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -47,6 +49,7 @@ interface ChatState {
   triggerExplorerRefresh: () => void
   triggerMemoryRefresh: () => void
   setSidebarTab: (t: "conversations" | "explorer" | "memory") => void
+  setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -71,6 +74,8 @@ export const useChatStore = create<ChatState>((set) => ({
   explorerRefreshSignal: 0,
   memoryRefreshSignal: 0,
   sidebarTab: "conversations",
+  currentWorker: null,
+  workerReason: null,
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -94,6 +99,8 @@ export const useChatStore = create<ChatState>((set) => ({
   triggerMemoryRefresh: () =>
     set((s) => ({ memoryRefreshSignal: s.memoryRefreshSignal + 1 })),
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
+  setCurrentWorker: (currentWorker, reason = null) =>
+    set({ currentWorker, workerReason: reason }),
 
   upsertConversation: (c) =>
     set((s) => {

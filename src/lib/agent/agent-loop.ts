@@ -1,6 +1,6 @@
 // The Agent Loop: orchestrates LLM ↔ tool execution until a final answer.
 
-import { completeChat, type ProviderSettings } from "@/lib/llm-provider"
+import { completeChatRouted, type ProviderSettings } from "@/lib/llm-provider"
 import {
   dispatchTool,
   WORKSPACE_ROOT,
@@ -32,6 +32,7 @@ export interface AgentEvents {
   onFinalDelta?: (chunk: string) => void
   onError?: (error: string) => void
   onContextCompressed?: (stats: string) => void
+  onRouterDecision?: (worker: string, reason: string) => void
 }
 
 export interface AgentRunResult {
@@ -105,7 +106,9 @@ export async function runAgentLoop(opts: {
 
     let raw: string
     try {
-      raw = await completeChat(settings, compressed)
+      const result = await completeChatRouted(settings, compressed)
+      raw = result.text
+      events?.onRouterDecision?.(result.worker, result.reason)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       events?.onError?.(msg)

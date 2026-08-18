@@ -247,3 +247,48 @@ Stage Summary:
 - Vertical Slice 3 PASSED: agent used save_memory → write_file → auto-verify ran automatically (✅ no errors) — file created, memory persisted, recall works.
 - 8 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory.
 - Lint clean. No runtime errors. Server running via pm2 (persistent). End-to-end verified in the browser.
+
+---
+Task ID: 7
+Agent: Z.ai Code (main)
+Task: Research Z.ai/GLM-5.2 + Sandbox capabilities, then add the most powerful SIDE features (infrastructure around the model) from the uploaded dialogue file — focusing on Dual-Worker Router + Infrastructure scripts + Router UI.
+
+Research Summary (from uploaded file — comprehensive GLM-5.2 + Z.ai sandbox report):
+- GLM-5.2: 753B MoE, 1M context, IndexShare (2.9× FLOPs reduction), MIT license, flexible effort levels (High/Max/xhigh).
+- Full-stack: 20+ dev environments, frontend+backend, mini games/programs, document generation (.docx/.pdf/.xlsx via Agent Mode).
+- Sandbox: Terminal execution sandbox, Goal Mode (plan + acceptance criteria + verify + retry), Remote Control & Steering (WeChat/Feishu), Context Caching (98% hit rate).
+- Benchmarks: 1% behind Claude Opus 4.8 on FrontierSWE, beats GPT-5.5 by 1%, #1 open-source on Vending Bench 2 (year-long simulation), cyber vulnerability discovery in CyberGym.
+- Infrastructure around the model (the "Agentic & Sandbox Infrastructure"): Docker execution sandbox, Long-Horizon Agent Harness (Cline/Aider Goal Mode), MCP (Model Context Protocol), Context Caching Server (SGLang/vLLM prefix caching).
+- "Local AI Software Engineering OS" concept: OpenDevin/OpenHands, Devin — local-first, repo-level understanding, self-healing debugging loops, file system + terminal access, sandboxed execution.
+
+Work Log:
+- Updated llm-provider.ts: added "dual" provider kind + cpuWorkerUrl/cpuWorkerModel/gpuWorkerUrl/gpuWorkerModel/routerMode fields. Built classifyStep() (heuristic router: after read_file/edit_file/write_file/run_terminal → GPU; after list_files/git_checkpoint/save_memory/recall_memory → CPU; keyword matching for first step). Built completeChatRouted() returning {text, worker, reason} with Z.ai fallback. Built probeDualWorkers() for UI status.
+- Updated settings-store.ts: added all dual-worker fields + setters + WORKER_LABELS export.
+- Updated settings-dialog.tsx: 3-column provider grid (Ollama / Dual-Worker / Z.ai). Dual-Worker config section: router mode (auto/cpu/gpu), GPU worker URL+model, CPU worker URL+model, fallback notice.
+- Updated agent-loop.ts: replaced completeChat with completeChatRouted, added onRouterDecision event emitting the chosen worker + reason.
+- Updated /api/chat: emits router_decision SSE events.
+- Updated chat-store.ts: added currentWorker + workerReason state + setCurrentWorker.
+- Updated chat-shell.tsx: parses router_decision events, calls setCurrentWorker, resets on send/done.
+- Rewrote title-bar.tsx: shows provider badge (Ollama/Dual-Worker/Z.ai) + active worker indicator during streaming (🧠 CPU / ⚡ GPU / ☁️ Z.ai with pulse animation + reason).
+- Created infrastructure/ folder:
+  • start-mimo-servers.sh — launches 2 llama.cpp servers: GPU Worker (port 8001, qwen2.5-coder-7b, 16 GPU layers, flash-attn) + CPU Worker (port 8002, qwen3-4b, 6 threads, 0 GPU layers). Targets i7-3770 + 12GB RAM + GTX 750 Ti 4GB VRAM. Includes health checks + env vars.
+  • docker-compose.yml — isolated sandbox container (node:20-slim, workspace volume, host.docker.internal for worker access, 2GB/2CPU limits).
+  • README.md — full setup guide: llama.cpp build, model download (GGUF Q4_K_M), server launch, sandbox, router explanation, resource budget table.
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Restarted pm2 server.
+- Agent Browser verification:
+  • Opened settings → 3 provider cards visible (Ollama / Dual-Worker / Z.ai)
+  • Selected Dual-Worker → config fields appear: GPU Worker (http://localhost:8001, qwen2.5-coder:7b), CPU Worker (http://localhost:8002, qwen3:4b), router mode selector
+  • Sent "خطط لكيفية بناء تطبيق آلة حاسبة ثم اكتب الكود" → agent ran, created index.html (write_file نجح 14ms). Router fell back to Z.ai (workers down in sandbox) — response worked. No errors.
+  • Infrastructure scripts verified: bash -n start-mimo-servers.sh → syntax OK
+- Screenshots: 25-dual-worker-settings, 26-router-indicator.
+
+Stage Summary:
+- MiMo X now has the Dual-Worker Router infrastructure (the #1 side feature from the dialogue).
+- Router classifies each agent step: planning/tool-calling → CPU worker, code writing/editing → GPU worker, with Z.ai fallback.
+- Infrastructure scripts ready for the user's real hardware (i7-3770 + GTX 750 Ti): start both llama.cpp workers, Docker sandbox, full setup README.
+- Title bar shows live worker indicator (🧠 CPU / ⚡ GPU / ☁️ Z.ai) during streaming.
+- Settings dialog has full Dual-Worker config (URLs, models, router mode).
+- 3 providers now: Ollama (single), Dual-Worker (CPU+GPU), Z.ai (cloud fallback).
+- Lint clean. Server running via pm2. End-to-end verified.
+- NEXT: Goal Mode / Long-Horizon Autonomous Tasks (the crown jewel from the dialogue — plan + acceptance criteria + autonomous execution until goal met, persisted in SQLite Task Queue).

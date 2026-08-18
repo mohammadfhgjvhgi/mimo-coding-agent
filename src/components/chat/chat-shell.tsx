@@ -60,6 +60,7 @@ async function streamChat(
     onToolCall: (call: { id: string; name: string; args: Record<string, unknown> }) => void
     onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
     onContextCompressed?: (stats: string) => void
+    onRouterDecision?: (worker: string, reason: string) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -117,6 +118,8 @@ async function streamChat(
             handlers.onToolResult(json.result)
           } else if (json.type === "context_compressed") {
             handlers.onContextCompressed?.(json.stats)
+          } else if (json.type === "router_decision") {
+            handlers.onRouterDecision?.(json.worker, json.reason)
           } else if (json.type === "error") {
             handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
@@ -163,6 +166,7 @@ export function ChatShell() {
     triggerExplorerRefresh,
     triggerMemoryRefresh,
     setSidebarTab,
+    setCurrentWorker,
     upsertConversation,
     removeConversation,
     addMessage,
@@ -270,6 +274,7 @@ export function ChatShell() {
 
       setStreamingContent("")
       resetStreamingToolCalls()
+      setCurrentWorker(null)
       setIsStreaming(true)
       const controller = new AbortController()
       setAbortController(controller)
@@ -332,10 +337,14 @@ export function ChatShell() {
             onContextCompressed: (stats) => {
               console.info("[Context OS]", stats)
             },
+            onRouterDecision: (worker, reason) => {
+              setCurrentWorker(worker as "cpu" | "gpu" | "zai", reason)
+            },
             onError: (err) => setStreamingError(err),
             onDone: (info) => {
               setIsStreaming(false)
               setAbortController(null)
+              setCurrentWorker(null)
               const finalContent = useChatStore.getState().streamingContent
               const finalToolCalls = useChatStore.getState().streamingToolCalls
               const assistantMsg: ChatMessage = {
@@ -397,6 +406,7 @@ export function ChatShell() {
       triggerExplorerRefresh,
       triggerMemoryRefresh,
       setSidebarTab,
+      setCurrentWorker,
       setCurrentConversationId,
       setStreamingError,
       setMessages,

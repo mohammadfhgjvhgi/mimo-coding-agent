@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import type { ProviderKind, ProviderSettings } from "@/lib/llm-provider"
+import type { ProviderKind, ProviderSettings, WorkerKind } from "@/lib/llm-provider"
 
 const STORAGE_KEY = "mimo-x.settings.v1"
 
@@ -9,6 +9,11 @@ const DEFAULTS: ProviderSettings = {
   provider: "zai",
   ollamaUrl: "http://localhost:11434",
   ollamaModel: "llama3.2",
+  cpuWorkerUrl: "http://localhost:8002",
+  cpuWorkerModel: "qwen3:4b",
+  gpuWorkerUrl: "http://localhost:8001",
+  gpuWorkerModel: "qwen2.5-coder:7b",
+  routerMode: "auto",
   zaiThinking: false,
 }
 
@@ -17,6 +22,11 @@ interface SettingsState extends ProviderSettings {
   setProvider: (p: ProviderKind) => void
   setOllamaUrl: (u: string) => void
   setOllamaModel: (m: string) => void
+  setCpuWorkerUrl: (u: string) => void
+  setCpuWorkerModel: (m: string) => void
+  setGpuWorkerUrl: (u: string) => void
+  setGpuWorkerModel: (m: string) => void
+  setRouterMode: (m: "auto" | "cpu" | "gpu") => void
   setZaiThinking: (v: boolean) => void
   load: () => void
   snapshot: () => ProviderSettings
@@ -46,6 +56,26 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ ollamaModel })
     persist(get())
   },
+  setCpuWorkerUrl: (cpuWorkerUrl) => {
+    set({ cpuWorkerUrl })
+    persist(get())
+  },
+  setCpuWorkerModel: (cpuWorkerModel) => {
+    set({ cpuWorkerModel })
+    persist(get())
+  },
+  setGpuWorkerUrl: (gpuWorkerUrl) => {
+    set({ gpuWorkerUrl })
+    persist(get())
+  },
+  setGpuWorkerModel: (gpuWorkerModel) => {
+    set({ gpuWorkerModel })
+    persist(get())
+  },
+  setRouterMode: (routerMode) => {
+    set({ routerMode })
+    persist(get())
+  },
   setZaiThinking: (zaiThinking) => {
     set({ zaiThinking })
     persist(get())
@@ -56,7 +86,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const raw = window.localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<ProviderSettings>
-        set({ ...parsed, loaded: true })
+        set({ ...DEFAULTS, ...parsed, loaded: true })
         return
       }
     } catch {
@@ -70,7 +100,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       provider: s.provider,
       ollamaUrl: s.ollamaUrl,
       ollamaModel: s.ollamaModel,
+      cpuWorkerUrl: s.cpuWorkerUrl,
+      cpuWorkerModel: s.cpuWorkerModel,
+      gpuWorkerUrl: s.gpuWorkerUrl,
+      gpuWorkerModel: s.gpuWorkerModel,
+      routerMode: s.routerMode,
       zaiThinking: s.zaiThinking,
     }
   },
 }))
+
+// Re-export for convenience
+export type { WorkerKind }
+export const WORKER_LABELS: Record<WorkerKind | "zai", string> = {
+  cpu: "CPU Worker",
+  gpu: "GPU Worker",
+  zai: "Z.ai سحابي",
+}

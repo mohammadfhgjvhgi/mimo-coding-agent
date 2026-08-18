@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   XCircle,
   Brain,
+  Layers,
+  Zap,
 } from "lucide-react"
 import {
   Dialog,
@@ -139,7 +141,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         </DialogHeader>
 
         {/* Provider tabs */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => handleProviderChange("ollama")}
             className={cn(
@@ -154,7 +156,24 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {s.provider === "ollama" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
             </div>
             <span className="text-sm font-semibold">Ollama محلي</span>
-            <span className="text-[0.7rem] text-muted-foreground">يعمل دون إنترنت على عتادك</span>
+            <span className="text-[0.7rem] text-muted-foreground">يعمل دون إنترنت</span>
+          </button>
+
+          <button
+            onClick={() => handleProviderChange("dual")}
+            className={cn(
+              "flex flex-col items-start gap-1 rounded-xl border p-3 text-right transition",
+              s.provider === "dual"
+                ? "border-primary bg-accent"
+                : "border-border hover:bg-accent/50"
+            )}
+          >
+            <div className="flex w-full items-center justify-between">
+              <Layers className="h-4 w-4 text-purple-500" />
+              {s.provider === "dual" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
+            </div>
+            <span className="text-sm font-semibold">Dual-Worker</span>
+            <span className="text-[0.7rem] text-muted-foreground">CPU + GPU معًا</span>
           </button>
 
           <button
@@ -171,7 +190,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {s.provider === "zai" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
             </div>
             <span className="text-sm font-semibold">Z.ai سحابي</span>
-            <span className="text-[0.7rem] text-muted-foreground">جاهز فوراً، نماذج قوية</span>
+            <span className="text-[0.7rem] text-muted-foreground">جاهز فوراً</span>
           </button>
         </div>
 
@@ -285,6 +304,103 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </div>
             <p className="rounded-md bg-muted/60 px-2.5 py-1.5 text-[0.7rem] text-muted-foreground">
               خدمة Z.ai جاهزة فوراً في هذه البيئة دون أي إعداد. بدّل إلى Ollama لتشغيل نماذج محلية على جهازك.
+            </p>
+          </div>
+        )}
+
+        {/* Dual-Worker config */}
+        {s.provider === "dual" && (
+          <div className="space-y-4 rounded-xl border border-border p-3">
+            <p className="rounded-md bg-purple-500/5 px-2.5 py-1.5 text-[0.7rem] text-purple-600 dark:text-purple-400">
+              معمارانية العامل المزدوج: عامل المعالج (CPU) للتخطيط + استدعاء الأدوات، وعامل كرت الشاشة (GPU) لكتابة الكود. شغّل العاملين عبر <code className="rounded bg-muted px-1">infrastructure/start-mimo-servers.sh</code>.
+            </p>
+
+            {/* Router mode */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">وضع الموزّع (Router Mode)</Label>
+              <Select
+                value={s.routerMode}
+                onValueChange={(v) => s.setRouterMode(v as "auto" | "cpu" | "gpu")}
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">
+                    <span>تلقائي — يصنّف كل خطوة (موصى)</span>
+                  </SelectItem>
+                  <SelectItem value="cpu">
+                    <span>الكل على المعالج (CPU)</span>
+                  </SelectItem>
+                  <SelectItem value="gpu">
+                    <span>الكل على كرت الشاشة (GPU)</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* GPU Worker config */}
+            <div className="space-y-2 rounded-lg border border-border bg-card/50 p-2.5">
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-semibold">عامل GPU (كتابة الكود)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[0.7rem] text-muted-foreground">العنوان</Label>
+                  <Input
+                    value={s.gpuWorkerUrl}
+                    onChange={(e) => s.setGpuWorkerUrl(e.target.value)}
+                    placeholder="http://localhost:8001"
+                    className="text-xs"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[0.7rem] text-muted-foreground">النموذج</Label>
+                  <Input
+                    value={s.gpuWorkerModel}
+                    onChange={(e) => s.setGpuWorkerModel(e.target.value)}
+                    placeholder="qwen2.5-coder:7b"
+                    className="text-xs"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CPU Worker config */}
+            <div className="space-y-2 rounded-lg border border-border bg-card/50 p-2.5">
+              <div className="flex items-center gap-1.5">
+                <Cpu className="h-3.5 w-3.5 text-cyan-500" />
+                <span className="text-xs font-semibold">عامل CPU (تخطيط + أدوات)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[0.7rem] text-muted-foreground">العنوان</Label>
+                  <Input
+                    value={s.cpuWorkerUrl}
+                    onChange={(e) => s.setCpuWorkerUrl(e.target.value)}
+                    placeholder="http://localhost:8002"
+                    className="text-xs"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[0.7rem] text-muted-foreground">النموذج</Label>
+                  <Input
+                    value={s.cpuWorkerModel}
+                    onChange={(e) => s.setCpuWorkerModel(e.target.value)}
+                    placeholder="qwen3:4b"
+                    className="text-xs"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[0.7rem] text-muted-foreground">
+              💡 إذا كان أحد العاملين غير متاح، يتحوّل تلقائياً إلى Z.ai كـ fallback.
             </p>
           </div>
         )}
