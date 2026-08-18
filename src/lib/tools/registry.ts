@@ -13,6 +13,7 @@ import { findSymbolTool, getReferencesTool, structuralSearchTool } from "@/lib/c
 import { browserNavigateTool, browserScreenshotTool } from "@/lib/ecosystem/browser-tool"
 import { githubGetIssuesTool, githubGetRepoInfoTool } from "@/lib/ecosystem/github-tool"
 import { callMcpToolTool } from "@/lib/ecosystem/mcp-tool"
+import { runCodeTool } from "@/lib/tools/code-sandbox"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
@@ -34,6 +35,7 @@ const REGISTRY: Record<string, ToolDef> = {
   github_get_issues: githubGetIssuesTool,
   github_get_repo_info: githubGetRepoInfoTool,
   call_mcp_tool: callMcpToolTool,
+  run_code: runCodeTool,
 }
 
 export function listToolNames(): string[] {
