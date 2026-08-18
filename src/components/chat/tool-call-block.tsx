@@ -10,6 +10,7 @@ import {
   GitCommitHorizontal,
   Brain,
   Lightbulb,
+  Target,
   ChevronRight,
   Check,
   X,
@@ -34,6 +35,7 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   git_checkpoint: GitCommitHorizontal,
   save_memory: Brain,
   recall_memory: Lightbulb,
+  set_goal: Target,
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -45,6 +47,7 @@ const TOOL_LABELS: Record<string, string> = {
   git_checkpoint: "نقطة استرجاع",
   save_memory: "حفظ ذاكرة",
   recall_memory: "استرجاع ذاكرة",
+  set_goal: "تحديد هدف",
 }
 
 function prettyArgs(name: string, args: Record<string, unknown>): string {
@@ -63,6 +66,9 @@ function prettyArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "save_memory" || name === "recall_memory") {
     return String(args.key || "(الكل)")
+  }
+  if (name === "set_goal") {
+    return String(args.goal || "").slice(0, 60)
   }
   return JSON.stringify(args, null, 2)
 }

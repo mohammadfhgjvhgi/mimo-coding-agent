@@ -165,3 +165,95 @@ export async function runAgentLoop(opts: {
 
   return { finalText: "", toolResults, iterations, stopped }
 }
+
+// ---- Single-step runner (for autonomous Goal Mode) ------------------------
+// Runs exactly ONE iteration of the agent loop and returns the updated
+// conversation so it can be persisted to SQLite and resumed later.
+
+export interface AgentStepResult {
+  conversation: AgentMessage[]
+  rawResponse: string
+  thought: string
+  toolCall?: { name: string; args: Record<string, unknown> }
+  toolResult?: ToolResult
+  worker: string
+  workerReason: string
+  isFinal: boolean
+  finalText: string
+  compressed: boolean
+  compressionStats?: string
+}
+
+export async function runAgentStep(opts: {
+  conversation: AgentMessage[]
+  settings: ProviderSettings
+  ctx?: Partial<ToolContext>
+  signal?: AbortSignal
+}): Promise<AgentStepResult> {
+  const { conversation, settings, signal } = opts
+  const ctx: ToolContext = {
+    workspaceRoot: opts.ctx?.workspaceRoot || WORKSPACE_ROOT,
+    allowedExtensions: opts.ctx?.allowedExtensions ?? null,
+  }
+
+  const tokenBudget = tokenBudgetForProvider(settings.provider)
+
+  // Context OS: compress before the call
+  const { messages: compressed, stats } = compressConversation(
+    conversation,
+    tokenBudget
+  )
+
+  const result = await completeChatRouted(settings, compressed)
+  const raw = result.text
+  const parsed = parseResponse(raw)
+
+  if (!parsed.hasToolCall || !parsed.toolCall) {
+    // Final answer
+    return {
+      conversation,
+      rawResponse: raw,
+      thought: raw,
+      isFinal: true,
+      finalText: raw.trim(),
+      worker: result.worker,
+      workerReason: result.reason,
+      compressed: stats.messagesCompressed > 0,
+      compressionStats:
+        stats.messagesCompressed > 0 ? formatCompressionStats(stats) : undefined,
+    }
+  }
+
+  // Execute the tool call
+  const call: ToolCall = {
+    id: newId(parsed.toolCall.name),
+    name: parsed.toolCall.name,
+    args: parsed.toolCall.args,
+  }
+  const toolResult = await dispatchTool(call, ctx)
+
+  // Append the assistant turn + tool result to the conversation
+  const assistantTurn =
+    (parsed.thought ? parsed.thought + "\n\n" : "") +
+    `⟦TOOL⟧${JSON.stringify({ name: call.name, args: call.args })}⟦/TOOL⟧`
+  const newConversation: AgentMessage[] = [
+    ...conversation,
+    { role: "assistant", content: assistantTurn },
+    { role: "user", content: buildToolResultMessage(toolResult) },
+  ]
+
+  return {
+    conversation: newConversation,
+    rawResponse: raw,
+    thought: parsed.thought || "",
+    toolCall: { name: call.name, args: call.args },
+    toolResult,
+    isFinal: false,
+    finalText: "",
+    worker: result.worker,
+    workerReason: result.reason,
+    compressed: stats.messagesCompressed > 0,
+    compressionStats:
+      stats.messagesCompressed > 0 ? formatCompressionStats(stats) : undefined,
+  }
+}

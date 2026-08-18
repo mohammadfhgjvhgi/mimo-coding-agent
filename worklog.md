@@ -292,3 +292,49 @@ Stage Summary:
 - 3 providers now: Ollama (single), Dual-Worker (CPU+GPU), Z.ai (cloud fallback).
 - Lint clean. Server running via pm2. End-to-end verified.
 - NEXT: Goal Mode / Long-Horizon Autonomous Tasks (the crown jewel from the dialogue — plan + acceptance criteria + autonomous execution until goal met, persisted in SQLite Task Queue).
+
+---
+Task ID: 8
+Agent: Z.ai Code (main)
+Task: Goal Mode + Autonomous Long-Horizon Tasks — the crown jewel. Build a Task model in Prisma, a set_goal tool, an Autonomous Goal Runner (/api/goals/[id]/run) that executes one step per request with SQLite-persisted state (resumable after interruption), a verification loop, Dual-Worker integration, a Goals UI panel (4th sidebar tab), and pass Vertical Slice 4 (build a calculator app autonomously).
+
+Work Log:
+- Added Prisma `Task` model: goal, acceptanceCriteria (JSON), status (pending/running/paused/done/failed), plan, steps (JSON array of executed steps), currentStep, agentState (JSON: full conversation for resume), result, verificationResult. Pushed to SQLite.
+- Built `runAgentStep()` in agent-loop.ts: runs exactly ONE iteration (completeChatRouted → parseResponse → dispatchTool → append to conversation). Returns {conversation, toolCall, toolResult, worker, isFinal, finalText}. This is the resumable building block.
+- Built `set_goal` tool (src/lib/tools/goals.ts): creates a Task in DB with goal + acceptanceCriteria. Registered in registry (now 9 tools).
+- Built 3 API routes:
+  • GET/POST /api/goals — list all tasks + create new (deserializes JSON fields for UI)
+  • GET/PATCH/DELETE /api/goals/[id] — fetch one, update status (pause/resume), delete
+  • POST /api/goals/[id]/run — THE AUTONOMOUS RUNNER: loads task from DB, deserializes agentState (conversation) or builds fresh from goal+criteria+system prompt+memory, runs ONE runAgentStep, persists the new conversation to agentState, appends step to steps array. If agent gives final answer: checks isGoalAchieved() pattern (✅ + محقق/تحقق/اكتمل), if achieved → status=done; if not → injects verification prompt ("تحقق من معايير القبول، استخدم الأدوات، أنهِ بـ ✅ الهدف محقق") and continues. Safety: MAX_GOAL_STEPS=40 → status=failed.
+- Built GoalsPanel component (src/components/chat/goals-panel.tsx): fetches from /api/goals, groups by status (running/pending/paused/done/failed), task cards with goal + status badge + criteria count + step count + collapsible step tree (tool name + status + worker icon), buttons (ابدأ/استئناف/إيقاف/حذف). Runner: polls /api/goals/[id]/run up to 50 times with 300ms delay, updates task in real-time, shows "يعمل autonomously…" indicator. Add-goal dialog with goal + criteria textarea, auto-starts on save.
+- Updated sidebar: 4-column icon-only tab grid (محادثات/ملفات/ذاكرة/أهداف) + separate label row. Goals tab renders GoalsPanel.
+- Updated store: added goalsRefreshSignal + triggerGoalsRefresh + sidebarTab "goals" type.
+- Updated ToolCallBlock: set_goal icon (Target) + label (تحديد هدف).
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Restarted pm2 server.
+- Agent Browser — Vertical Slice 4 test (THE GOLDEN PATH):
+  • Created goal via UI: "بناء تطبيق آلة حاسبة كامل: ملف calculator.js فيه دوال الجمع والطرح والضرب والقسمة مع اختبارات، وتشغيله ينجح"
+  • Acceptance criteria: calculator.js exists with add/subtract/multiply/divide, node calculator.js succeeds, division handles zero
+  • The autonomous runner executed 6 steps:
+    1. set_goal → success (defined the goal)
+    2. list_files → success (explored project structure)
+    3. write_file → success (created calculator.js with all 4 functions + Arabic JSDoc)
+    4. run_terminal_command → success (ran node calculator.js to verify)
+    5. save_memory → success (saved learnings)
+    6. final → agent self-verified all criteria and declared "✅ الهدف محقق"
+  • Verification result: {"passed":true,"reason":"أعلن الوكيل تحقق الهدف بعد التحقق الذاتي"}
+  • calculator.js created (1328 bytes) with: add(a,b), subtract(a,b), multiply(a,b), divide(a,b) — divide handles zero-division ("خطأ: لا يمكن القسمة على صفر")
+  • Goal status: done, 6 steps, all green
+  • No console errors, no dev log errors, lint clean
+- Screenshots: 27-goals-tab, 28-goal-done (goal card showing done status + steps).
+
+Stage Summary:
+- MiMo X is now a TRUE AUTONOMOUS ENGINEERING AGENT ("Devin-like").
+- Goal Mode ✅: user defines goal + acceptance criteria, agent plans + executes + self-verifies autonomously until criteria met.
+- Resume mechanism ✅: agentState persisted to SQLite after every step — if the browser closes or the process dies, the client polls /run again and resumes from the last step.
+- Verification Loop ✅: after the agent declares done, the runner checks isGoalAchieved(); if not, it injects a verification prompt and the agent continues running verification tools until it confirms.
+- Dual-Worker integration ✅: runAgentStep uses completeChatRouted which routes planning→CPU, code→GPU (with Z.ai fallback).
+- Goals UI ✅: 4th sidebar tab with status-grouped cards, step tree, worker indicators, start/pause/resume/delete + add-goal dialog with auto-start.
+- 9 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory, set_goal.
+- Vertical Slice 4 PASSED: goal → plan → execute (list/write/run/save) → self-verify → ✅ done, all acceptance criteria met, calculator.js created with 4 operations + zero-division handling.
+- Lint clean. Server running via pm2. End-to-end verified in the browser.

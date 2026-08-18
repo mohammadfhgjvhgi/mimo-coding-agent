@@ -19,6 +19,7 @@ model Conversation {
   updatedAt DateTime @updatedAt
 
   messages Message[]
+  tasks   Task[]
 
   @@index([updatedAt])
 }
@@ -26,7 +27,7 @@ model Conversation {
 model Message {
   id             String   @id @default(cuid())
   conversationId String
-  role           String   // 'user' | 'assistant' | 'system'
+  role           String
   content        String
   model          String?
   toolCalls      String?
@@ -42,10 +43,31 @@ model Memory {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String
-  category  String   @default("general") // general | decision | fact | preference | project
-  source    String   @default("agent") // agent | user
+  category  String   @default("general")
+  source    String   @default("agent")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([category])
+}
+
+model Task {
+  id                 String   @id @default(cuid())
+  conversationId     String?
+  goal               String
+  acceptanceCriteria String   @default("[]")  // JSON array of criteria strings
+  status             String   @default("pending") // pending|running|paused|done|failed
+  plan               String?  // JSON array of planned steps
+  steps              String   @default("[]")  // JSON array of executed steps {tool, args, result, worker, ts}
+  currentStep        Int      @default(0)
+  agentState         String?  // JSON: conversation messages for resume
+  result             String?  // final summary
+  verificationResult String?  // JSON: verification outcome
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([updatedAt])
 }

@@ -7,6 +7,7 @@ import {
   gitCheckpointTool,
 } from "./tools"
 import { saveMemoryTool, recallMemoryTool } from "./memory"
+import { setGoalTool } from "./goals"
 import { verifyFile } from "./auto-verify"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
@@ -20,6 +21,7 @@ const REGISTRY: Record<string, ToolDef> = {
   git_checkpoint: gitCheckpointTool,
   save_memory: saveMemoryTool,
   recall_memory: recallMemoryTool,
+  set_goal: setGoalTool,
 }
 
 export function listToolNames(): string[] {

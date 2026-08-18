@@ -13,6 +13,7 @@ import {
   Settings,
   FolderTree,
   Brain,
+  Target,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +41,7 @@ import { useChatStore } from "@/store/chat-store"
 import { ThemeToggle } from "./theme-toggle"
 import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
+import { GoalsPanel } from "./goals-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -350,6 +352,7 @@ export function ChatSidebar({
   const activeFile = useChatStore((s) => s.activeFile)
   const explorerRefreshSignal = useChatStore((s) => s.explorerRefreshSignal)
   const memoryRefreshSignal = useChatStore((s) => s.memoryRefreshSignal)
+  const goalsRefreshSignal = useChatStore((s) => s.goalsRefreshSignal)
 
   return (
     <div className="flex h-full w-full flex-col bg-sidebar">
@@ -372,40 +375,59 @@ export function ChatSidebar({
       </div>
 
       {/* Tab bar */}
-      <div className="mx-3 mb-2 grid grid-cols-3 rounded-lg bg-muted/60 p-0.5 text-xs">
+      <div className="mx-3 mb-2 grid grid-cols-4 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
             sidebarTab === "conversations"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <MessageSquare className="h-3.5 w-3.5" /> محادثات
+          <MessageSquare className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => setSidebarTab("explorer")}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
             sidebarTab === "explorer"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <FolderTree className="h-3.5 w-3.5" /> الملفات
+          <FolderTree className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => setSidebarTab("memory")}
           className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md py-1.5 font-medium transition",
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
             sidebarTab === "memory"
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Brain className="h-3.5 w-3.5" /> الذاكرة
+          <Brain className="h-3.5 w-3.5" />
         </button>
+        <button
+          onClick={() => setSidebarTab("goals")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "goals"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Target className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Tab labels */}
+      <div className="mx-3 mb-2 grid grid-cols-4 text-[0.6rem] text-muted-foreground">
+        <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
+        <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
+        <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
+        <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
       </div>
 
       {/* Content */}
@@ -425,9 +447,13 @@ export function ChatSidebar({
             refreshSignal={explorerRefreshSignal}
           />
         </div>
-      ) : (
+      ) : sidebarTab === "memory" ? (
         <div className="flex flex-1 flex-col overflow-hidden">
           <MemoryPanel refreshSignal={memoryRefreshSignal} />
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <GoalsPanel refreshSignal={goalsRefreshSignal} />
         </div>
       )}
     </div>
