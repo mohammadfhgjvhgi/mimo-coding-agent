@@ -338,3 +338,56 @@ Stage Summary:
 - 9 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory, set_goal.
 - Vertical Slice 4 PASSED: goal → plan → execute (list/write/run/save) → self-verify → ✅ done, all acceptance criteria met, calculator.js created with 4 operations + zero-division handling.
 - Lint clean. Server running via pm2. End-to-end verified in the browser.
+
+---
+Task ID: 9
+Agent: Z.ai Code (main)
+Task: Code Intelligence Layer — AST engine (symbol extraction), Symbol Index (SQLite), 3 code intelligence tools (find_symbol, get_references, structural_search), Smart Repo Map, Symbols UI panel (5th sidebar tab), and pass Vertical Slice 5 (agent uses find_symbol + get_references instead of reading all files).
+
+Work Log:
+- Tried tree-sitter native module (installed tree-sitter + grammars). Worked in standalone `node -e` test but FAILED in Next.js server context ("No native build found for platform=linux arch=x64 abi=137 node=24.18.0"). Turbopack server-side module loading doesn't resolve the prebuilt binary.
+- Pivoted to a pure-JS AST engine (src/lib/code-intel/ast-engine.ts) — no native dependencies, robust across all Node ABIs. Extracts symbols via regex + brace-depth tracking:
+  • JS/TS: function declarations, class declarations, interface (TS), type aliases (TS), arrow functions (const NAME = ... =>), const functions, constants, variables (let), class methods (indentation-based), imports (ES modules + CommonJS require)
+  • Python: function definitions (def), class definitions, imports
+  • Skips reserved keywords, dedupes by (name:line)
+- Built Symbol Index (src/lib/code-intel/symbol-index.ts):
+  • indexFile(relPath) — delete old symbols for a file, parse, insert new ones
+  • reindexWorkspace() — walk workspace (ignoring node_modules/.git/.next/etc.), index up to 200 parsable files
+  • findSymbol(name) — exact match first, fuzzy (contains) fallback
+  • getReferences(name) — text-scan all parsable files for word-boundary matches, marks declarations vs usages
+  • getRepoMap() — symbols grouped by file (for the smart repo map)
+  • getIndexStats() — total symbols, files indexed, by-type counts
+- Added Prisma `Symbol` model (name, type, filePath, line, column, endLine, signature) with indexes on name/filePath/type. Pushed to SQLite.
+- Built 3 Code Intelligence Tools (src/lib/code-intel/code-intel-tools.ts):
+  • find_symbol(name) — searches the index, returns type/icon + location + signature
+  • get_references(name) — finds all call sites, distinguishes declarations (📌) vs usages (🔗)
+  • structural_search(pattern, language, path) — tries ast-grep CLI (npx @ast-grep/cli), falls back to text search if unavailable
+- Registered all 3 in the registry (now 12 tools). Added Code Intelligence Hook in dispatchTool: after write_file/edit_file, calls indexFile() to keep the index fresh.
+- Built /api/symbols route: GET (stats + repo map, or action=search?q=, or action=map), POST (trigger full reindex).
+- Built SymbolsPanel component (src/components/chat/symbols-panel.tsx): 5th sidebar tab "الرموز". Shows index stats (total symbols / files / types), search box, symbols grouped by type (function/method/class/variable/interface/type) with type-colored icons, click a symbol → switches to explorer tab + highlights the file.
+- Updated sidebar to 5-column icon grid + labels row. Updated store with symbolsRefreshSignal + triggerSymbolsRefresh. Updated chat-shell to triggerSymbolsRefresh after write_file/edit_file. Added tool icons (Search/Link2/Code2) + labels for the 3 new tools.
+- Updated eslint config to ignore testproj/ + infrastructure/ + root test files.
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Restarted pm2. Triggered initial index: 235 files, 1662 symbols indexed.
+- Agent Browser — Vertical Slice 5 test:
+  • Sent: "ابحث عن دالة add في المشروع باستخدام find_symbol ثم استخدم get_references لمعرفة جميع الاكنان التي تستدعيها ثم اضف logging في بداية كل استدعاء"
+  • The agent executed 5 steps using CODE INTELLIGENCE FIRST:
+    1. find_symbol (add) → نجح 13ms — located the symbol via index (not file reading)
+    2. get_references (add) → نجح 45ms — found all call sites
+    3. read_file (calculator.js) → نجح 1ms — read the file containing the symbol
+    4. edit_file (calculator.js) → نجح 3ms — added logging: console.log("استدعاء دالة add(5, 3)")
+    5. run_terminal_command (node calculator.js) → نجح 66ms — verified it runs
+  • calculator.js updated with logging before add(5, 3) call
+  • No console errors, lint clean, server running.
+- Screenshots: 29-code-intel.
+
+Stage Summary:
+- MiMo X now has DETERMINISTIC CODE INTELLIGENCE — "programmatic eyes" that see code structure, not just text.
+- AST Engine ✅: pure-JS symbol extraction for JS/TS/TSX/Python (functions, classes, methods, variables, constants, interfaces, types, imports) with brace-depth tracking.
+- Symbol Index ✅: SQLite-backed, 1662 symbols across 235 files indexed, auto-updates after write_file/edit_file.
+- 3 Code Intelligence Tools ✅: find_symbol (symbol lookup), get_references (caller analysis), structural_search (ast-grep with fallback).
+- Smart Repo Map ✅: getRepoMap() returns symbols grouped by file for compact navigation.
+- Symbols UI ✅: 5th sidebar tab with stats, search, type-grouped symbol tree, click-to-navigate.
+- Vertical Slice 5 PASSED: agent used find_symbol + get_references FIRST (13ms + 45ms) instead of reading all files — efficient codebase navigation.
+- 12 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory, set_goal, find_symbol, get_references, structural_search.
+- Lint clean. Server running via pm2. End-to-end verified in the browser.

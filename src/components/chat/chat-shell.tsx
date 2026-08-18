@@ -165,6 +165,8 @@ export function ChatShell() {
     setActiveFile,
     triggerExplorerRefresh,
     triggerMemoryRefresh,
+    triggerGoalsRefresh,
+    triggerSymbolsRefresh,
     setSidebarTab,
     setCurrentWorker,
     upsertConversation,
@@ -329,6 +331,11 @@ export function ChatShell() {
               if (fsMutators.includes(r.name)) {
                 triggerExplorerRefresh()
               }
+              // Refresh symbol index after file mutations
+              const codeMutators = ["write_file", "edit_file"]
+              if (codeMutators.includes(r.name)) {
+                triggerSymbolsRefresh()
+              }
               // Refresh memory panel after save_memory
               if (r.name === "save_memory") {
                 triggerMemoryRefresh()
@@ -405,6 +412,8 @@ export function ChatShell() {
       setActiveFile,
       triggerExplorerRefresh,
       triggerMemoryRefresh,
+      triggerGoalsRefresh,
+      triggerSymbolsRefresh,
       setSidebarTab,
       setCurrentWorker,
       setCurrentConversationId,

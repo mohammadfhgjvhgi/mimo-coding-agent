@@ -27,7 +27,8 @@ interface ChatState {
   explorerRefreshSignal: number
   memoryRefreshSignal: number
   goalsRefreshSignal: number
-  sidebarTab: "conversations" | "explorer" | "memory" | "goals"
+  symbolsRefreshSignal: number
+  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
 
@@ -50,7 +51,8 @@ interface ChatState {
   triggerExplorerRefresh: () => void
   triggerMemoryRefresh: () => void
   triggerGoalsRefresh: () => void
-  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals") => void
+  triggerSymbolsRefresh: () => void
+  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols") => void
   setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
 
   // Helpers
@@ -76,6 +78,7 @@ export const useChatStore = create<ChatState>((set) => ({
   explorerRefreshSignal: 0,
   memoryRefreshSignal: 0,
   goalsRefreshSignal: 0,
+  symbolsRefreshSignal: 0,
   sidebarTab: "conversations",
   currentWorker: null,
   workerReason: null,
@@ -103,6 +106,8 @@ export const useChatStore = create<ChatState>((set) => ({
     set((s) => ({ memoryRefreshSignal: s.memoryRefreshSignal + 1 })),
   triggerGoalsRefresh: () =>
     set((s) => ({ goalsRefreshSignal: s.goalsRefreshSignal + 1 })),
+  triggerSymbolsRefresh: () =>
+    set((s) => ({ symbolsRefreshSignal: s.symbolsRefreshSignal + 1 })),
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
   setCurrentWorker: (currentWorker, reason = null) =>
     set({ currentWorker, workerReason: reason }),

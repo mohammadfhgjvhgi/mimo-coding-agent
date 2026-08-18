@@ -11,6 +11,9 @@ import {
   Brain,
   Lightbulb,
   Target,
+  Search,
+  Link2,
+  Code2,
   ChevronRight,
   Check,
   X,
@@ -36,6 +39,9 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   save_memory: Brain,
   recall_memory: Lightbulb,
   set_goal: Target,
+  find_symbol: Search,
+  get_references: Link2,
+  structural_search: Code2,
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -48,6 +54,9 @@ const TOOL_LABELS: Record<string, string> = {
   save_memory: "حفظ ذاكرة",
   recall_memory: "استرجاع ذاكرة",
   set_goal: "تحديد هدف",
+  find_symbol: "بحث عن رمز",
+  get_references: "مراجع الرمز",
+  structural_search: "بحث هيكلي",
 }
 
 function prettyArgs(name: string, args: Record<string, unknown>): string {
@@ -69,6 +78,12 @@ function prettyArgs(name: string, args: Record<string, unknown>): string {
   }
   if (name === "set_goal") {
     return String(args.goal || "").slice(0, 60)
+  }
+  if (name === "find_symbol" || name === "get_references") {
+    return String(args.name || "")
+  }
+  if (name === "structural_search") {
+    return String(args.pattern || "")
   }
   return JSON.stringify(args, null, 2)
 }

@@ -9,6 +9,7 @@ import {
 import { saveMemoryTool, recallMemoryTool } from "./memory"
 import { setGoalTool } from "./goals"
 import { verifyFile } from "./auto-verify"
+import { findSymbolTool, getReferencesTool, structuralSearchTool } from "@/lib/code-intel/code-intel-tools"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
@@ -22,6 +23,9 @@ const REGISTRY: Record<string, ToolDef> = {
   save_memory: saveMemoryTool,
   recall_memory: recallMemoryTool,
   set_goal: setGoalTool,
+  find_symbol: findSymbolTool,
+  get_references: getReferencesTool,
+  structural_search: structuralSearchTool,
 }
 
 export function listToolNames(): string[] {
@@ -120,6 +124,14 @@ export async function dispatchTool(
         }
       } catch {
         // verification is best-effort; never fail the tool because of it
+      }
+
+      // Code Intelligence Hook: reindex the modified file's symbols
+      try {
+        const { indexFile } = await import("@/lib/code-intel/symbol-index")
+        await indexFile(String(call.args.path))
+      } catch {
+        // best-effort; never fail the tool
       }
     }
 

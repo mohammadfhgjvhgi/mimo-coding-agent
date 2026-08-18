@@ -14,6 +14,7 @@ import {
   FolderTree,
   Brain,
   Target,
+  Code2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,7 @@ import { ThemeToggle } from "./theme-toggle"
 import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
 import { GoalsPanel } from "./goals-panel"
+import { SymbolsPanel } from "./symbols-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -353,6 +355,8 @@ export function ChatSidebar({
   const explorerRefreshSignal = useChatStore((s) => s.explorerRefreshSignal)
   const memoryRefreshSignal = useChatStore((s) => s.memoryRefreshSignal)
   const goalsRefreshSignal = useChatStore((s) => s.goalsRefreshSignal)
+  const symbolsRefreshSignal = useChatStore((s) => s.symbolsRefreshSignal)
+  const setActiveFile = useChatStore((s) => s.setActiveFile)
 
   return (
     <div className="flex h-full w-full flex-col bg-sidebar">
@@ -375,7 +379,7 @@ export function ChatSidebar({
       </div>
 
       {/* Tab bar */}
-      <div className="mx-3 mb-2 grid grid-cols-4 rounded-lg bg-muted/60 p-0.5 text-xs">
+      <div className="mx-3 mb-1 grid grid-cols-5 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
           className={cn(
@@ -397,6 +401,17 @@ export function ChatSidebar({
           )}
         >
           <FolderTree className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => setSidebarTab("symbols")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "symbols"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Code2 className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={() => setSidebarTab("memory")}
@@ -423,9 +438,10 @@ export function ChatSidebar({
       </div>
 
       {/* Tab labels */}
-      <div className="mx-3 mb-2 grid grid-cols-4 text-[0.6rem] text-muted-foreground">
+      <div className="mx-3 mb-2 grid grid-cols-5 text-[0.55rem] text-muted-foreground">
         <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
         <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
+        <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>الرموز</span>
         <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
         <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
       </div>
@@ -445,6 +461,16 @@ export function ChatSidebar({
           <WorkspaceExplorer
             activeFile={activeFile}
             refreshSignal={explorerRefreshSignal}
+          />
+        </div>
+      ) : sidebarTab === "symbols" ? (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <SymbolsPanel
+            refreshSignal={symbolsRefreshSignal}
+            onSelectFile={(p) => {
+              setActiveFile(p)
+              setSidebarTab("explorer")
+            }}
           />
         </div>
       ) : sidebarTab === "memory" ? (

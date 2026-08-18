@@ -55,14 +55,14 @@ model Task {
   id                 String   @id @default(cuid())
   conversationId     String?
   goal               String
-  acceptanceCriteria String   @default("[]")  // JSON array of criteria strings
-  status             String   @default("pending") // pending|running|paused|done|failed
-  plan               String?  // JSON array of planned steps
-  steps              String   @default("[]")  // JSON array of executed steps {tool, args, result, worker, ts}
+  acceptanceCriteria String   @default("[]")
+  status             String   @default("pending")
+  plan               String?
+  steps              String   @default("[]")
   currentStep        Int      @default(0)
   agentState         String?  // JSON: conversation messages for resume
-  result             String?  // final summary
-  verificationResult String?  // JSON: verification outcome
+  result             String?
+  verificationResult String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -70,4 +70,20 @@ model Task {
 
   @@index([status])
   @@index([updatedAt])
+}
+
+model Symbol {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // function | class | method | variable | import | interface | type
+  filePath  String
+  line      Int
+  column    Int
+  endLine   Int
+  signature String?
+  createdAt DateTime @default(now())
+
+  @@index([name])
+  @@index([filePath])
+  @@index([type])
 }
