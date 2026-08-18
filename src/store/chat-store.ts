@@ -31,6 +31,8 @@ interface ChatState {
   sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
+  sidebarMode: "engineering" | "personal"
+  chatMode: "engineering" | "assistant"
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -54,6 +56,8 @@ interface ChatState {
   triggerSymbolsRefresh: () => void
   setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols") => void
   setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
+  setSidebarMode: (m: "engineering" | "personal") => void
+  setChatMode: (m: "engineering" | "assistant") => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -82,6 +86,8 @@ export const useChatStore = create<ChatState>((set) => ({
   sidebarTab: "conversations",
   currentWorker: null,
   workerReason: null,
+  sidebarMode: "engineering",
+  chatMode: "engineering",
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -111,6 +117,8 @@ export const useChatStore = create<ChatState>((set) => ({
   setSidebarTab: (sidebarTab) => set({ sidebarTab }),
   setCurrentWorker: (currentWorker, reason = null) =>
     set({ currentWorker, workerReason: reason }),
+  setSidebarMode: (sidebarMode) => set({ sidebarMode }),
+  setChatMode: (chatMode) => set({ chatMode }),
 
   upsertConversation: (c) =>
     set((s) => {

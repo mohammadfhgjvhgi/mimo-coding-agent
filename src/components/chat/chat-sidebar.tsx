@@ -15,6 +15,9 @@ import {
   Brain,
   Target,
   Code2,
+  Calendar,
+  MessageCircle,
+  BookOpen,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,6 +47,7 @@ import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
 import { GoalsPanel } from "./goals-panel"
 import { SymbolsPanel } from "./symbols-panel"
+import { AutomationPanel } from "./automation-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -351,6 +355,9 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const sidebarTab = useChatStore((s) => s.sidebarTab)
   const setSidebarTab = useChatStore((s) => s.setSidebarTab)
+  const sidebarMode = useChatStore((s) => s.sidebarMode)
+  const setSidebarMode = useChatStore((s) => s.setSidebarMode)
+  const setChatMode = useChatStore((s) => s.setChatMode)
   const activeFile = useChatStore((s) => s.activeFile)
   const explorerRefreshSignal = useChatStore((s) => s.explorerRefreshSignal)
   const memoryRefreshSignal = useChatStore((s) => s.memoryRefreshSignal)
@@ -378,7 +385,34 @@ export function ChatSidebar({
         <ThemeToggle onOpenSettings={onOpenSettings} />
       </div>
 
-      {/* Tab bar */}
+      {/* Mode toggle */}
+      <div className="mx-3 mb-1 grid grid-cols-2 rounded-lg bg-muted/60 p-0.5 text-xs">
+        <button
+          onClick={() => setSidebarMode("engineering")}
+          className={cn(
+            "rounded-md py-1 font-medium transition",
+            sidebarMode === "engineering"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          🔧 هندسة
+        </button>
+        <button
+          onClick={() => setSidebarMode("personal")}
+          className={cn(
+            "rounded-md py-1 font-medium transition",
+            sidebarMode === "personal"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          🧑 شخصي
+        </button>
+      </div>
+
+      {/* Engineering tabs */}
+      {sidebarMode === "engineering" && (
       <div className="mx-3 mb-1 grid grid-cols-5 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
@@ -436,8 +470,10 @@ export function ChatSidebar({
           <Target className="h-3.5 w-3.5" />
         </button>
       </div>
+      )}
 
       {/* Tab labels */}
+      {sidebarMode === "engineering" && (
       <div className="mx-3 mb-2 grid grid-cols-5 text-[0.55rem] text-muted-foreground">
         <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
         <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
@@ -445,8 +481,51 @@ export function ChatSidebar({
         <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
         <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
       </div>
+      )}
 
-      {/* Content */}
+      {/* Personal mode tabs */}
+      {sidebarMode === "personal" && (
+        <>
+          <div className="mx-3 mb-1 grid grid-cols-3 rounded-lg bg-muted/60 p-0.5 text-xs">
+            <button
+              onClick={() => { setChatMode("assistant"); setSidebarTab("conversations" as never) }}
+              className={cn(
+                "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+                "bg-background text-foreground shadow-sm"
+              )}
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> مساعد
+            </button>
+            <button
+              onClick={() => setSidebarTab("memory" as never)}
+              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> معرفة
+            </button>
+            <button
+              onClick={() => setSidebarTab("goals" as never)}
+              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            >
+              <Calendar className="h-3.5 w-3.5" /> أتمتة
+            </button>
+          </div>
+
+          {/* Personal mode content */}
+          {sidebarTab === "memory" ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <MemoryPanel refreshSignal={memoryRefreshSignal} />
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <AutomationPanel refreshSignal={goalsRefreshSignal} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Engineering mode content */}
+      {sidebarMode === "engineering" && (
+      <>
       {sidebarTab === "conversations" ? (
         <ConversationList
           onNewChat={onNewChat}
@@ -481,6 +560,8 @@ export function ChatSidebar({
         <div className="flex flex-1 flex-col overflow-hidden">
           <GoalsPanel refreshSignal={goalsRefreshSignal} />
         </div>
+      )}
+      </>
       )}
     </div>
   )

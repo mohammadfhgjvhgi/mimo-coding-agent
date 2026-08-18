@@ -87,3 +87,18 @@ model Symbol {
   @@index([filePath])
   @@index([type])
 }
+
+model ScheduledTask {
+  id        String    @id @default(cuid())
+  name      String
+  schedule  String    // daily | weekly | monthly
+  goal      String
+  lastRun   DateTime?
+  nextRun   DateTime?
+  enabled   Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([enabled])
+  @@index([nextRun])
+}
