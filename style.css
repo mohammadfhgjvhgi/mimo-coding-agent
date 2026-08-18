@@ -1,93 +1,83 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
 body {
+    font-family: 'Arial', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    background: #f0f0f0;
+    height: 100vh;
+    margin: 0;
+    background-color: #f5f5f5;
 }
 
 .calculator {
-    width: 320px;
-    background: #333;
+    background-color: #333;
     border-radius: 10px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 300px;
     overflow: hidden;
 }
 
-.display {
-    background: #222;
+h1 {
+    text-align: center;
     color: #fff;
-    font-size: 2.5rem;
+    margin: 10px 0;
+    font-size: 24px;
+}
+
+.display {
+    background-color: #222;
+    padding: 10px;
     text-align: right;
-    padding: 20px;
-    min-height: 80px;
-    overflow-wrap: break-word;
+}
+
+#display {
+    background-color: transparent;
+    border: none;
+    color: #fff;
+    font-size: 28px;
+    width: 100%;
+    text-align: right;
+    outline: none;
 }
 
 .buttons {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    padding: 10px;
 }
 
-button {
-    background: #555;
-    color: #fff;
+.btn {
+    background-color: #555;
     border: none;
-    font-size: 1.5rem;
-    padding: 20px;
+    color: #fff;
+    font-size: 20px;
+    padding: 15px;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background-color 0.2s;
 }
 
-button:hover {
-    background: #666;
+.btn:hover {
+    background-color: #666;
 }
 
-button:active {
-    background: #777;
-    transform: scale(0.98);
+.btn:active {
+    background-color: #444;
 }
 
-.clear {
-    background: #ff6b6b;
+.btn.operator {
+    background-color: #f59e0b;
 }
 
-.clear:hover {
-    background: #ff5252;
+.btn.operator:hover {
+    background-color: #d97706;
 }
 
-.operator {
-    background: #4ecdc4;
-}
-
-.operator:hover {
-    background: #45b7aa;
-}
-
-.equals {
-    background: #ffd93d;
+.btn.equals {
+    background-color: #10b981;
     grid-row: span 2;
 }
 
-.equals:hover {
-    background: #ffcd02;
-}
-
-.zero {
-    grid-column: span 2;
-}
-
-.decimal {
-    background: #a8e6cf;
-}
-
-.decimal:hover {
-    background: #95d5b2;
+.btn.equals:hover {
+    background-color: #059669;
 }
