@@ -6,9 +6,9 @@ import type { ProviderKind, ProviderSettings, WorkerKind } from "@/lib/llm-provi
 const STORAGE_KEY = "mimo-x.settings.v1"
 
 const DEFAULTS: ProviderSettings = {
-  provider: "zai",
+  provider: "ollama", // Production default: local Ollama
   ollamaUrl: "http://localhost:11434",
-  ollamaModel: "llama3.2",
+  ollamaModel: "qwen2.5-coder:7b",
   cpuWorkerUrl: "http://localhost:8002",
   cpuWorkerModel: "qwen3:4b",
   gpuWorkerUrl: "http://localhost:8001",

@@ -30,9 +30,9 @@ export interface ProviderSettings {
 }
 
 export const DEFAULT_SETTINGS: ProviderSettings = {
-  provider: "zai",
+  provider: "ollama", // Production default: local Ollama (user can switch to Dual-Worker or Z.ai)
   ollamaUrl: "http://localhost:11434",
-  ollamaModel: "llama3.2",
+  ollamaModel: "qwen2.5-coder:7b", // Recommended model for i7-3770 / 12-16GB RAM
   cpuWorkerUrl: "http://localhost:8002",
   cpuWorkerModel: "qwen3:4b",
   gpuWorkerUrl: "http://localhost:8001",
