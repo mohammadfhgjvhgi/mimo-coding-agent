@@ -796,3 +796,81 @@ Stage Summary:
 - 6th Prisma model (ScheduledTask) added
 - lint: 0, typecheck: 0, server: running
 - Pushed to GitHub: https://github.com/mohammadfhgjvhgi/mimo-coding-agent
+
+---
+Task ID: 31-38 (PHASE 5: Quaesitor Feature Copy)
+Agent: ZAI Code (main)
+Task: Clone Quaesitor repo, extract 5 key features, adapt them for MiMo X (Arabic, Ollama, 17 tools, RTL UI).
+
+Work Log:
+- Cloned https://github.com/Abd123454/deep-research-engine.git (47MB, 89K lines)
+- Read and analyzed 5 source files from Quaesitor
+
+- Feature 1: Ollama Provider (src/lib/llm-providers/ollama.ts)
+  • Adapted from quaesitor/src/lib/llm-providers/ollama.ts (139 lines)
+  • healthCheck() — checks localhost:11434/api/tags
+  • listModels() — fetches available models
+  • complete() — streaming + non-streaming, NDJSON parsing
+  • smart() — tries models in order until one succeeds
+  • fast() — uses smallest model for quick tasks
+  • DEFAULT_OLLAMA_MODELS: qwen2.5-coder:7b, qwen3:4b, qwen3:1.7b (for i7-3770)
+  • costPer1MTokens = { input: 0, output: 0 } (local = free)
+
+- Feature 2: Fallback Chain (src/lib/llm-providers/fallback-chain.ts)
+  • Adapted from quaesitor/src/lib/llm-provider.ts (908 lines, extracted fallback logic)
+  • fallbackComplete() — tries Ollama first, then Z.ai cloud
+  • retryWithBackoff() — exponential backoff (1s, 2s, 4s) for slow local models
+  • Circuit breaker pattern from Quaesitor adapted
+  • Returns FallbackResult with attempts[] for debugging
+
+- Feature 3: Swarm Roles (src/lib/agent/swarm-roles.ts)
+  • Adapted from quaesitor/src/lib/swarm/roles.ts (200 lines) + types.ts (141 lines)
+  • 13 roles: 10 from Quaesitor + 3 new MiMo X roles:
+    - researcher, coder, analyst, writer, generalist, security_analyst,
+    - electrical_engineer, fact_checker, bias_auditor, device_controller,
+    - refactorer (NEW), tester (NEW), architect (NEW)
+  • ROLE_TOOLS mapped to MiMo X's 17 tools (not Quaesitor's web_search/run_code)
+  • matchRole() — keyword-based classifier
+  • PLAN_SYSTEM_PROMPT + SYNTH_SYSTEM_PROMPT for orchestration
+
+- Feature 4: Memory Graph (src/lib/memory/graph.ts)
+  • Adapted from quaesitor/src/lib/memory-graph.ts (280 lines)
+  • Replaced getDb() with Prisma db client + $executeRaw/$queryRaw
+  • extractRelations() — keyword overlap + negation detection (Arabic negation words: لا, ليس, غير)
+  • storeMemoryEdges() — INSERT OR REPLACE (idempotent)
+  • recallWithGraph() — BFS traversal, depth=2 default
+  • autoBuildEdges() — auto-creates edges when a new memory is saved
+  • getMemoryGraph() — returns nodes + edges for visualization
+  • 0 LLM calls — pure deterministic scoring
+
+- Feature 5: Research Engine (src/lib/research/engine.ts)
+  • Adapted from quaesitor/src/lib/research-engine.ts (475 lines)
+  • 6-stage pipeline: PLAN → DECOMPOSE → ROUND 1 → GAP ANALYSIS → ROUND 2 → SYNTHESIZE
+  • Uses fallbackComplete() (Ollama→Z.ai) instead of NVIDIA
+  • Evidence Plane + Skills injection integrated
+  • Arabic system prompt + Arabic output
+  • Inline citations [1], [2]
+  • Config presets: quick (1 subQ), standard (3+2 gap), deep (5+3 gap)
+
+NOT copied (as instructed):
+  ❌ Citation Verifier (807 lines) — deferred, needs Research Engine integration first
+  ❌ Code Sandbox (168 lines) — Docker-only, not available in sandbox
+  ❌ Stripe, pgvector, SOC2, Mobile, Browser extension — not needed
+
+Final Results:
+- lint: 0 errors, 0 warnings ✅
+- typecheck: 0 errors ✅
+- Server: HTTP 200, pm2 online ✅
+- Pushed to GitHub (23 commits total) ✅
+- 5 new files, ~800 lines of adapted code
+
+Stage Summary:
+- MiMo X now has 5 features ported from Quaesitor:
+  1. Ollama Provider with healthCheck + multi-model fallback ✅
+  2. Fallback Chain (Ollama→Z.ai with retry+backoff) ✅
+  3. Swarm Roles (13 specialized agents mapped to 17 tools) ✅
+  4. Memory Graph (nodes+edges+BFS, 0 LLM) ✅
+  5. Research Engine (6-stage pipeline, Arabic output) ✅
+- NOT ported: Citation Verifier (deferred), Code Sandbox (Docker-only)
+- lint: 0, typecheck: 0, server: running
+- Pushed to GitHub: https://github.com/mohammadfhgjvhgi/mimo-coding-agent
