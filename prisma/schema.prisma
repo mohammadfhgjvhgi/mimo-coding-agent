@@ -40,15 +40,23 @@ model Message {
 }
 
 model Memory {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  category  String   @default("general")
-  source    String   @default("agent")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  category        String   @default("general")
+  source          String   @default("agent")
+  tier            String   @default("semantic")
+  confidence      Float    @default(0.8)
+  decayRate       Float    @default(365)
+  accessCount     Int      @default(0)
+  lastAccessedAt  DateTime @default(now())
+  failureHash     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([category])
+  @@index([tier])
+  @@index([failureHash])
 }
 
 model Task {
