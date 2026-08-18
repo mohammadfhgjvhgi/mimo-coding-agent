@@ -1,0 +1,2002 @@
+     1→نعم. وهذه المرة سأعطيك **التقرير كوثيقة مرجعية للمشروع من الصفر حتى آخر نقطة وصلنا إليها**، مع فصل واضح بين:
+     2→
+     3→* ما قررناه نحن في الحوار.
+     4→* ما نُفذ فعليًا.
+     5→* ما فشل أو انحرف.
+     6→* ما يجب أن يكون المنتج النهائي.
+     7→* البنية المستهدفة.
+     8→* المستودعات ودور كل واحد.
+     9→* ما الذي نعيد استخدامه وما الذي لا نعيد بناءه.
+    10→* نموذج التشغيل على جهازك.
+    11→* خطة التطوير الصحيحة.
+    12→* الحالة الحالية الحقيقية.
+    13→
+    14→وأتحقق أيضًا من المستودعات الرئيسية الحالية؛ لأن بعضها تغير أثناء هذه المحادثة. مثلًا Cline الآن يملك SDK رسميًا متعدد الطبقات، وGortex تطور إلى محرك code-intelligence غني جدًا، وAiderDesk لديه تطبيق Desktop فعلي، وGoose لديه Desktop عام، وCode-OSS ما زال أساس VS Code المفتوح. ([GitHub][1])
+    15→
+    16→---
+    17→
+    18→# تقرير MiMo X الشامل
+    19→
+    20→## من الفكرة الأولى حتى الوضع الحالي
+    21→
+    22→---
+    23→
+    24→# 1. الهوية النهائية للمشروع
+    25→
+    26→## الاسم
+    27→
+    28→**MiMo X**
+    29→
+    30→## الاسم الوظيفي
+    31→
+    32→**Local-first AI Software Engineering & Personal Agent OS**
+    33→
+    34→بالعربي:
+    35→
+    36→> **بيئة تشغيل ذكية محلية لهندسة البرمجيات وإدارة العمل والحياة الرقمية.**
+    37→
+    38→MiMo X ليس مجرد Coding Agent.
+    39→
+    40→وليس مجرد Chatbot.
+    41→
+    42→وليس مجرد VS Code بديل.
+    43→
+    44→وليس مجرد واجهة لـOllama.
+    45→
+    46→الفكرة النهائية هي بناء **تطبيق Desktop واحد** يكون فيه:
+    47→
+    48→```text
+    49→Coding Agent
+    50→+
+    51→General AI Chat
+    52→+
+    53→Project Management
+    54→+
+    55→Tasks
+    56→+
+    57→Research
+    58→+
+    59→Memory / Knowledge
+    60→+
+    61→Automation
+    62→+
+    63→Git/GitHub
+    64→+
+    65→Browser
+    66→+
+    67→MCP
+    68→+
+    69→Local LLMs
+    70→```
+    71→
+    72→والـCoding Agent هو **أهم وأقوى capability** داخل النظام، لكنه ليس الاستخدام الوحيد.
+    73→
+    74→---
+    75→
+    76→# 2. لماذا المشروع موجود أصلًا؟
+    77→
+    78→المشكلة التي حاولنا حلها كانت مركبة.
+    79→
+    80→أنت تريد:
+    81→
+    82→1. وكيل برمجة يستطيع التعامل مع مشاريع ضخمة.
+    83→2. يعمل محليًا قدر الإمكان.
+    84→3. لا يحتاج API مدفوعًا بشكل إلزامي.
+    85→4. يستطيع استخدام الملفات والطرفية وGit والاختبارات.
+    86→5. يستطيع العمل لساعات ومهام متتابعة.
+    87→6. يستطيع استكمال العمل بعد الانقطاع.
+    88→7. يفهم مستودعًا كبيرًا دون إرسال المشروع كاملًا للنموذج.
+    89→8. يستطيع العمل على جهاز قديم محدود الموارد.
+    90→9. وفي النهاية يكون **تطبيقًا كاملًا تستخدمه يوميًا**، وليس أداة تجريبية.
+    91→
+    92→ومن هنا جاءت فكرة MiMo:
+    93→
+    94→> **بدل محاولة جعل نموذج صغير "أذكى" سحريًا، نبني نظامًا يقلل ما يجب على النموذج التفكير فيه أصلًا.**
+    95→
+    96→---
+    97→
+    98→# 3. الفكرة الهندسية الجوهرية
+    99→
+   100→MiMo لا يحاول تحويل:
+   101→
+   102→```text
+   103→8B → 70B
+   104→```
+   105→
+   106→بشكل حرفي.
+   107→
+   108→هذا غير صحيح.
+   109→
+   110→الهدف الحقيقي هو:
+   111→
+   112→```text
+   113→8B
+   114→+
+   115→أفضل context
+   116→+
+   117→أفضل retrieval
+   118→+
+   119→أقل tool schemas
+   120→+
+   121→أدوات حتمية
+   122→+
+   123→verification
+   124→+
+   125→memory
+   126→+
+   127→recovery
+   128→+
+   129→task decomposition
+   130→+
+   131→model routing
+   132→```
+   133→
+   134→فتصبح **القدرة العملية على إنجاز نوع معين من المهام أكبر بكثير من استخدام 8B عشوائيًا**.
+   135→
+   136→وهذا هو الفرق بين:
+   137→
+   138→> "نموذج صغير"
+   139→
+   140→و:
+   141→
+   142→> "نظام هندسي مصمم حول نموذج صغير."
+   143→
+   144→---
+   145→
+   146→# 4. الحقيقة التي ثبتناها حول 8B
+   147→
+   148→خلال الحوار وصلنا إلى نتيجة مهمة:
+   149→
+   150→## لا يمكن قول:
+   151→
+   152→> "MiMo يجعل 8B يساوي 70B."
+   153→
+   154→هذا ادعاء غير صحيح.
+   155→
+   156→لكن يمكن:
+   157→
+   158→* رفع reliability.
+   159→* تقليل الفشل.
+   160→* تقليل context waste.
+   161→* تقليل عدد استدعاءات LLM.
+   162→* نقل مهام كاملة إلى deterministic engines.
+   163→* تقسيم المهام الكبيرة.
+   164→* استخدام model routing.
+   165→* استخدام نموذج مساعد.
+   166→* استخدام نموذج أكبر عند توفره.
+   167→* جعل العمل الطويل مستمرًا.
+   168→
+   169→وبالتالي:
+   170→
+   171→> **MiMo لا يخلق parameters جديدة؛ هو يزيد قيمة كل inference موجود.**
+   172→
+   173→---
+   174→
+   175→# 5. العتاد المستهدف
+   176→
+   177→آخر مواصفة استقرينا عليها في الخطة هي:
+   178→
+   179→```text
+   180→CPU: Intel Core i7-3770
+   181→4 cores / 8 threads
+   182→Ivy Bridge
+   183→No AVX2
+   184→
+   185→RAM:
+   186→12 GB DDR3-1333
+   187→```
+   188→
+   189→مع ملاحظة مهمة:
+   190→
+   191→> في محادثات أقدم كنت قد ذكرت 16GB، ثم أصبحت مواصفة الخريطة الأخيرة 12GB. لذلك يجب اعتبار **12GB هي آخر مواصفة مكتوبة للخطة، لكن يجب التحقق من جهازك فعليًا قبل ضبط الـproduction profile.**
+   192→
+   193→## GPU
+   194→
+   195→```text
+   196→NVIDIA GTX 750 Ti
+   197→4GB VRAM
+   198→Maxwell
+   199→Compute Capability 5.0
+   200→```
+   201→
+   202→## OS
+   203→
+   204→```text
+   205→Windows 10
+   206→```
+   207→
+   208→## Local runtime
+   209→
+   210→```text
+   211→Ollama
+   212→llama.cpp
+   213→```
+   214→
+   215→---
+   216→
+   217→# 6. المشكلة الفيزيائية
+   218→
+   219→الجهاز محدود في:
+   220→
+   221→* RAM
+   222→* VRAM
+   223→* CPU vector capability
+   224→* memory bandwidth
+   225→* inference speed
+   226→
+   227→لذلك لا يمكن تصميم MiMo مثل تطبيق موجه لـ:
+   228→
+   229→```text
+   230→RTX 4090
+   231→128GB RAM
+   232→A100
+   233→H100
+   234→```
+   235→
+   236→بل يجب أن تكون فلسفته:
+   237→
+   238→# Resource-Aware AI
+   239→
+   240→أي أن النظام يعرف:
+   241→
+   242→```text
+   243→RAM
+   244→CPU
+   245→VRAM
+   246→Context
+   247→Model
+   248→Task Complexity
+   249→```
+   250→
+   251→ثم يقرر كيف يعمل.
+   252→
+   253→---
+   254→
+   255→# 7. النموذج الثنائي
+   256→
+   257→التصميم الذي ناقشناه:
+   258→
+   259→```text
+   260→              Model Router
+   261→                   │
+   262→        ┌──────────┼───────────┐
+   263→        │          │           │
+   264→        ▼          ▼           ▼
+   265→      CPU        GPU        Deterministic
+   266→      Main      Helper           0-LLM
+   267→```
+   268→
+   269→## CPU Main
+   270→
+   271→مرشحون:
+   272→
+   273→```text
+   274→Qwen3 4B
+   275→Qwen2.5-Coder 7B
+   276→نماذج أخرى بعد القياس
+   277→```
+   278→
+   279→وظيفته:
+   280→
+   281→* coding
+   282→* reasoning
+   283→* planning
+   284→* debugging
+   285→* architecture
+   286→
+   287→## GPU Helper
+   288→
+   289→مرشحون:
+   290→
+   291→```text
+   292→Qwen3 1.7B
+   293→Qwen3 0.6B
+   294→```
+   295→
+   296→وظيفته:
+   297→
+   298→* classification
+   299→* routing
+   300→* summarization
+   301→* ranking
+   302→* lightweight tasks
+   303→
+   304→## Deterministic
+   305→
+   306→بدون LLM:
+   307→
+   308→```text
+   309→AST
+   310→LSP
+   311→FTS
+   312→Graph
+   313→Git
+   314→Tests
+   315→Syntax
+   316→Search
+   317→```
+   318→
+   319→وهذه في الحقيقة **أهم طبقة لتخفيف ضغط 8B**.
+   320→
+   321→---
+   322→
+   323→# 8. قاعدة النموذجين
+   324→
+   325→لا نريد:
+   326→
+   327→```text
+   328→CPU model + GPU model
+   329→في كل طلب
+   330→```
+   331→
+   332→بل:
+   333→
+   334→```text
+   335→Task
+   336→↓
+   337→Classifier / Policy
+   338→↓
+   339→Deterministic?
+   340→├─ YES → 0 LLM
+   341→│
+   342→├─ Helper needed → GPU
+   343→│
+   344→└─ Reasoning needed → CPU Main
+   345→```
+   346→
+   347→ولو أثبت benchmark أن GPU helper أبطأ:
+   348→
+   349→> **تعطيله يعتبر نجاحًا، وليس فشلًا.**
+   350→
+   351→---
+   352→
+   353→# 9. الهدف النهائي من البرنامج
+   354→
+   355→عند تشغيل:
+   356→
+   357→```text
+   358→MiMo X.exe
+   359→```
+   360→
+   361→يجب أن يظهر **تطبيق Desktop حقيقي**، وليس موقعًا فقط.
+   362→
+   363→الفكرة البصرية:
+   364→
+   365→```text
+   366→┌──────────────────────────────────────────────────────────────┐
+   367→│ MiMo X       Model       CPU/RAM       GPU       Session    │
+   368→├───────┬───────────────────────────────┬──────────────────────┤
+   369→│       │                               │                      │
+   370→│Files  │            Editor             │       Agent          │
+   371→│Search │                               │                      │
+   372→│Git    │                               │  Conversation       │
+   373→│Tasks  │                               │  Plan               │
+   374→│...    │                               │  Tool Calls          │
+   375→│       │                               │  Evidence            │
+   376→├───────┴───────────────────────────────┴──────────────────────┤
+   377→│ Terminal │ Problems │ Diff │ Tests │ Memory │ Context │ Git │
+   378→└──────────────────────────────────────────────────────────────┘
+   379→```
+   380→
+   381→---
+   382→
+   383→# 10. تجربة المستخدم النهائية
+   384→
+   385→## Coding
+   386→
+   387→```text
+   388→Open project
+   389→↓
+   390→Ask Agent
+   391→↓
+   392→Inspect
+   393→↓
+   394→Edit
+   395→↓
+   396→Terminal
+   397→↓
+   398→Tests
+   399→↓
+   400→Diff
+   401→↓
+   402→Checkpoint
+   403→```
+   404→
+   405→## Chat
+   406→
+   407→```text
+   408→"اشرح لي..."
+   409→```
+   410→
+   411→## Tasks
+   412→
+   413→```text
+   414→"رتب مهامي اليوم"
+   415→```
+   416→
+   417→## Research
+   418→
+   419→```text
+   420→"ابحث عن..."
+   421→```
+   422→
+   423→## Knowledge
+   424→
+   425→```text
+   426→"ماذا قررت سابقًا؟"
+   427→```
+   428→
+   429→## Automation
+   430→
+   431→```text
+   432→"نفذ هذا كل أسبوع"
+   433→```
+   434→
+   435→وكلها من **نفس التطبيق**.
+   436→
+   437→---
+   438→
+   439→# 11. لماذا بدأنا بالبحث عن واجهة جاهزة؟
+   440→
+   441→لأن إحدى أكبر أخطاء المحاولات السابقة كانت:
+   442→
+   443→> بناء IDE من الصفر.
+   444→
+   445→وقضينا جولات في:
+   446→
+   447→* Monaco
+   448→* xterm
+   449→* Explorer
+   450→* Tabs
+   451→* ActivityBar
+   452→* Chat panel
+   453→
+   454→ثم اكتشفنا أننا نعيد اختراع ما هو موجود أصلًا.
+   455→
+   456→لذلك أصبح القرار:
+   457→
+   458→> **نأخذ Desktop foundation جاهزًا ونضع MiMo بداخله.**
+   459→
+   460→---
+   461→
+   462→# 12. أهم Repository حاليًا: AiderDesk
+   463→
+   464→المستودع:
+   465→
+   466→[AiderDesk على GitHub](https://github.com/hotovo/aider-desk?utm_source=chatgpt.com)
+   467→
+   468→AiderDesk حاليًا تطبيق AI software-engineering Desktop حقيقي، يوزع إصدارات قابلة للتنزيل، ويدعم Projects/Tasks وGit worktrees وterminal وMCP وSkills وغيرها. ([GitHub][2])
+   469→
+   470→## لماذا مناسب؟
+   471→
+   472→لأنه يوفر بالفعل أشياء لا نريد إعادة بنائها:
+   473→
+   474→* Desktop shell
+   475→* Projects
+   476→* Tasks
+   477→* Agent workbench
+   478→* Terminal
+   479→* Git
+   480→* Diff
+   481→* Worktrees
+   482→* MCP
+   483→* Skills
+   484→* Extensions
+   485→* model/provider management
+   486→
+   487→---
+   488→
+   489→# 13. cdesktop
+   490→
+   491→المستودع:
+   492→
+   493→[cdesktop على GitHub](https://github.com/cdesktop-ai/cdesktop?utm_source=chatgpt.com)
+   494→
+   495→هذا ليس أساس MiMo النهائي.
+   496→
+   497→لكنه مهم جدًا كـ**UX reference** لأنه مصمم أصلًا كبديل مفتوح المصدر لواجهة Claude Code Desktop، ويستخدم sessions sidebar وtranscript وterminal وdiff وplan/files/app preview، ويشغل عدة coding agents بما فيها Codex وClaude Code وGemini CLI وOpenCode. ([GitHub][3])
+   498→
+   499→إذن:
+   500→
+   501→```text
+   502→AiderDesk = foundation candidate
+   503→cdesktop = UX reference
+   504→```
+   505→
+   506→---
+   507→
+   508→# 14. Cline
+   509→
+   510→المستودع:
+   511→
+   512→[Cline على GitHub](https://github.com/cline/cline?utm_source=chatgpt.com)
+   513→
+   514→Cline أصبح مهمًا جدًا للمشروع.
+   515→
+   516→الـSDK الرسمي الحالي يعطي:
+   517→
+   518→```text
+   519→@cline/sdk
+   520→@cline/core
+   521→@cline/agents
+   522→@cline/llms
+   523→@cline/shared
+   524→```
+   525→
+   526→و`@cline/agents` يوفر agent loop وtool execution وevents/hooks، بينما `@cline/core` يتكفل بالأجزاء stateful مثل sessions وpersistence وbuilt-in tools وcontext pipeline وruntime composition. ([GitHub][1])
+   527→
+   528→كما أن Cline نفسه يذكر دعمًا للـSDK، CLI، custom tools، multi-agent teams، connectors، scheduled automations. ([GitHub][4])
+   529→
+   530→## القرار
+   531→
+   532→لا نضم Cline كاملًا.
+   533→
+   534→نختبر:
+   535→
+   536→```text
+   537→AiderDesk runtime
+   538→vs
+   539→Cline SDK
+   540→vs
+   541→Current MiMo runtime
+   542→```
+   543→
+   544→ثم نختار **واحدًا فقط**.
+   545→
+   546→---
+   547→
+   548→# 15. Gortex
+   549→
+   550→المستودع:
+   551→
+   552→[Gortex على GitHub](https://github.com/zzet/gortex?utm_source=chatgpt.com)
+   553→
+   554→Gortex من أهم المكونات في التصميم.
+   555→
+   556→هو **Code Intelligence Engine** وليس Agent.
+   557→
+   558→حاليًا يذكر المستودع:
+   559→
+   560→* graph
+   561→* MCP
+   562→* multi-repository
+   563→* 257 language/grammars
+   564→* functions/classes/call chains/routes/contracts
+   565→* provenance
+   566→* daemon
+   567→* HTTP API
+   568→* MCP surface واسع
+   569→* Windows/Linux/macOS binaries. ([GitHub][5])
+   570→
+   571→وظيفته:
+   572→
+   573→```text
+   574→Repository
+   575→↓
+   576→Graph
+   577→↓
+   578→Symbols
+   579→↓
+   580→Calls
+   581→↓
+   582→Dependencies
+   583→↓
+   584→Impact
+   585→↓
+   586→Evidence
+   587→```
+   588→
+   589→---
+   590→
+   591→# 16. Aider
+   592→
+   593→المستودع:
+   594→
+   595→[Aider على GitHub](https://github.com/Aider-AI/aider?utm_source=chatgpt.com)
+   596→
+   597→لن نستخدم Aider كـapplication foundation.
+   598→
+   599→لكن نأخذ أهم فكرة عنده:
+   600→
+   601→## Repo Map
+   602→
+   603→Aider يبني خريطة مضغوطة للمستودع تحتوي الملفات وأهم الرموز والتواقيع لتقليل السياق وتحسين فهم العلاقات داخل المستودع. ([GitHub][6])
+   604→
+   605→هذه الفكرة أساسية في MiMo.
+   606→
+   607→---
+   608→
+   609→# 17. Goose
+   610→
+   611→المستودع:
+   612→
+   613→[Goose على GitHub](https://github.com/block/goose?utm_source=chatgpt.com)
+   614→
+   615→Goose مهم للجانب **General AI Assistant**.
+   616→
+   617→يدعم:
+   618→
+   619→* Desktop
+   620→* CLI
+   621→* API
+   622→* Windows
+   623→* Ollama
+   624→* providers متعددة
+   625→* MCP
+   626→* automation
+   627→* coding
+   628→* research
+   629→* writing
+   630→
+   631→وهو Apache-2.0. ([GitHub][7])
+   632→
+   633→لا نُشغّل Goose كـAgent runtime ثاني.
+   634→
+   635→نستفيد من أفكاره.
+   636→
+   637→---
+   638→
+   639→# 18. OpenHands
+   640→
+   641→المستودع:
+   642→
+   643→[OpenHands على GitHub](https://github.com/OpenHands/OpenHands?utm_source=chatgpt.com)
+   644→
+   645→مهم كمرجع للـ:
+   646→
+   647→* long-running agent
+   648→* backend switching
+   649→* Agent Canvas
+   650→* multi-environment execution
+   651→
+   652→OpenHands يسمح باستخدام نماذج ووكلاء مختلفين ويستطيع تشغيل agent backend على laptop أو server. ([GitHub][8])
+   653→
+   654→---
+   655→
+   656→# 19. OpenCode
+   657→
+   658→مهم كمرجع للـ:
+   659→
+   660→* agent modes
+   661→* sessions
+   662→* coding workflows
+   663→* provider abstraction
+   664→* desktop/CLI architecture
+   665→
+   666→لكن ليس foundation تلقائيًا.
+   667→
+   668→---
+   669→
+   670→# 20. Code-OSS
+   671→
+   672→المستودع:
+   673→
+   674→[Code-OSS على GitHub](https://github.com/microsoft/vscode?utm_source=chatgpt.com)
+   675→
+   676→Code-OSS هو المصدر المفتوح الذي تُطور منه Microsoft VS Code، وهو MIT، بينما توزيع VS Code الرسمي يضيف تخصيصات Microsoft. ([GitHub][9])
+   677→
+   678→## لماذا مهم؟
+   679→
+   680→لأنه مرجع إذا وصلنا يومًا إلى:
+   681→
+   682→> نحتاج workbench كاملة بمستوى VS Code.
+   683→
+   684→لكن حاليًا:
+   685→
+   686→**لا نبدأ ببناء Code-OSS داخل المشروع.**
+   687→
+   688→---
+   689→
+   690→# 21. MCP
+   691→
+   692→استخدم SDK الرسمي:
+   693→
+   694→[MCP Python SDK على GitHub](https://github.com/modelcontextprotocol/python-sdk?utm_source=chatgpt.com)
+   695→
+   696→حاليًا خط v2 هو المستقر وفق المستودع، ويدعم بناء MCP servers تعرض tools/resources/prompts. ([GitHub][10])
+   697→
+   698→MCP سيكون:
+   699→
+   700→```text
+   701→External Integration Layer
+   702→```
+   703→
+   704→---
+   705→
+   706→# 22. Playwright
+   707→
+   708→المستودع:
+   709→
+   710→[Playwright على GitHub](https://github.com/microsoft/playwright?utm_source=chatgpt.com)
+   711→
+   712→Playwright يدعم Chromium وFirefox وWebKit، ويوجد له:
+   713→
+   714→* Library
+   715→* Test
+   716→* CLI
+   717→* MCP
+   718→
+   719→ويذكر صراحة استخدامه كـtool للـAI agents. ([GitHub][11])
+   720→
+   721→---
+   722→
+   723→# 23. tree-sitter
+   724→
+   725→المستودع:
+   726→
+   727→[tree-sitter على GitHub](https://github.com/tree-sitter/tree-sitter?utm_source=chatgpt.com)
+   728→
+   729→هو incremental parser generator/library ويمكن تحديث الشجرة بسرعة أثناء التحرير. ([GitHub][12])
+   730→
+   731→يستخدم في:
+   732→
+   733→* AST
+   734→* symbol indexing
+   735→* structural understanding
+   736→
+   737→---
+   738→
+   739→# 24. ast-grep
+   740→
+   741→المستودع:
+   742→
+   743→[ast-grep على GitHub](https://github.com/ast-grep/ast-grep?utm_source=chatgpt.com)
+   744→
+   745→مفيد لـ:
+   746→
+   747→* structural search
+   748→* AST rewrite
+   749→* lint
+   750→* codemods
+   751→* refactors
+   752→
+   753→ويعتمد على Tree-sitter. ([GitHub][13])
+   754→
+   755→---
+   756→
+   757→# 25. llama.cpp
+   758→
+   759→المرجع:
+   760→
+   761→[llama.cpp على GitHub](https://github.com/ggerganov/llama.cpp?utm_source=chatgpt.com)
+   762→
+   763→يدعم:
+   764→
+   765→* quantization
+   766→* CPU
+   767→* CUDA
+   768→* hybrid CPU/GPU
+   769→* GGUF
+   770→
+   771→ويصف المشروع دعم CPU+GPU hybrid inference للنماذج الأكبر من سعة VRAM. ([GitHub][14])
+   772→
+   773→---
+   774→
+   775→# 26. Ollama
+   776→
+   777→الوظيفة:
+   778→
+   779→```text
+   780→High-level local runtime
+   781→```
+   782→
+   783→ليست Agent.
+   784→
+   785→MiMo يجب أن يتعامل معه عن طريق:
+   786→
+   787→```text
+   788→OllamaProvider
+   789→```
+   790→
+   791→---
+   792→
+   793→# 27. AirLLM
+   794→
+   795→المستودع:
+   796→
+   797→[AirLLM على GitHub](https://github.com/lyogavin/airllm?utm_source=chatgpt.com)
+   798→
+   799→الفكرة التي ناقشناها:
+   800→
+   801→> تشغيل نماذج كبيرة مع VRAM محدودة باستخدام layer-wise execution/offloading.
+   802→
+   803→لكن:
+   804→
+   805→**AirLLM ليس Agent ولا IDE.**
+   806→
+   807→وضعه:
+   808→
+   809→```text
+   810→Large-model low-VRAM experiment
+   811→```
+   812→
+   813→وليس أساس MiMo.
+   814→
+   815→---
+   816→
+   817→# 28. Octokit
+   818→
+   819→الوظيفة:
+   820→
+   821→```text
+   822→GitHub API
+   823→```
+   824→
+   825→نستخدمه داخل:
+   826→
+   827→```text
+   828→GitHub Integration
+   829→```
+   830→
+   831→---
+   832→
+   833→# 29. البنية النهائية المقترحة
+   834→
+   835→```text
+   836→                     MiMo X.exe
+   837→                         │
+   838→                ┌────────┴─────────┐
+   839→                │ Desktop Workbench │
+   840→                │ AiderDesk-based   │
+   841→                └────────┬─────────┘
+   842→                         │
+   843→                    MiMo Layer
+   844→                         │
+   845→        ┌────────────────┼─────────────────┐
+   846→        │                │                 │
+   847→     Agent             Assistant        Tasks
+   848→        │                │                 │
+   849→        └────────────────┼─────────────────┘
+   850→                         │
+   851→                  Control Plane
+   852→                         │
+   853→                  Agent Runtime
+   854→                         │
+   855→                 Tool Gateway
+   856→                         │
+   857→       ┌─────────────────┼─────────────────┐
+   858→       │                 │                 │
+   859→ Repository           External          Personal
+   860→ Tools                Tools             Tools
+   861→       │                 │                 │
+   862→       ▼                 ▼                 ▼
+   863→ Files                MCP              Tasks
+   864→ Terminal             Browser           Notes
+   865→ Git                  GitHub            Knowledge
+   866→ Tests                APIs              Automation
+   867→       │
+   868→       ▼
+   869→ Code Intelligence
+   870→ ├── Gortex
+   871→ ├── AST
+   872→ ├── LSP
+   873→ ├── tree-sitter
+   874→ ├── ast-grep
+   875→ └── Repo Map
+   876→       │
+   877→       ▼
+   878→ Evidence Plane
+   879→       │
+   880→       ▼
+   881→ Context OS
+   882→       │
+   883→       ▼
+   884→ Model Router
+   885→       │
+   886→ ┌─────┼─────┐
+   887→ ▼     ▼     ▼
+   888→CPU   GPU   0-LLM
+   889→Main Helper Deterministic
+   890→```
+   891→
+   892→---
+   893→
+   894→# 30. طبقات MiMo النهائية
+   895→
+   896→## 01. Desktop/Product Shell
+   897→
+   898→AiderDesk foundation.
+   899→
+   900→## 02. General Workspace
+   901→
+   902→Home/Chat/Tasks/Projects.
+   903→
+   904→## 03. Agent Runtime
+   905→
+   906→Cline أو foundation واحد مختار.
+   907→
+   908→## 04. Tool Gateway
+   909→
+   910→permissions + schemas + execution.
+   911→
+   912→## 05. Code Intelligence
+   913→
+   914→Gortex/AST/LSP.
+   915→
+   916→## 06. Evidence
+   917→
+   918→what/why/confidence/freshness.
+   919→
+   920→## 07. Context OS
+   921→
+   922→budget/compression/paging/cache.
+   923→
+   924→## 08. Model Runtime
+   925→
+   926→Ollama/llama.cpp/providers.
+   927→
+   928→## 09. Verification
+   929→
+   930→tests/LSP/build/diff/DoD.
+   931→
+   932→## 10. Memory
+   933→
+   934→working/task/project/semantic/failure/negative.
+   935→
+   936→## 11. Task System
+   937→
+   938→queue/DAG/retry/recovery.
+   939→
+   940→## 12. Autonomy
+   941→
+   942→long-running engineering.
+   943→
+   944→## 13. Integrations
+   945→
+   946→MCP/browser/GitHub.
+   947→
+   948→## 14. Personal Assistant
+   949→
+   950→daily/research/writing.
+   951→
+   952→## 15. Self-Improvement
+   953→
+   954→benchmark/promote/reject.
+   955→
+   956→---
+   957→
+   958→# 31. تدفق Coding Task النهائي
+   959→
+   960→مثال:
+   961→
+   962→> "أصلح مشكلة تسجيل الدخول."
+   963→
+   964→```text
+   965→User
+   966→↓
+   967→Task IR
+   968→↓
+   969→Deterministic classification
+   970→↓
+   971→Gortex
+   972→↓
+   973→Find relevant symbols
+   974→↓
+   975→Find callers
+   976→↓
+   977→Find tests
+   978→↓
+   979→Diagnostics
+   980→↓
+   981→Evidence Package
+   982→↓
+   983→Context Compiler
+   984→↓
+   985→Model Router
+   986→↓
+   987→CPU Main
+   988→↓
+   989→Tool Proposal
+   990→↓
+   991→Tool Gateway
+   992→↓
+   993→Permission
+   994→↓
+   995→Edit
+   996→↓
+   997→LSP
+   998→↓
+   999→Targeted Tests
+  1000→↓
+  1001→Repair if failed
+  1002→↓
+  1003→Full verification
+  1004→↓
+  1005→Diff
+  1006→↓
+  1007→Checkpoint
+  1008→↓
+  1009→Memory
+  1010→↓
+  1011→Next Task
+  1012→```
+  1013→
+  1014→---
+  1015→
+  1016→# 32. تدفق سؤال عادي
+  1017→
+  1018→> "اشرح لي الفرق بين PLC وDCS."
+  1019→
+  1020→لا نرسل كل منظومة coding.
+  1021→
+  1022→```text
+  1023→User
+  1024→↓
+  1025→General Assistant
+  1026→↓
+  1027→Model Router
+  1028→↓
+  1029→Chat
+  1030→↓
+  1031→Answer
+  1032→```
+  1033→
+  1034→---
+  1035→
+  1036→# 33. سؤال يومي
+  1037→
+  1038→> "رتب لي مهامي اليوم."
+  1039→
+  1040→```text
+  1041→User
+  1042→↓
+  1043→Tasks
+  1044→↓
+  1045→Memory
+  1046→↓
+  1047→Priorities
+  1048→↓
+  1049→Answer
+  1050→```
+  1051→
+  1052→---
+  1053→
+  1054→# 34. سؤال بحثي
+  1055→
+  1056→> "ابحث لي عن أحدث الأدوات..."
+  1057→
+  1058→```text
+  1059→User
+  1060→↓
+  1061→Research Agent
+  1062→↓
+  1063→Web/MCP
+  1064→↓
+  1065→Sources
+  1066→↓
+  1067→Synthesis
+  1068→```
+  1069→
+  1070→---
+  1071→
+  1072→# 35. لماذا MiMo ليس مجرد Cline أو AiderDesk؟
+  1073→
+  1074→لأننا لا نريد:
+  1075→
+  1076→```text
+  1077→Cline + new name
+  1078→```
+  1079→
+  1080→ولا:
+  1081→
+  1082→```text
+  1083→AiderDesk + new logo
+  1084→```
+  1085→
+  1086→الميزة الأساسية في MiMo هي **طبقة النظام فوق هذه الأدوات**:
+  1087→
+  1088→```text
+  1089→Resource-aware model routing
+  1090→+
+  1091→Evidence-driven context
+  1092→+
+  1093→Deterministic-first architecture
+  1094→+
+  1095→Long-running task management
+  1096→+
+  1097→Memory
+  1098→+
+  1099→Verification
+  1100→+
+  1101→Personal assistant
+  1102→+
+  1103→Offline-first
+  1104→```
+  1105→
+  1106→---
+  1107→
+  1108→# 36. ما الذي لا نريد بناءه
+  1109→
+  1110→ممنوع:
+  1111→
+  1112→```text
+  1113→Architecture Viewer
+  1114→Documentation Dashboard
+  1115→Fake Mission Control
+  1116→Second IDE
+  1117→Second Agent
+  1118→Second Tool Gateway
+  1119→Vector DB بدون benchmark
+  1120→Swarm ضخم
+  1121→Cloud-only
+  1122→Marketplace
+  1123→```
+  1124→
+  1125→---
+  1126→
+  1127→# 37. الأمان
+  1128→
+  1129→## Trusted
+  1130→
+  1131→```text
+  1132→System Policy
+  1133→User
+  1134→MiMo Core
+  1135→```
+  1136→
+  1137→## Untrusted
+  1138→
+  1139→```text
+  1140→Repository contents
+  1141→Tool output
+  1142→Web
+  1143→MCP
+  1144→Plugins
+  1145→External APIs
+  1146→```
+  1147→
+  1148→كل التنفيذ يمر:
+  1149→
+  1150→```text
+  1151→Policy
+  1152→↓
+  1153→Permission
+  1154→↓
+  1155→Validation
+  1156→↓
+  1157→Execution
+  1158→```
+  1159→
+  1160→---
+  1161→
+  1162→# 38. حالات Agent
+  1163→
+  1164→```text
+  1165→PENDING
+  1166→PLANNING
+  1167→EXECUTING
+  1168→VERIFYING
+  1169→RECOVERING
+  1170→WAITING_APPROVAL
+  1171→PAUSED
+  1172→BLOCKED
+  1173→UNKNOWN
+  1174→COMPLETED
+  1175→FAILED
+  1176→CANCELLED
+  1177→ESCALATED
+  1178→```
+  1179→
+  1180→Unknown لا يعني نجاحًا ولا فشلًا.
+  1181→
+  1182→---
+  1183→
+  1184→# 39. Memory architecture
+  1185→
+  1186→```text
+  1187→Working
+  1188→Task
+  1189→Project
+  1190→Semantic
+  1191→Episodic
+  1192→Failure
+  1193→Negative
+  1194→Skill
+  1195→Decision
+  1196→User Preference
+  1197→```
+  1198→
+  1199→والذاكرة لا تُضخ كاملة للنموذج.
+  1200→
+  1201→بل:
+  1202→
+  1203→```text
+  1204→Query
+  1205→↓
+  1206→Retrieve
+  1207→↓
+  1208→Rank
+  1209→↓
+  1210→Inject
+  1211→```
+  1212→
+  1213→---
+  1214→
+  1215→# 40. Context architecture
+  1216→
+  1217→المبدأ:
+  1218→
+  1219→> **Model sees evidence, not repository.**
+  1220→
+  1221→نستخدم:
+  1222→
+  1223→* repo map
+  1224→* graph
+  1225→* AST
+  1226→* diagnostics
+  1227→* tests
+  1228→* git
+  1229→* memory
+  1230→* targeted snippets
+  1231→
+  1232→ثم context package.
+  1233→
+  1234→---
+  1235→
+  1236→# 41. Verification architecture
+  1237→
+  1238→```text
+  1239→Syntax
+  1240→↓
+  1241→AST
+  1242→↓
+  1243→LSP
+  1244→↓
+  1245→Targeted Test
+  1246→↓
+  1247→Full Test
+  1248→↓
+  1249→Build
+  1250→↓
+  1251→Diff
+  1252→↓
+  1253→Definition of Done
+  1254→```
+  1255→
+  1256→---
+  1257→
+  1258→# 42. Autonomous Engineering
+  1259→
+  1260→المستخدم:
+  1261→
+  1262→> "حلل المشروع وأكمل تطويره."
+  1263→
+  1264→النظام:
+  1265→
+  1266→```text
+  1267→Scan
+  1268→↓
+  1269→Health
+  1270→↓
+  1271→Backlog
+  1272→↓
+  1273→DAG
+  1274→↓
+  1275→Task
+  1276→↓
+  1277→Evidence
+  1278→↓
+  1279→Agent
+  1280→↓
+  1281→Tools
+  1282→↓
+  1283→Verify
+  1284→↓
+  1285→Checkpoint
+  1286→↓
+  1287→Memory
+  1288→↓
+  1289→Next
+  1290→```
+  1291→
+  1292→ثم كل N مهام:
+  1293→
+  1294→```text
+  1295→Health Scan
+  1296→↓
+  1297→New backlog
+  1298→↓
+  1299→Continue
+  1300→```
+  1301→
+  1302→---
+  1303→
+  1304→# 43. أول milestone حقيقي
+  1305→
+  1306→ليس:
+  1307→
+  1308→```text
+  1309→Architecture map
+  1310→```
+  1311→
+  1312→وليس:
+  1313→
+  1314→```text
+  1315→800 tests
+  1316→```
+  1317→
+  1318→بل:
+  1319→
+  1320→# MiMo X.exe
+  1321→
+  1322→يفتح مشروعًا حقيقيًا، ثم يستطيع:
+  1323→
+  1324→```text
+  1325→read
+  1326→edit
+  1327→terminal
+  1328→test
+  1329→diff
+  1330→checkpoint
+  1331→resume
+  1332→```
+  1333→
+  1334→---
+  1335→
+  1336→# 44. الحالة الحالية الفعلية بعد كل ما حدث
+  1337→
+  1338→## ✅ مثبت فعليًا في المحادثة
+  1339→
+  1340→### Prototype Agent
+  1341→
+  1342→تم بناء وتشغيل Agent حقيقي في sandbox.
+  1343→
+  1344→أثبت:
+  1345→
+  1346→```text
+  1347→LLM
+  1348→→ read_file
+  1349→→ edit_file
+  1350→→ test
+  1351→→ diff
+  1352→→ checkpoint
+  1353→```
+  1354→
+  1355→على مشروع Calculator حقيقي.
+  1356→
+  1357→النتيجة التي نقلها المطور:
+  1358→
+  1359→```text
+  1360→4 tests pass
+  1361→0 fail
+  1362→git checkpoint
+  1363→Prisma persistence
+  1364→```
+  1365→
+  1366→### Tool Gateway
+  1367→
+  1368→تم بناء:
+  1369→
+  1370→* schema validation
+  1371→* permissions
+  1372→* workspace path guard
+  1373→* risk classification
+  1374→* audit
+  1375→
+  1376→### UI Prototype
+  1377→
+  1378→موجود، لكنه **ليس المنتج النهائي**.
+  1379→
+  1380→### AiderDesk
+  1381→
+  1382→تم clone وفحصه فعليًا.
+  1383→
+  1384→تم تشغيل Electron main process headless.
+  1385→
+  1386→تم تحميل Electron.
+  1387→
+  1388→تم rebuild لـnode-pty.
+  1389→
+  1390→تم بناء `@aiderdesk/extensions`.
+  1391→
+  1392→تم اكتشاف extension system.
+  1393→
+  1394→### MiMo Extension
+  1395→
+  1396→تم إنشاء extension داخل AiderDesk.
+  1397→
+  1398→لكن:
+  1399→
+  1400→> **هذا لم يصل بعد إلى منتج Desktop نهائي مرئي للمستخدم على جهازك.**
+  1401→
+  1402→---
+  1403→
+  1404→# 45. ما الذي فشل أو لم يكتمل؟
+  1405→
+  1406→## A. AiderDesk renderer
+  1407→
+  1408→في sandbox ذات ~4GB RAM، renderer build الحقيقي تم قتله بـOOM.
+  1409→
+  1410→المطور وضع placeholder لاحقًا لإثبات lifecycle، لكن هذا **ليس إثباتًا أن واجهة AiderDesk الكاملة تعمل**.
+  1411→
+  1412→وهذا مهم جدًا.
+  1413→
+  1414→### الحالة:
+  1415→
+  1416→```text
+  1417→Electron Main = مثبت
+  1418→AiderDesk Server = مثبت
+  1419→Extension System = مثبت
+  1420→Full Renderer = UNVERIFIED
+  1421→```
+  1422→
+  1423→---
+  1424→
+  1425→# 46. Cline
+  1426→
+  1427→تم التحقق من وجود SDK، لكن **لم تتم عملية دمج نهائية معه**.
+  1428→
+  1429→اليوم Cline SDK نفسه تطور، والتوثيق الحالي يوضح أن `@cline/sdk` هو سطح كامل، و`@cline/core` يوفر sessions/persistence/context/runtime، و`@cline/agents` مجرد agent loop منخفض المستوى. ([GitHub][1])
+  1430→
+  1431→إذن أي قرار سابق كان مبنيًا على تقسيم `@cline/agents` وحده يجب إعادة تدقيقه قبل الدمج.
+  1432→
+  1433→---
+  1434→
+  1435→# 47. Local Model
+  1436→
+  1437→**لم يتم تشغيل Ollama + Qwen الحقيقي داخل sandbox.**
+  1438→
+  1439→وهذا طبيعي.
+  1440→
+  1441→الحالة:
+  1442→
+  1443→```text
+  1444→Local Model = PENDING TARGET HARDWARE
+  1445→```
+  1446→
+  1447→---
+  1448→
+  1449→# 48. GPU
+  1450→
+  1451→لم يتم benchmark حقيقي.
+  1452→
+  1453→الحالة:
+  1454→
+  1455→```text
+  1456→GPU optimization = PENDING
+  1457→```
+  1458→
+  1459→---
+  1460→
+  1461→# 49. AirLLM
+  1462→
+  1463→لم يُدمج.
+  1464→
+  1465→الحالة الصحيحة:
+  1466→
+  1467→```text
+  1468→RESEARCH / BENCHMARK CANDIDATE
+  1469→```
+  1470→
+  1471→وليس foundation.
+  1472→
+  1473→---
+  1474→
+  1475→# 50. MiMo Life OS
+  1476→
+  1477→المشروع المستهدف الكبير الذي ناقشناه هو:
+  1478→
+  1479→```text
+  1480→MiMo Life OS
+  1481→```
+  1482→
+  1483→وصفه الذي أعطيناه للمطورين:
+  1484→
+  1485→```text
+  1486→Next.js
+  1487→React
+  1488→TypeScript
+  1489→SQLite + Prisma
+  1490→Zustand
+  1491→Tailwind
+  1492→shadcn
+  1493→Bun
+  1494→```
+  1495→
+  1496→وحجمه الذي ذكرتَه في الوثائق:
+  1497→
+  1498→```text
+  1499→~146K lines
+  1500→~634 files
+  1501→```
+  1502→
+  1503→مع:
+  1504→
+  1505→* 121 Prisma model
+  1506→* 188 API routes
+  1507→* 56 sections
+  1508→* AI Core
+  1509→* Foundation
+  1510→* memory
+  1511→* executive system
+  1512→
+  1513→وهذا سيكون لاحقًا **أصعب benchmark حقيقي لـMiMo X**.
+  1514→
+  1515→---
+  1516→
+  1517→# 51. الاختبار النهائي الحقيقي
+  1518→
+  1519→بعد نضوج MiMo:
+  1520→
+  1521→```text
+  1522→Open MiMo Life OS
+  1523→↓
+  1524→Analyze repository
+  1525→↓
+  1526→Architecture scan
+  1527→↓
+  1528→Generate backlog
+  1529→↓
+  1530→Prioritize
+  1531→↓
+  1532→Execute
+  1533→↓
+  1534→Verify
+  1535→↓
+  1536→Checkpoint
+  1537→↓
+  1538→Continue
+  1539→```
+  1540→
+  1541→وهنا نعرف هل MiMo فعلاً مفيد أم مجرد واجهة جميلة.
+  1542→
+  1543→---
+  1544→
+  1545→# 52. GitHub repository المطلوب
+  1546→
+  1547→هناك مستودع المشروع الأساسي الذي ظهر في الحوار سابقًا:
+  1548→
+  1549→```text
+  1550→mohammadfhgjvhgi/mimo-coding-agent
+  1551→```
+  1552→
+  1553→لكن من المهم جدًا التفريق بين:
+  1554→
+  1555→## Repository قديم
+  1556→
+  1557→يحوي محاولات v4.x والـprototype السابقة.
+  1558→
+  1559→## MiMo X النهائي
+  1560→
+  1561→من الأفضل أن يكون له repository نظيف أو branch/structure واضحة، حتى لا يصبح تاريخ المشروع مجموعة محاولات متضاربة.
+  1562→
+  1563→---
+  1564→
+  1565→# 53. هيكل Repository النهائي المقترح
+  1566→
+  1567→```text
+  1568→mimo-x/
+  1569→│
+  1570→├── apps/
+  1571→│   └── desktop/
+  1572→│
+  1573→├── packages/
+  1574→│   ├── agent/
+  1575→│   ├── llm/
+  1576→│   ├── tools/
+  1577→│   ├── intelligence/
+  1578→│   ├── context/
+  1579→│   ├── evidence/
+  1580→│   ├── memory/
+  1581→│   ├── verification/
+  1582→│   ├── tasks/
+  1583→│   ├── integrations/
+  1584→│   ├── security/
+  1585→│   └── shared/
+  1586→│
+  1587→├── adapters/
+  1588→│   ├── aiderdesk/
+  1589→│   ├── cline/
+  1590→│   ├── gortex/
+  1591→│   ├── ollama/
+  1592→│   └── llamacpp/
+  1593→│
+  1594→├── integrations/
+  1595→│   ├── github/
+  1596→│   ├── browser/
+  1597→│   ├── mcp/
+  1598→│   └── docs/
+  1599→│
+  1600→├── skills/
+  1601→├── benchmarks/
+  1602→├── tests/
+  1603→│
+  1604→├── docs/
+  1605→│   ├── architecture/
+  1606→│   ├── decisions/
+  1607→│   ├── product/
+  1608→│   └── validation/
+  1609→│
+  1610→├── scripts/
+  1611→└── third-party/
+  1612→```
+  1613→
+  1614→---
+  1615→
+  1616→# 54. قاعدة Third-Party
+  1617→
+  1618→كل كود خارجي:
+  1619→
+  1620→```text
+  1621→source repo
+  1622→commit
+  1623→license
+  1624→path
+  1625→modification
+  1626→date
+  1627→```
+  1628→
+  1629→ولا نسخ عشوائي.
+  1630→
+  1631→---
+  1632→
+  1633→# 55. مراحل المشروع النهائية
+  1634→
+  1635→## المرحلة A
+  1636→
+  1637→Foundation
+  1638→
+  1639→## المرحلة B
+  1640→
+  1641→Agent
+  1642→
+  1643→## المرحلة C
+  1644→
+  1645→Coding
+  1646→
+  1647→## المرحلة D
+  1648→
+  1649→Repository Intelligence
+  1650→
+  1651→## المرحلة E
+  1652→
+  1653→Context/Evidence
+  1654→
+  1655→## المرحلة F
+  1656→
+  1657→Verification
+  1658→
+  1659→## المرحلة G
+  1660→
+  1661→Memory
+  1662→
+  1663→## المرحلة H
+  1664→
+  1665→Autonomy
+  1666→
+  1667→## المرحلة I
+  1668→
+  1669→Local Model
+  1670→
+  1671→## المرحلة J
+  1672→
+  1673→Hardware
+  1674→
+  1675→## المرحلة K
+  1676→
+  1677→External Ecosystem
+  1678→
+  1679→## المرحلة L
+  1680→
+  1681→General Assistant
+  1682→
+  1683→## المرحلة M
+  1684→
+  1685→Production
+  1686→
+  1687→---
+  1688→
+  1689→# 56. Release Gates
+  1690→
+  1691→## Gate 0
+  1692→
+  1693→Desktop boots.
+  1694→
+  1695→## Gate 1
+  1696→
+  1697→Coding task succeeds.
+  1698→
+  1699→## Gate 2
+  1700→
+  1701→Agent + verification reliable.
+  1702→
+  1703→## Gate 3
+  1704→
+  1705→Repository intelligence works.
+  1706→
+  1707→## Gate 4
+  1708→
+  1709→Ollama real model works.
+  1710→
+  1711→## Gate 5
+  1712→
+  1713→Hardware profile measured.
+  1714→
+  1715→## Gate 6
+  1716→
+  1717→Autonomous tasks.
+  1718→
+  1719→## Gate 7
+  1720→
+  1721→External integrations.
+  1722→
+  1723→## Gate 8
+  1724→
+  1725→General assistant.
+  1726→
+  1727→## Gate 9
+  1728→
+  1729→Windows production EXE.
+  1730→
+  1731→---
+  1732→
+  1733→# 57. Metrics
+  1734→
+  1735→لكل task:
+  1736→
+  1737→```text
+  1738→success
+  1739→time
+  1740→tokens
+  1741→llm_calls
+  1742→tool_calls
+  1743→useful_tool_calls
+  1744→RAM
+  1745→VRAM
+  1746→context_tokens
+  1747→retries
+  1748→failures
+  1749→human_intervention
+  1750→checkpoint
+  1751→```
+  1752→
+  1753→---
+  1754→
+  1755→# 58. أهم KPI
+  1756→
+  1757→ليس:
+  1758→
+  1759→> "كم feature عندنا؟"
+  1760→
+  1761→بل:
+  1762→
+  1763→### 1. Task Success Rate
+  1764→
+  1765→### 2. Autonomous Completion Rate
+  1766→
+  1767→### 3. Human Intervention Rate
+  1768→
+  1769→### 4. Context Efficiency
+  1770→
+  1771→### 5. Effective Work Ratio
+  1772→
+  1773→### 6. Recovery Rate
+  1774→
+  1775→### 7. Resource Efficiency
+  1776→
+  1777→---
+  1778→
+  1779→# 59. أكبر أخطاء حدثت خلال المشروع
+  1780→
+  1781→## الخطأ 1
+  1782→
+  1783→اعتبار Architecture = Product.
+  1784→
+  1785→## الخطأ 2
+  1786→
+  1787→بناء UI من الصفر.
+  1788→
+  1789→## الخطأ 3
+  1790→
+  1791→كتابة Agent loop من الصفر رغم وجود foundations جاهزة.
+  1792→
+  1793→## الخطأ 4
+  1794→
+  1795→الخلط بين Development Environment وTarget Hardware.
+  1796→
+  1797→## الخطأ 5
+  1798→
+  1799→اعتبار غياب GPU blocker لكل التطوير.
+  1800→
+  1801→## الخطأ 6
+  1802→
+  1803→اعتبار وجود Electron main proof of Desktop product.
+  1804→
+  1805→## الخطأ 7
+  1806→
+  1807→الانتقال إلى features كثيرة قبل حسم foundation.
+  1808→
+  1809→## الخطأ 8
+  1810→
+  1811→إنتاج documentation كثيرة بدل product.
+  1812→
+  1813→---
+  1814→
+  1815→# 60. الدرس النهائي من كل الجولات
+  1816→
+  1817→الخطة الصحيحة:
+  1818→
+  1819→```text
+  1820→FOUNDATION
+  1821→↓
+  1822→RUN
+  1823→↓
+  1824→REAL PRODUCT
+  1825→↓
+  1826→VERIFY
+  1827→↓
+  1828→INTEGRATE
+  1829→↓
+  1830→INTELLIGENCE
+  1831→↓
+  1832→AUTONOMY
+  1833→↓
+  1834→LOCAL RUNTIME
+  1835→↓
+  1836→HARDWARE
+  1837→↓
+  1838→GENERAL AI
+  1839→```
+  1840→
+  1841→وليس:
+  1842→
+  1843→```text
+  1844→Research
+  1845→→ architecture
+  1846→→ 100 features
+  1847→→ dashboard
+  1848→→ report
+  1849→```
+  1850→
+  1851→---
+  1852→
+  1853→# 61. أهم مبدأ في المشروع كله
+  1854→
+  1855→> **MiMo X يجب أن يكون أصغر من مجموع أجزائه.**
+  1856→
+  1857→يعني:
+  1858→
+  1859→لا نريد:
+  1860→
+  1861→```text
+  1862→AiderDesk
+  1863→+
+  1864→Cline
+  1865→+
+  1866→Goose
+  1867→+
+  1868→OpenCode
+  1869→+
+  1870→OpenHands
+  1871→+
+  1872→Aider
+  1873→+
+  1874→Gortex
+  1875→```
+  1876→
+  1877→كلهم يعملون معًا كأنهم 7 برامج.
+  1878→
+  1879→نريد:
+  1880→
+  1881→```text
+  1882→                 MiMo X
+  1883→                   │
+  1884→     ┌─────────────┼─────────────┐
+  1885→     │             │             │
+  1886→ Desktop        Agent        Intelligence
+  1887→ Foundation     Runtime         Layer
+  1888→     │             │             │
+  1889→ AiderDesk     Cline/one      Gortex
+  1890→               runtime
+  1891→```
+  1892→
+  1893→---
+  1894→
+  1895→# 62. الحكم النهائي على المشروع حتى الآن
+  1896→
+  1897→## الرؤية
+  1898→
+  1899→**قوية جدًا.**
+  1900→
+  1901→## المنتج المستهدف
+  1902→
+  1903→**واضح الآن.**
+  1904→
+  1905→## الفكرة الهندسية
+  1906→
+  1907→**قابلة للتنفيذ.**
+  1908→
+  1909→## أهم نقطة تميّز
+  1910→
+  1911→ليست "8B = 70B".
+  1912→
+  1913→بل:
+  1914→
+  1915→> **نظام Software Engineering + Personal AI متكامل، Local-first، Resource-aware، يعمل حول نماذج محلية صغيرة.**
+  1916→
+  1917→## الوضع الحالي
+  1918→
+  1919→### Prototype Agent
+  1920→
+  1921→✅ مثبت
+  1922→
+  1923→### Vertical Slice
+  1924→
+  1925→✅ مثبت
+  1926→
+  1927→### Tool Gateway
+  1928→
+  1929→✅ مثبت
+  1930→
+  1931→### Session/Checkpoint
+  1932→
+  1933→✅ مثبت جزئيًا وحقيقي
+  1934→
+  1935→### Desktop foundation
+  1936→
+  1937→🟡 AiderDesk تم سحبه وتشغيل الـmain process والـextension infrastructure، لكن **الـfull renderer النهائي لم يثبت بعد في sandbox**.
+  1938→
+  1939→### Cline integration
+  1940→
+  1941→🟡 مرشح قوي، لكن لم يُحسم runtime النهائي.
+  1942→
+  1943→### Gortex
+  1944→
+  1945→🟡 لم يُدمج بعد.
+  1946→
+  1947→### Context/Evidence
+  1948→
+  1949→🟡 تصميم ومكونات سابقة موجودة في محاولات MiMo القديمة، لكن النسخة الجديدة النظيفة لم تستقر بعد.
+  1950→
+  1951→### Memory
+  1952→
+  1953→🟡 لم تصبح جزءًا متكاملاً من المنتج الجديد.
+  1954→
+  1955→### Autonomy
+  1956→
+  1957→🟡 لم تثبت end-to-end بعد.
+  1958→
+  1959→### Ollama/Qwen
+  1960→
+  1961→🔴 لم تختبر على Windows الحقيقي بعد.
+  1962→
+  1963→### GPU
+  1964→
+  1965→🔴 غير مقاس.
+  1966→
+  1967→### EXE
+  1968→
+  1969→🔴 غير جاهز.
+  1970→
+  1971→### MiMo Life OS stress test
+  1972→
+  1973→🔴 لم يبدأ.
+  1974→
+  1975→---
+  1976→
+  1977→# 63. المنتج الذي يجب أن تنتهي إليه
+  1978→
+  1979→أفتح:
+  1980→
+  1981→# `MiMo X.exe`
+  1982→
+  1983→وأرى:
+  1984→
+  1985→```text
+  1986→Home
+  1987→Projects
+  1988→Chat
+  1989→Agent
+  1990→Tasks
+  1991→Research
+  1992→Knowledge
+  1993→Automation
+  1994→Models
+  1995→Integrations
+  1996→Settings
+  1997→```
+  1998→
+  1999→أدخل Project.
+  2000→
+
+[showing lines 1-2000 of 2099; use offset=2001 with limit to continue reading]

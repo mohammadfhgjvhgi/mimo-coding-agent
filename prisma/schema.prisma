@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  title     String   @default("New Chat")
+  model     String   @default("default")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // 'user' | 'assistant' | 'system'
+  content        String
+  model          String?
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}

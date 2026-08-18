@@ -1,0 +1,2098 @@
+نعم. وهذه المرة سأعطيك **التقرير كوثيقة مرجعية للمشروع من الصفر حتى آخر نقطة وصلنا إليها**، مع فصل واضح بين:
+
+* ما قررناه نحن في الحوار.
+* ما نُفذ فعليًا.
+* ما فشل أو انحرف.
+* ما يجب أن يكون المنتج النهائي.
+* البنية المستهدفة.
+* المستودعات ودور كل واحد.
+* ما الذي نعيد استخدامه وما الذي لا نعيد بناءه.
+* نموذج التشغيل على جهازك.
+* خطة التطوير الصحيحة.
+* الحالة الحالية الحقيقية.
+
+وأتحقق أيضًا من المستودعات الرئيسية الحالية؛ لأن بعضها تغير أثناء هذه المحادثة. مثلًا Cline الآن يملك SDK رسميًا متعدد الطبقات، وGortex تطور إلى محرك code-intelligence غني جدًا، وAiderDesk لديه تطبيق Desktop فعلي، وGoose لديه Desktop عام، وCode-OSS ما زال أساس VS Code المفتوح. ([GitHub][1])
+
+---
+
+# تقرير MiMo X الشامل
+
+## من الفكرة الأولى حتى الوضع الحالي
+
+---
+
+# 1. الهوية النهائية للمشروع
+
+## الاسم
+
+**MiMo X**
+
+## الاسم الوظيفي
+
+**Local-first AI Software Engineering & Personal Agent OS**
+
+بالعربي:
+
+> **بيئة تشغيل ذكية محلية لهندسة البرمجيات وإدارة العمل والحياة الرقمية.**
+
+MiMo X ليس مجرد Coding Agent.
+
+وليس مجرد Chatbot.
+
+وليس مجرد VS Code بديل.
+
+وليس مجرد واجهة لـOllama.
+
+الفكرة النهائية هي بناء **تطبيق Desktop واحد** يكون فيه:
+
+```text
+Coding Agent
++
+General AI Chat
++
+Project Management
++
+Tasks
++
+Research
++
+Memory / Knowledge
++
+Automation
++
+Git/GitHub
++
+Browser
++
+MCP
++
+Local LLMs
+```
+
+والـCoding Agent هو **أهم وأقوى capability** داخل النظام، لكنه ليس الاستخدام الوحيد.
+
+---
+
+# 2. لماذا المشروع موجود أصلًا؟
+
+المشكلة التي حاولنا حلها كانت مركبة.
+
+أنت تريد:
+
+1. وكيل برمجة يستطيع التعامل مع مشاريع ضخمة.
+2. يعمل محليًا قدر الإمكان.
+3. لا يحتاج API مدفوعًا بشكل إلزامي.
+4. يستطيع استخدام الملفات والطرفية وGit والاختبارات.
+5. يستطيع العمل لساعات ومهام متتابعة.
+6. يستطيع استكمال العمل بعد الانقطاع.
+7. يفهم مستودعًا كبيرًا دون إرسال المشروع كاملًا للنموذج.
+8. يستطيع العمل على جهاز قديم محدود الموارد.
+9. وفي النهاية يكون **تطبيقًا كاملًا تستخدمه يوميًا**، وليس أداة تجريبية.
+
+ومن هنا جاءت فكرة MiMo:
+
+> **بدل محاولة جعل نموذج صغير "أذكى" سحريًا، نبني نظامًا يقلل ما يجب على النموذج التفكير فيه أصلًا.**
+
+---
+
+# 3. الفكرة الهندسية الجوهرية
+
+MiMo لا يحاول تحويل:
+
+```text
+8B → 70B
+```
+
+بشكل حرفي.
+
+هذا غير صحيح.
+
+الهدف الحقيقي هو:
+
+```text
+8B
++
+أفضل context
++
+أفضل retrieval
++
+أقل tool schemas
++
+أدوات حتمية
++
+verification
++
+memory
++
+recovery
++
+task decomposition
++
+model routing
+```
+
+فتصبح **القدرة العملية على إنجاز نوع معين من المهام أكبر بكثير من استخدام 8B عشوائيًا**.
+
+وهذا هو الفرق بين:
+
+> "نموذج صغير"
+
+و:
+
+> "نظام هندسي مصمم حول نموذج صغير."
+
+---
+
+# 4. الحقيقة التي ثبتناها حول 8B
+
+خلال الحوار وصلنا إلى نتيجة مهمة:
+
+## لا يمكن قول:
+
+> "MiMo يجعل 8B يساوي 70B."
+
+هذا ادعاء غير صحيح.
+
+لكن يمكن:
+
+* رفع reliability.
+* تقليل الفشل.
+* تقليل context waste.
+* تقليل عدد استدعاءات LLM.
+* نقل مهام كاملة إلى deterministic engines.
+* تقسيم المهام الكبيرة.
+* استخدام model routing.
+* استخدام نموذج مساعد.
+* استخدام نموذج أكبر عند توفره.
+* جعل العمل الطويل مستمرًا.
+
+وبالتالي:
+
+> **MiMo لا يخلق parameters جديدة؛ هو يزيد قيمة كل inference موجود.**
+
+---
+
+# 5. العتاد المستهدف
+
+آخر مواصفة استقرينا عليها في الخطة هي:
+
+```text
+CPU: Intel Core i7-3770
+4 cores / 8 threads
+Ivy Bridge
+No AVX2
+
+RAM:
+12 GB DDR3-1333
+```
+
+مع ملاحظة مهمة:
+
+> في محادثات أقدم كنت قد ذكرت 16GB، ثم أصبحت مواصفة الخريطة الأخيرة 12GB. لذلك يجب اعتبار **12GB هي آخر مواصفة مكتوبة للخطة، لكن يجب التحقق من جهازك فعليًا قبل ضبط الـproduction profile.**
+
+## GPU
+
+```text
+NVIDIA GTX 750 Ti
+4GB VRAM
+Maxwell
+Compute Capability 5.0
+```
+
+## OS
+
+```text
+Windows 10
+```
+
+## Local runtime
+
+```text
+Ollama
+llama.cpp
+```
+
+---
+
+# 6. المشكلة الفيزيائية
+
+الجهاز محدود في:
+
+* RAM
+* VRAM
+* CPU vector capability
+* memory bandwidth
+* inference speed
+
+لذلك لا يمكن تصميم MiMo مثل تطبيق موجه لـ:
+
+```text
+RTX 4090
+128GB RAM
+A100
+H100
+```
+
+بل يجب أن تكون فلسفته:
+
+# Resource-Aware AI
+
+أي أن النظام يعرف:
+
+```text
+RAM
+CPU
+VRAM
+Context
+Model
+Task Complexity
+```
+
+ثم يقرر كيف يعمل.
+
+---
+
+# 7. النموذج الثنائي
+
+التصميم الذي ناقشناه:
+
+```text
+              Model Router
+                   │
+        ┌──────────┼───────────┐
+        │          │           │
+        ▼          ▼           ▼
+      CPU        GPU        Deterministic
+      Main      Helper           0-LLM
+```
+
+## CPU Main
+
+مرشحون:
+
+```text
+Qwen3 4B
+Qwen2.5-Coder 7B
+نماذج أخرى بعد القياس
+```
+
+وظيفته:
+
+* coding
+* reasoning
+* planning
+* debugging
+* architecture
+
+## GPU Helper
+
+مرشحون:
+
+```text
+Qwen3 1.7B
+Qwen3 0.6B
+```
+
+وظيفته:
+
+* classification
+* routing
+* summarization
+* ranking
+* lightweight tasks
+
+## Deterministic
+
+بدون LLM:
+
+```text
+AST
+LSP
+FTS
+Graph
+Git
+Tests
+Syntax
+Search
+```
+
+وهذه في الحقيقة **أهم طبقة لتخفيف ضغط 8B**.
+
+---
+
+# 8. قاعدة النموذجين
+
+لا نريد:
+
+```text
+CPU model + GPU model
+في كل طلب
+```
+
+بل:
+
+```text
+Task
+↓
+Classifier / Policy
+↓
+Deterministic?
+├─ YES → 0 LLM
+│
+├─ Helper needed → GPU
+│
+└─ Reasoning needed → CPU Main
+```
+
+ولو أثبت benchmark أن GPU helper أبطأ:
+
+> **تعطيله يعتبر نجاحًا، وليس فشلًا.**
+
+---
+
+# 9. الهدف النهائي من البرنامج
+
+عند تشغيل:
+
+```text
+MiMo X.exe
+```
+
+يجب أن يظهر **تطبيق Desktop حقيقي**، وليس موقعًا فقط.
+
+الفكرة البصرية:
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ MiMo X       Model       CPU/RAM       GPU       Session    │
+├───────┬───────────────────────────────┬──────────────────────┤
+│       │                               │                      │
+│Files  │            Editor             │       Agent          │
+│Search │                               │                      │
+│Git    │                               │  Conversation       │
+│Tasks  │                               │  Plan               │
+│...    │                               │  Tool Calls          │
+│       │                               │  Evidence            │
+├───────┴───────────────────────────────┴──────────────────────┤
+│ Terminal │ Problems │ Diff │ Tests │ Memory │ Context │ Git │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# 10. تجربة المستخدم النهائية
+
+## Coding
+
+```text
+Open project
+↓
+Ask Agent
+↓
+Inspect
+↓
+Edit
+↓
+Terminal
+↓
+Tests
+↓
+Diff
+↓
+Checkpoint
+```
+
+## Chat
+
+```text
+"اشرح لي..."
+```
+
+## Tasks
+
+```text
+"رتب مهامي اليوم"
+```
+
+## Research
+
+```text
+"ابحث عن..."
+```
+
+## Knowledge
+
+```text
+"ماذا قررت سابقًا؟"
+```
+
+## Automation
+
+```text
+"نفذ هذا كل أسبوع"
+```
+
+وكلها من **نفس التطبيق**.
+
+---
+
+# 11. لماذا بدأنا بالبحث عن واجهة جاهزة؟
+
+لأن إحدى أكبر أخطاء المحاولات السابقة كانت:
+
+> بناء IDE من الصفر.
+
+وقضينا جولات في:
+
+* Monaco
+* xterm
+* Explorer
+* Tabs
+* ActivityBar
+* Chat panel
+
+ثم اكتشفنا أننا نعيد اختراع ما هو موجود أصلًا.
+
+لذلك أصبح القرار:
+
+> **نأخذ Desktop foundation جاهزًا ونضع MiMo بداخله.**
+
+---
+
+# 12. أهم Repository حاليًا: AiderDesk
+
+المستودع:
+
+[AiderDesk على GitHub](https://github.com/hotovo/aider-desk?utm_source=chatgpt.com)
+
+AiderDesk حاليًا تطبيق AI software-engineering Desktop حقيقي، يوزع إصدارات قابلة للتنزيل، ويدعم Projects/Tasks وGit worktrees وterminal وMCP وSkills وغيرها. ([GitHub][2])
+
+## لماذا مناسب؟
+
+لأنه يوفر بالفعل أشياء لا نريد إعادة بنائها:
+
+* Desktop shell
+* Projects
+* Tasks
+* Agent workbench
+* Terminal
+* Git
+* Diff
+* Worktrees
+* MCP
+* Skills
+* Extensions
+* model/provider management
+
+---
+
+# 13. cdesktop
+
+المستودع:
+
+[cdesktop على GitHub](https://github.com/cdesktop-ai/cdesktop?utm_source=chatgpt.com)
+
+هذا ليس أساس MiMo النهائي.
+
+لكنه مهم جدًا كـ**UX reference** لأنه مصمم أصلًا كبديل مفتوح المصدر لواجهة Claude Code Desktop، ويستخدم sessions sidebar وtranscript وterminal وdiff وplan/files/app preview، ويشغل عدة coding agents بما فيها Codex وClaude Code وGemini CLI وOpenCode. ([GitHub][3])
+
+إذن:
+
+```text
+AiderDesk = foundation candidate
+cdesktop = UX reference
+```
+
+---
+
+# 14. Cline
+
+المستودع:
+
+[Cline على GitHub](https://github.com/cline/cline?utm_source=chatgpt.com)
+
+Cline أصبح مهمًا جدًا للمشروع.
+
+الـSDK الرسمي الحالي يعطي:
+
+```text
+@cline/sdk
+@cline/core
+@cline/agents
+@cline/llms
+@cline/shared
+```
+
+و`@cline/agents` يوفر agent loop وtool execution وevents/hooks، بينما `@cline/core` يتكفل بالأجزاء stateful مثل sessions وpersistence وbuilt-in tools وcontext pipeline وruntime composition. ([GitHub][1])
+
+كما أن Cline نفسه يذكر دعمًا للـSDK، CLI، custom tools، multi-agent teams، connectors، scheduled automations. ([GitHub][4])
+
+## القرار
+
+لا نضم Cline كاملًا.
+
+نختبر:
+
+```text
+AiderDesk runtime
+vs
+Cline SDK
+vs
+Current MiMo runtime
+```
+
+ثم نختار **واحدًا فقط**.
+
+---
+
+# 15. Gortex
+
+المستودع:
+
+[Gortex على GitHub](https://github.com/zzet/gortex?utm_source=chatgpt.com)
+
+Gortex من أهم المكونات في التصميم.
+
+هو **Code Intelligence Engine** وليس Agent.
+
+حاليًا يذكر المستودع:
+
+* graph
+* MCP
+* multi-repository
+* 257 language/grammars
+* functions/classes/call chains/routes/contracts
+* provenance
+* daemon
+* HTTP API
+* MCP surface واسع
+* Windows/Linux/macOS binaries. ([GitHub][5])
+
+وظيفته:
+
+```text
+Repository
+↓
+Graph
+↓
+Symbols
+↓
+Calls
+↓
+Dependencies
+↓
+Impact
+↓
+Evidence
+```
+
+---
+
+# 16. Aider
+
+المستودع:
+
+[Aider على GitHub](https://github.com/Aider-AI/aider?utm_source=chatgpt.com)
+
+لن نستخدم Aider كـapplication foundation.
+
+لكن نأخذ أهم فكرة عنده:
+
+## Repo Map
+
+Aider يبني خريطة مضغوطة للمستودع تحتوي الملفات وأهم الرموز والتواقيع لتقليل السياق وتحسين فهم العلاقات داخل المستودع. ([GitHub][6])
+
+هذه الفكرة أساسية في MiMo.
+
+---
+
+# 17. Goose
+
+المستودع:
+
+[Goose على GitHub](https://github.com/block/goose?utm_source=chatgpt.com)
+
+Goose مهم للجانب **General AI Assistant**.
+
+يدعم:
+
+* Desktop
+* CLI
+* API
+* Windows
+* Ollama
+* providers متعددة
+* MCP
+* automation
+* coding
+* research
+* writing
+
+وهو Apache-2.0. ([GitHub][7])
+
+لا نُشغّل Goose كـAgent runtime ثاني.
+
+نستفيد من أفكاره.
+
+---
+
+# 18. OpenHands
+
+المستودع:
+
+[OpenHands على GitHub](https://github.com/OpenHands/OpenHands?utm_source=chatgpt.com)
+
+مهم كمرجع للـ:
+
+* long-running agent
+* backend switching
+* Agent Canvas
+* multi-environment execution
+
+OpenHands يسمح باستخدام نماذج ووكلاء مختلفين ويستطيع تشغيل agent backend على laptop أو server. ([GitHub][8])
+
+---
+
+# 19. OpenCode
+
+مهم كمرجع للـ:
+
+* agent modes
+* sessions
+* coding workflows
+* provider abstraction
+* desktop/CLI architecture
+
+لكن ليس foundation تلقائيًا.
+
+---
+
+# 20. Code-OSS
+
+المستودع:
+
+[Code-OSS على GitHub](https://github.com/microsoft/vscode?utm_source=chatgpt.com)
+
+Code-OSS هو المصدر المفتوح الذي تُطور منه Microsoft VS Code، وهو MIT، بينما توزيع VS Code الرسمي يضيف تخصيصات Microsoft. ([GitHub][9])
+
+## لماذا مهم؟
+
+لأنه مرجع إذا وصلنا يومًا إلى:
+
+> نحتاج workbench كاملة بمستوى VS Code.
+
+لكن حاليًا:
+
+**لا نبدأ ببناء Code-OSS داخل المشروع.**
+
+---
+
+# 21. MCP
+
+استخدم SDK الرسمي:
+
+[MCP Python SDK على GitHub](https://github.com/modelcontextprotocol/python-sdk?utm_source=chatgpt.com)
+
+حاليًا خط v2 هو المستقر وفق المستودع، ويدعم بناء MCP servers تعرض tools/resources/prompts. ([GitHub][10])
+
+MCP سيكون:
+
+```text
+External Integration Layer
+```
+
+---
+
+# 22. Playwright
+
+المستودع:
+
+[Playwright على GitHub](https://github.com/microsoft/playwright?utm_source=chatgpt.com)
+
+Playwright يدعم Chromium وFirefox وWebKit، ويوجد له:
+
+* Library
+* Test
+* CLI
+* MCP
+
+ويذكر صراحة استخدامه كـtool للـAI agents. ([GitHub][11])
+
+---
+
+# 23. tree-sitter
+
+المستودع:
+
+[tree-sitter على GitHub](https://github.com/tree-sitter/tree-sitter?utm_source=chatgpt.com)
+
+هو incremental parser generator/library ويمكن تحديث الشجرة بسرعة أثناء التحرير. ([GitHub][12])
+
+يستخدم في:
+
+* AST
+* symbol indexing
+* structural understanding
+
+---
+
+# 24. ast-grep
+
+المستودع:
+
+[ast-grep على GitHub](https://github.com/ast-grep/ast-grep?utm_source=chatgpt.com)
+
+مفيد لـ:
+
+* structural search
+* AST rewrite
+* lint
+* codemods
+* refactors
+
+ويعتمد على Tree-sitter. ([GitHub][13])
+
+---
+
+# 25. llama.cpp
+
+المرجع:
+
+[llama.cpp على GitHub](https://github.com/ggerganov/llama.cpp?utm_source=chatgpt.com)
+
+يدعم:
+
+* quantization
+* CPU
+* CUDA
+* hybrid CPU/GPU
+* GGUF
+
+ويصف المشروع دعم CPU+GPU hybrid inference للنماذج الأكبر من سعة VRAM. ([GitHub][14])
+
+---
+
+# 26. Ollama
+
+الوظيفة:
+
+```text
+High-level local runtime
+```
+
+ليست Agent.
+
+MiMo يجب أن يتعامل معه عن طريق:
+
+```text
+OllamaProvider
+```
+
+---
+
+# 27. AirLLM
+
+المستودع:
+
+[AirLLM على GitHub](https://github.com/lyogavin/airllm?utm_source=chatgpt.com)
+
+الفكرة التي ناقشناها:
+
+> تشغيل نماذج كبيرة مع VRAM محدودة باستخدام layer-wise execution/offloading.
+
+لكن:
+
+**AirLLM ليس Agent ولا IDE.**
+
+وضعه:
+
+```text
+Large-model low-VRAM experiment
+```
+
+وليس أساس MiMo.
+
+---
+
+# 28. Octokit
+
+الوظيفة:
+
+```text
+GitHub API
+```
+
+نستخدمه داخل:
+
+```text
+GitHub Integration
+```
+
+---
+
+# 29. البنية النهائية المقترحة
+
+```text
+                     MiMo X.exe
+                         │
+                ┌────────┴─────────┐
+                │ Desktop Workbench │
+                │ AiderDesk-based   │
+                └────────┬─────────┘
+                         │
+                    MiMo Layer
+                         │
+        ┌────────────────┼─────────────────┐
+        │                │                 │
+     Agent             Assistant        Tasks
+        │                │                 │
+        └────────────────┼─────────────────┘
+                         │
+                  Control Plane
+                         │
+                  Agent Runtime
+                         │
+                 Tool Gateway
+                         │
+       ┌─────────────────┼─────────────────┐
+       │                 │                 │
+ Repository           External          Personal
+ Tools                Tools             Tools
+       │                 │                 │
+       ▼                 ▼                 ▼
+ Files                MCP              Tasks
+ Terminal             Browser           Notes
+ Git                  GitHub            Knowledge
+ Tests                APIs              Automation
+       │
+       ▼
+ Code Intelligence
+ ├── Gortex
+ ├── AST
+ ├── LSP
+ ├── tree-sitter
+ ├── ast-grep
+ └── Repo Map
+       │
+       ▼
+ Evidence Plane
+       │
+       ▼
+ Context OS
+       │
+       ▼
+ Model Router
+       │
+ ┌─────┼─────┐
+ ▼     ▼     ▼
+CPU   GPU   0-LLM
+Main Helper Deterministic
+```
+
+---
+
+# 30. طبقات MiMo النهائية
+
+## 01. Desktop/Product Shell
+
+AiderDesk foundation.
+
+## 02. General Workspace
+
+Home/Chat/Tasks/Projects.
+
+## 03. Agent Runtime
+
+Cline أو foundation واحد مختار.
+
+## 04. Tool Gateway
+
+permissions + schemas + execution.
+
+## 05. Code Intelligence
+
+Gortex/AST/LSP.
+
+## 06. Evidence
+
+what/why/confidence/freshness.
+
+## 07. Context OS
+
+budget/compression/paging/cache.
+
+## 08. Model Runtime
+
+Ollama/llama.cpp/providers.
+
+## 09. Verification
+
+tests/LSP/build/diff/DoD.
+
+## 10. Memory
+
+working/task/project/semantic/failure/negative.
+
+## 11. Task System
+
+queue/DAG/retry/recovery.
+
+## 12. Autonomy
+
+long-running engineering.
+
+## 13. Integrations
+
+MCP/browser/GitHub.
+
+## 14. Personal Assistant
+
+daily/research/writing.
+
+## 15. Self-Improvement
+
+benchmark/promote/reject.
+
+---
+
+# 31. تدفق Coding Task النهائي
+
+مثال:
+
+> "أصلح مشكلة تسجيل الدخول."
+
+```text
+User
+↓
+Task IR
+↓
+Deterministic classification
+↓
+Gortex
+↓
+Find relevant symbols
+↓
+Find callers
+↓
+Find tests
+↓
+Diagnostics
+↓
+Evidence Package
+↓
+Context Compiler
+↓
+Model Router
+↓
+CPU Main
+↓
+Tool Proposal
+↓
+Tool Gateway
+↓
+Permission
+↓
+Edit
+↓
+LSP
+↓
+Targeted Tests
+↓
+Repair if failed
+↓
+Full verification
+↓
+Diff
+↓
+Checkpoint
+↓
+Memory
+↓
+Next Task
+```
+
+---
+
+# 32. تدفق سؤال عادي
+
+> "اشرح لي الفرق بين PLC وDCS."
+
+لا نرسل كل منظومة coding.
+
+```text
+User
+↓
+General Assistant
+↓
+Model Router
+↓
+Chat
+↓
+Answer
+```
+
+---
+
+# 33. سؤال يومي
+
+> "رتب لي مهامي اليوم."
+
+```text
+User
+↓
+Tasks
+↓
+Memory
+↓
+Priorities
+↓
+Answer
+```
+
+---
+
+# 34. سؤال بحثي
+
+> "ابحث لي عن أحدث الأدوات..."
+
+```text
+User
+↓
+Research Agent
+↓
+Web/MCP
+↓
+Sources
+↓
+Synthesis
+```
+
+---
+
+# 35. لماذا MiMo ليس مجرد Cline أو AiderDesk؟
+
+لأننا لا نريد:
+
+```text
+Cline + new name
+```
+
+ولا:
+
+```text
+AiderDesk + new logo
+```
+
+الميزة الأساسية في MiMo هي **طبقة النظام فوق هذه الأدوات**:
+
+```text
+Resource-aware model routing
++
+Evidence-driven context
++
+Deterministic-first architecture
++
+Long-running task management
++
+Memory
++
+Verification
++
+Personal assistant
++
+Offline-first
+```
+
+---
+
+# 36. ما الذي لا نريد بناءه
+
+ممنوع:
+
+```text
+Architecture Viewer
+Documentation Dashboard
+Fake Mission Control
+Second IDE
+Second Agent
+Second Tool Gateway
+Vector DB بدون benchmark
+Swarm ضخم
+Cloud-only
+Marketplace
+```
+
+---
+
+# 37. الأمان
+
+## Trusted
+
+```text
+System Policy
+User
+MiMo Core
+```
+
+## Untrusted
+
+```text
+Repository contents
+Tool output
+Web
+MCP
+Plugins
+External APIs
+```
+
+كل التنفيذ يمر:
+
+```text
+Policy
+↓
+Permission
+↓
+Validation
+↓
+Execution
+```
+
+---
+
+# 38. حالات Agent
+
+```text
+PENDING
+PLANNING
+EXECUTING
+VERIFYING
+RECOVERING
+WAITING_APPROVAL
+PAUSED
+BLOCKED
+UNKNOWN
+COMPLETED
+FAILED
+CANCELLED
+ESCALATED
+```
+
+Unknown لا يعني نجاحًا ولا فشلًا.
+
+---
+
+# 39. Memory architecture
+
+```text
+Working
+Task
+Project
+Semantic
+Episodic
+Failure
+Negative
+Skill
+Decision
+User Preference
+```
+
+والذاكرة لا تُضخ كاملة للنموذج.
+
+بل:
+
+```text
+Query
+↓
+Retrieve
+↓
+Rank
+↓
+Inject
+```
+
+---
+
+# 40. Context architecture
+
+المبدأ:
+
+> **Model sees evidence, not repository.**
+
+نستخدم:
+
+* repo map
+* graph
+* AST
+* diagnostics
+* tests
+* git
+* memory
+* targeted snippets
+
+ثم context package.
+
+---
+
+# 41. Verification architecture
+
+```text
+Syntax
+↓
+AST
+↓
+LSP
+↓
+Targeted Test
+↓
+Full Test
+↓
+Build
+↓
+Diff
+↓
+Definition of Done
+```
+
+---
+
+# 42. Autonomous Engineering
+
+المستخدم:
+
+> "حلل المشروع وأكمل تطويره."
+
+النظام:
+
+```text
+Scan
+↓
+Health
+↓
+Backlog
+↓
+DAG
+↓
+Task
+↓
+Evidence
+↓
+Agent
+↓
+Tools
+↓
+Verify
+↓
+Checkpoint
+↓
+Memory
+↓
+Next
+```
+
+ثم كل N مهام:
+
+```text
+Health Scan
+↓
+New backlog
+↓
+Continue
+```
+
+---
+
+# 43. أول milestone حقيقي
+
+ليس:
+
+```text
+Architecture map
+```
+
+وليس:
+
+```text
+800 tests
+```
+
+بل:
+
+# MiMo X.exe
+
+يفتح مشروعًا حقيقيًا، ثم يستطيع:
+
+```text
+read
+edit
+terminal
+test
+diff
+checkpoint
+resume
+```
+
+---
+
+# 44. الحالة الحالية الفعلية بعد كل ما حدث
+
+## ✅ مثبت فعليًا في المحادثة
+
+### Prototype Agent
+
+تم بناء وتشغيل Agent حقيقي في sandbox.
+
+أثبت:
+
+```text
+LLM
+→ read_file
+→ edit_file
+→ test
+→ diff
+→ checkpoint
+```
+
+على مشروع Calculator حقيقي.
+
+النتيجة التي نقلها المطور:
+
+```text
+4 tests pass
+0 fail
+git checkpoint
+Prisma persistence
+```
+
+### Tool Gateway
+
+تم بناء:
+
+* schema validation
+* permissions
+* workspace path guard
+* risk classification
+* audit
+
+### UI Prototype
+
+موجود، لكنه **ليس المنتج النهائي**.
+
+### AiderDesk
+
+تم clone وفحصه فعليًا.
+
+تم تشغيل Electron main process headless.
+
+تم تحميل Electron.
+
+تم rebuild لـnode-pty.
+
+تم بناء `@aiderdesk/extensions`.
+
+تم اكتشاف extension system.
+
+### MiMo Extension
+
+تم إنشاء extension داخل AiderDesk.
+
+لكن:
+
+> **هذا لم يصل بعد إلى منتج Desktop نهائي مرئي للمستخدم على جهازك.**
+
+---
+
+# 45. ما الذي فشل أو لم يكتمل؟
+
+## A. AiderDesk renderer
+
+في sandbox ذات ~4GB RAM، renderer build الحقيقي تم قتله بـOOM.
+
+المطور وضع placeholder لاحقًا لإثبات lifecycle، لكن هذا **ليس إثباتًا أن واجهة AiderDesk الكاملة تعمل**.
+
+وهذا مهم جدًا.
+
+### الحالة:
+
+```text
+Electron Main = مثبت
+AiderDesk Server = مثبت
+Extension System = مثبت
+Full Renderer = UNVERIFIED
+```
+
+---
+
+# 46. Cline
+
+تم التحقق من وجود SDK، لكن **لم تتم عملية دمج نهائية معه**.
+
+اليوم Cline SDK نفسه تطور، والتوثيق الحالي يوضح أن `@cline/sdk` هو سطح كامل، و`@cline/core` يوفر sessions/persistence/context/runtime، و`@cline/agents` مجرد agent loop منخفض المستوى. ([GitHub][1])
+
+إذن أي قرار سابق كان مبنيًا على تقسيم `@cline/agents` وحده يجب إعادة تدقيقه قبل الدمج.
+
+---
+
+# 47. Local Model
+
+**لم يتم تشغيل Ollama + Qwen الحقيقي داخل sandbox.**
+
+وهذا طبيعي.
+
+الحالة:
+
+```text
+Local Model = PENDING TARGET HARDWARE
+```
+
+---
+
+# 48. GPU
+
+لم يتم benchmark حقيقي.
+
+الحالة:
+
+```text
+GPU optimization = PENDING
+```
+
+---
+
+# 49. AirLLM
+
+لم يُدمج.
+
+الحالة الصحيحة:
+
+```text
+RESEARCH / BENCHMARK CANDIDATE
+```
+
+وليس foundation.
+
+---
+
+# 50. MiMo Life OS
+
+المشروع المستهدف الكبير الذي ناقشناه هو:
+
+```text
+MiMo Life OS
+```
+
+وصفه الذي أعطيناه للمطورين:
+
+```text
+Next.js
+React
+TypeScript
+SQLite + Prisma
+Zustand
+Tailwind
+shadcn
+Bun
+```
+
+وحجمه الذي ذكرتَه في الوثائق:
+
+```text
+~146K lines
+~634 files
+```
+
+مع:
+
+* 121 Prisma model
+* 188 API routes
+* 56 sections
+* AI Core
+* Foundation
+* memory
+* executive system
+
+وهذا سيكون لاحقًا **أصعب benchmark حقيقي لـMiMo X**.
+
+---
+
+# 51. الاختبار النهائي الحقيقي
+
+بعد نضوج MiMo:
+
+```text
+Open MiMo Life OS
+↓
+Analyze repository
+↓
+Architecture scan
+↓
+Generate backlog
+↓
+Prioritize
+↓
+Execute
+↓
+Verify
+↓
+Checkpoint
+↓
+Continue
+```
+
+وهنا نعرف هل MiMo فعلاً مفيد أم مجرد واجهة جميلة.
+
+---
+
+# 52. GitHub repository المطلوب
+
+هناك مستودع المشروع الأساسي الذي ظهر في الحوار سابقًا:
+
+```text
+mohammadfhgjvhgi/mimo-coding-agent
+```
+
+لكن من المهم جدًا التفريق بين:
+
+## Repository قديم
+
+يحوي محاولات v4.x والـprototype السابقة.
+
+## MiMo X النهائي
+
+من الأفضل أن يكون له repository نظيف أو branch/structure واضحة، حتى لا يصبح تاريخ المشروع مجموعة محاولات متضاربة.
+
+---
+
+# 53. هيكل Repository النهائي المقترح
+
+```text
+mimo-x/
+│
+├── apps/
+│   └── desktop/
+│
+├── packages/
+│   ├── agent/
+│   ├── llm/
+│   ├── tools/
+│   ├── intelligence/
+│   ├── context/
+│   ├── evidence/
+│   ├── memory/
+│   ├── verification/
+│   ├── tasks/
+│   ├── integrations/
+│   ├── security/
+│   └── shared/
+│
+├── adapters/
+│   ├── aiderdesk/
+│   ├── cline/
+│   ├── gortex/
+│   ├── ollama/
+│   └── llamacpp/
+│
+├── integrations/
+│   ├── github/
+│   ├── browser/
+│   ├── mcp/
+│   └── docs/
+│
+├── skills/
+├── benchmarks/
+├── tests/
+│
+├── docs/
+│   ├── architecture/
+│   ├── decisions/
+│   ├── product/
+│   └── validation/
+│
+├── scripts/
+└── third-party/
+```
+
+---
+
+# 54. قاعدة Third-Party
+
+كل كود خارجي:
+
+```text
+source repo
+commit
+license
+path
+modification
+date
+```
+
+ولا نسخ عشوائي.
+
+---
+
+# 55. مراحل المشروع النهائية
+
+## المرحلة A
+
+Foundation
+
+## المرحلة B
+
+Agent
+
+## المرحلة C
+
+Coding
+
+## المرحلة D
+
+Repository Intelligence
+
+## المرحلة E
+
+Context/Evidence
+
+## المرحلة F
+
+Verification
+
+## المرحلة G
+
+Memory
+
+## المرحلة H
+
+Autonomy
+
+## المرحلة I
+
+Local Model
+
+## المرحلة J
+
+Hardware
+
+## المرحلة K
+
+External Ecosystem
+
+## المرحلة L
+
+General Assistant
+
+## المرحلة M
+
+Production
+
+---
+
+# 56. Release Gates
+
+## Gate 0
+
+Desktop boots.
+
+## Gate 1
+
+Coding task succeeds.
+
+## Gate 2
+
+Agent + verification reliable.
+
+## Gate 3
+
+Repository intelligence works.
+
+## Gate 4
+
+Ollama real model works.
+
+## Gate 5
+
+Hardware profile measured.
+
+## Gate 6
+
+Autonomous tasks.
+
+## Gate 7
+
+External integrations.
+
+## Gate 8
+
+General assistant.
+
+## Gate 9
+
+Windows production EXE.
+
+---
+
+# 57. Metrics
+
+لكل task:
+
+```text
+success
+time
+tokens
+llm_calls
+tool_calls
+useful_tool_calls
+RAM
+VRAM
+context_tokens
+retries
+failures
+human_intervention
+checkpoint
+```
+
+---
+
+# 58. أهم KPI
+
+ليس:
+
+> "كم feature عندنا؟"
+
+بل:
+
+### 1. Task Success Rate
+
+### 2. Autonomous Completion Rate
+
+### 3. Human Intervention Rate
+
+### 4. Context Efficiency
+
+### 5. Effective Work Ratio
+
+### 6. Recovery Rate
+
+### 7. Resource Efficiency
+
+---
+
+# 59. أكبر أخطاء حدثت خلال المشروع
+
+## الخطأ 1
+
+اعتبار Architecture = Product.
+
+## الخطأ 2
+
+بناء UI من الصفر.
+
+## الخطأ 3
+
+كتابة Agent loop من الصفر رغم وجود foundations جاهزة.
+
+## الخطأ 4
+
+الخلط بين Development Environment وTarget Hardware.
+
+## الخطأ 5
+
+اعتبار غياب GPU blocker لكل التطوير.
+
+## الخطأ 6
+
+اعتبار وجود Electron main proof of Desktop product.
+
+## الخطأ 7
+
+الانتقال إلى features كثيرة قبل حسم foundation.
+
+## الخطأ 8
+
+إنتاج documentation كثيرة بدل product.
+
+---
+
+# 60. الدرس النهائي من كل الجولات
+
+الخطة الصحيحة:
+
+```text
+FOUNDATION
+↓
+RUN
+↓
+REAL PRODUCT
+↓
+VERIFY
+↓
+INTEGRATE
+↓
+INTELLIGENCE
+↓
+AUTONOMY
+↓
+LOCAL RUNTIME
+↓
+HARDWARE
+↓
+GENERAL AI
+```
+
+وليس:
+
+```text
+Research
+→ architecture
+→ 100 features
+→ dashboard
+→ report
+```
+
+---
+
+# 61. أهم مبدأ في المشروع كله
+
+> **MiMo X يجب أن يكون أصغر من مجموع أجزائه.**
+
+يعني:
+
+لا نريد:
+
+```text
+AiderDesk
++
+Cline
++
+Goose
++
+OpenCode
++
+OpenHands
++
+Aider
++
+Gortex
+```
+
+كلهم يعملون معًا كأنهم 7 برامج.
+
+نريد:
+
+```text
+                 MiMo X
+                   │
+     ┌─────────────┼─────────────┐
+     │             │             │
+ Desktop        Agent        Intelligence
+ Foundation     Runtime         Layer
+     │             │             │
+ AiderDesk     Cline/one      Gortex
+               runtime
+```
+
+---
+
+# 62. الحكم النهائي على المشروع حتى الآن
+
+## الرؤية
+
+**قوية جدًا.**
+
+## المنتج المستهدف
+
+**واضح الآن.**
+
+## الفكرة الهندسية
+
+**قابلة للتنفيذ.**
+
+## أهم نقطة تميّز
+
+ليست "8B = 70B".
+
+بل:
+
+> **نظام Software Engineering + Personal AI متكامل، Local-first، Resource-aware، يعمل حول نماذج محلية صغيرة.**
+
+## الوضع الحالي
+
+### Prototype Agent
+
+✅ مثبت
+
+### Vertical Slice
+
+✅ مثبت
+
+### Tool Gateway
+
+✅ مثبت
+
+### Session/Checkpoint
+
+✅ مثبت جزئيًا وحقيقي
+
+### Desktop foundation
+
+🟡 AiderDesk تم سحبه وتشغيل الـmain process والـextension infrastructure، لكن **الـfull renderer النهائي لم يثبت بعد في sandbox**.
+
+### Cline integration
+
+🟡 مرشح قوي، لكن لم يُحسم runtime النهائي.
+
+### Gortex
+
+🟡 لم يُدمج بعد.
+
+### Context/Evidence
+
+🟡 تصميم ومكونات سابقة موجودة في محاولات MiMo القديمة، لكن النسخة الجديدة النظيفة لم تستقر بعد.
+
+### Memory
+
+🟡 لم تصبح جزءًا متكاملاً من المنتج الجديد.
+
+### Autonomy
+
+🟡 لم تثبت end-to-end بعد.
+
+### Ollama/Qwen
+
+🔴 لم تختبر على Windows الحقيقي بعد.
+
+### GPU
+
+🔴 غير مقاس.
+
+### EXE
+
+🔴 غير جاهز.
+
+### MiMo Life OS stress test
+
+🔴 لم يبدأ.
+
+---
+
+# 63. المنتج الذي يجب أن تنتهي إليه
+
+أفتح:
+
+# `MiMo X.exe`
+
+وأرى:
+
+```text
+Home
+Projects
+Chat
+Agent
+Tasks
+Research
+Knowledge
+Automation
+Models
+Integrations
+Settings
+```
+
+أدخل Project.
+
+أقول:
+
+> **"حلل المشروع، أصلح أهم المشاكل، اختبر كل تغيير، وأنشئ checkpoint بعد كل مهمة وواصل تلقائيًا."**
+
+MiMo:
+
+```text
+SCAN
+ ↓
+INTELLIGENCE
+ ↓
+EVIDENCE
+ ↓
+CONTEXT
+ ↓
+MODEL
+ ↓
+TOOLS
+ ↓
+VERIFY
+ ↓
+CHECKPOINT
+ ↓
+MEMORY
+ ↓
+NEXT
+```
+
+وأقدر أيضًا أخرج من المشروع وأستخدم:
+
+> **نفس التطبيق كشات عام، مساعد يومي، أداة بحث، ذاكرة، إدارة مهام، وأتمتة.**
+
+---
+
+# 64. الخلاصة التنفيذية القصوى
+
+المشروع ليس:
+
+> **"نبني AI coding agent."**
+
+المشروع هو:
+
+> **"نبني Desktop AI Operating Environment، يكون فيه Software Engineering أقوى قدرة، ويعتمد على foundations مفتوحة المصدر بدل إعادة اختراعها، ويستخدم local models عندما تكون مناسبة، ويستفيد من deterministic intelligence لتقليل عبء النموذج، ويستمر في تنفيذ المهام لفترات طويلة بأقل تدخل."**
+
+والترتيب النهائي الذي يجب الالتزام به:
+
+```text
+AiderDesk / Desktop Foundation
+        ↓
+Real MiMo Workbench
+        ↓
+One Agent Runtime
+        ↓
+Real Tools
+        ↓
+Real Coding
+        ↓
+Verification
+        ↓
+Gortex / Intelligence
+        ↓
+Evidence / Context
+        ↓
+Memory
+        ↓
+Autonomy
+        ↓
+MCP / Browser / GitHub
+        ↓
+Ollama / llama.cpp
+        ↓
+CPU/GPU Model Router
+        ↓
+Windows EXE
+        ↓
+MiMo Life OS
+        ↓
+Personal AI OS
+```
+
+**هذه هي الصورة الكاملة التي وصلنا إليها حتى 18 أغسطس 2026.**
+
+وأهم تصحيح في السجل كله: **لا تعتبر ما لدينا الآن "MiMo X مكتمل". لدينا Vertical Slice حقيقي ونواة بحثية قوية، لكن الـDesktop product النهائي، الـlocal runtime، والـautonomous software-engineering loop على جهازك ما زالت مراحل لاحقة مثبتة في الخطة وليست منجزة.**
+
+[1]: https://github.com/cline/cline/blob/main/sdk/README.md?utm_source=chatgpt.com "cline/sdk/README.md at main · cline/cline · GitHub"
+[2]: https://github.com/hotovo/aider-desk?utm_source=chatgpt.com "GitHub - hotovo/aider-desk: Platform for AI-powered software engineers · GitHub"
+[3]: https://github.com/cdesktop-ai/cdesktop?utm_source=chatgpt.com "GitHub - cdesktop-ai/cdesktop: Open-source Claude Code Desktop alternative. Use any provider/model. Web UI for Claude Code, Codex, Gemini CLI, OpenCode, Hermes. · GitHub"
+[4]: https://github.com/cline/cline/blob/main/README.md?utm_source=chatgpt.com "cline/README.md at main · cline/cline · GitHub"
+[5]: https://github.com/zzet/gortex/blob/main/README.md?utm_source=chatgpt.com "gortex/README.md at main · zzet/gortex · GitHub"
+[6]: https://github.com/Aider-AI/aider/blob/main/aider/website/docs/repomap.md?utm_source=chatgpt.com "aider/aider/website/docs/repomap.md at main · Aider-AI/aider · GitHub"
+[7]: https://github.com/block/goose?utm_source=chatgpt.com "GitHub - aaif-goose/goose: an open source, extensible AI agent that goes beyond code suggestions - install, execute, edit, and test with any LLM · GitHub"
+[8]: https://github.com/OpenHands/OpenHands/blob/main/README.md?utm_source=chatgpt.com "OpenHands/README.md at main · OpenHands/OpenHands · GitHub"
+[9]: https://github.com/Microsoft/vscode/blob/main/README.md?utm_source=chatgpt.com "vscode/README.md at main · microsoft/vscode · GitHub"
+[10]: https://github.com/modelcontextprotocol/python-sdk/blob/main/README.md?utm_source=chatgpt.com "python-sdk/README.md at main · modelcontextprotocol/python-sdk · GitHub"
+[11]: https://github.com/microsoft/playwright?utm_source=chatgpt.com "GitHub - microsoft/playwright: Playwright is a framework for Web Testing and Automation. It allows testing Chromium, Firefox and WebKit with a single API. · GitHub"
+[12]: https://github.com/tree-sitter/tree-sitter/blob/master/README.md?utm_source=chatgpt.com "tree-sitter/README.md at master · tree-sitter/tree-sitter · GitHub"
+[13]: https://github.com/ast-grep/ast-grep/blob/main/README.md?utm_source=chatgpt.com "ast-grep/README.md at main · ast-grep/ast-grep · GitHub"
+[14]: https://github.com/crc-org/llama.cpp/blob/main/README.md?utm_source=chatgpt.com "llama.cpp/README.md at main · crc-org/llama.cpp · GitHub"
