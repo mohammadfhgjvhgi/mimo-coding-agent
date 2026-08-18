@@ -141,6 +141,23 @@ function waitForServer(url, timeoutMs = 30000) {
   });
 }
 
+// ---- Kill a process tree (cross-platform) --------------------------------
+function killProcessTree(proc) {
+  if (!proc || !proc.pid) return;
+  try {
+    if (process.platform === "win32") {
+      // Windows: use taskkill to kill the process tree
+      exec(`taskkill /pid ${proc.pid} /T /F`, () => {});
+    } else {
+      // Linux/macOS: kill the process group
+      process.kill(-proc.pid);
+    }
+  } catch (e) {
+    // best-effort — the process may already be dead
+    console.error("[MiMo X] Kill process failed:", e.message);
+  }
+}
+
 // ---- App Lifecycle -------------------------------------------------------
 app.whenReady().then(async () => {
   // Show splash immediately
@@ -173,9 +190,7 @@ app.whenReady().then(async () => {
 
 // Quit when all windows are closed
 app.on("window-all-closed", () => {
-  if (infraProcess) {
-    try { process.kill(-infraProcess.pid); } catch {}
-  }
+  killProcessTree(infraProcess);
   if (process.platform !== "darwin") {
     app.quit();
   }
@@ -189,7 +204,5 @@ app.on("activate", () => {
 
 // Clean up infrastructure process on exit
 app.on("before-quit", () => {
-  if (infraProcess) {
-    try { process.kill(-infraProcess.pid); } catch {}
-  }
+  killProcessTree(infraProcess);
 });

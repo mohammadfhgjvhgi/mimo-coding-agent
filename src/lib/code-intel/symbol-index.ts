@@ -30,19 +30,20 @@ function walkWorkspace(
   rel: string,
   results: string[]
 ): void {
-  let entries: ReturnType<typeof readdirSync>
+  let entries: ReturnType<typeof readdirSync> = []
   try {
-    entries = readdirSync(dirAbs, { withFileTypes: true })
+    entries = readdirSync(dirAbs, { withFileTypes: true }) as unknown as ReturnType<typeof readdirSync>
   } catch {
     return
   }
   for (const entry of entries) {
-    if (IGNORED_DIRS.has(entry.name) || entry.name.startsWith(".")) continue
-    const childAbs = path.join(dirAbs, entry.name)
-    const childRel = rel ? `${rel}/${entry.name}` : entry.name
+    const name = String(entry.name)
+    if (IGNORED_DIRS.has(name) || name.startsWith(".")) continue
+    const childAbs = path.join(dirAbs, name)
+    const childRel = rel ? `${rel}/${name}` : name
     if (entry.isDirectory()) {
       walkWorkspace(childAbs, childRel, results)
-    } else if (isParsable(entry.name)) {
+    } else if (isParsable(name)) {
       results.push(childRel)
     }
   }

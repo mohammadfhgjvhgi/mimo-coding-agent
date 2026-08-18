@@ -246,18 +246,19 @@ export const structuralSearchTool: ToolDef = {
 function fallbackTextSearch(dirAbs: string, pattern: string, _language: string): string {
   const matches: string[] = []
   const walk = (dir: string, rel: string) => {
-    let entries: ReturnType<typeof readdirSync>
+    let entries: ReturnType<typeof fs.readdirSync> = []
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true })
+      entries = fs.readdirSync(dir, { withFileTypes: true }) as unknown as ReturnType<typeof fs.readdirSync>
     } catch {
       return
     }
     for (const e of entries) {
-      if (IGNORED.has(e.name) || e.name.startsWith(".")) continue
-      const abs = path.join(dir, e.name)
-      const r = rel ? `${rel}/${e.name}` : e.name
+      const name = String(e.name)
+      if (IGNORED.has(name) || name.startsWith(".")) continue
+      const abs = path.join(dir, name)
+      const r = rel ? `${rel}/${name}` : name
       if (e.isDirectory()) walk(abs, r)
-      else if (/\.(js|jsx|ts|tsx|mjs)$/.test(e.name)) {
+      else if (/\.(js|jsx|ts|tsx|mjs)$/.test(name)) {
         try {
           const src = fs.readFileSync(abs, "utf8")
           const lines = src.split("\n")

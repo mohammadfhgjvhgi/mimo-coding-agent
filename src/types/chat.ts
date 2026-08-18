@@ -5,7 +5,7 @@ export interface ToolCallRecord {
   name: string
   args: Record<string, unknown>
   result: string
-  status: "success" | "error"
+  status: "success" | "error" | "pending"
   error?: string
   durationMs: number
 }

@@ -58,9 +58,9 @@ export async function verifyFile(
   }
 
   // 2. ESLint on the single file (uses project config, JSON output for parsing)
-  const eslintBin = path.join(root, "node_modules", ".bin", "eslint")
+  // Use npx for cross-platform compatibility (avoids .cmd/.sh extension issues on Windows)
   const eslintRes = await run(
-    `${JSON.stringify(eslintBin)} ${JSON.stringify(rel)} --format json 2>/dev/null`,
+    `npx eslint ${JSON.stringify(rel)} --format json 2>/dev/null`,
     root
   )
 

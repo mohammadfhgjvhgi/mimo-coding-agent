@@ -247,7 +247,7 @@ export function WorkspaceExplorer({
                 depth={0}
                 expanded={expanded}
                 toggle={toggle}
-                activeFile={activeFile}
+                activePath={activeFile}
                 highlightPaths={highlightPaths}
               />
             ))}

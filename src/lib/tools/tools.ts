@@ -348,33 +348,37 @@ export interface TreeNode {
 
 export function buildTree(dirAbs: string, rel: string, depth: number, maxDepth: number): TreeNode[] {
   if (depth > maxDepth) return []
-  let entries: ReturnType<typeof readdirSync>
+  let entries: ReturnType<typeof readdirSync> = []
   try {
-    entries = readdirSync(dirAbs, { withFileTypes: true })
+    entries = readdirSync(dirAbs, { withFileTypes: true }) as unknown as ReturnType<typeof readdirSync>
   } catch {
     return []
   }
   const nodes: TreeNode[] = []
   // sort: dirs first, then files, alphabetical
   entries
-    .filter((e) => !IGNORED_DIRS.has(e.name) && !e.name.startsWith("."))
+    .filter((e) => {
+      const name = String(e.name)
+      return !IGNORED_DIRS.has(name) && !name.startsWith(".")
+    })
     .sort((a, b) => {
       if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1
-      return a.name.localeCompare(b.name)
+      return String(a.name).localeCompare(String(b.name))
     })
     .slice(0, 200)
     .forEach((entry) => {
-      const childAbs = path.join(dirAbs, entry.name)
-      const childRel = rel ? `${rel}/${entry.name}` : entry.name
+      const name = String(entry.name)
+      const childAbs = path.join(dirAbs, name)
+      const childRel = rel ? `${rel}/${name}` : name
       if (entry.isDirectory()) {
         nodes.push({
-          name: entry.name,
+          name,
           path: childRel,
           type: "dir",
           children: buildTree(childAbs, childRel, depth + 1, maxDepth),
         })
       } else {
-        nodes.push({ name: entry.name, path: childRel, type: "file" })
+        nodes.push({ name, path: childRel, type: "file" })
       }
     })
   return nodes
@@ -428,7 +432,8 @@ export const listFilesTool: ToolDef = {
       if (!st.isDirectory()) {
         return fail(id, "list_files", args, `ليس مجلداً: ${resolved.rel}`, 0)
       }
-      const tree = buildTree(resolved.absolute!, resolved.rel, 0, maxDepth)
+      const absPath = resolved.absolute || ""
+      const tree = buildTree(absPath, resolved.rel || ".", 0, maxDepth)
       const lines: string[] = [`${resolved.rel || "."}/`]
       renderTree(tree, "", lines)
       const rendered = lines.join("\n")
