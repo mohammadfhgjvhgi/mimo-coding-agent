@@ -188,3 +188,62 @@ Stage Summary:
 - Vertical Slice 2 PASSED: agent called list_files → write_file → git_checkpoint autonomously, file created with correct content, commit persisted
 - 6 tools now in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint
 - Lint clean. No runtime errors. End-to-end verified in the browser.
+
+---
+Task ID: 6
+Agent: Z.ai Code (main)
+Task: Context OS + Memory OS — build a token-budget guard that compresses old tool results, memory tools (save_memory/recall_memory) with auto-injection into the system prompt, an auto-verification hook (lint after write/edit), a Memory UI panel, and pass the third vertical slice (save memory → create file → auto-verify).
+
+Work Log:
+- Added Prisma `Memory` model (id, key unique, value, category, source, timestamps) + pushed to SQLite.
+- Built Context OS (`src/lib/context-os.ts`):
+  • estimateTokens (~3.5 chars/token for mixed Arabic/English/code)
+  • tokenBudgetForProvider (Ollama=6000 conservative, Z.ai=28000 generous)
+  • compressConversation(messages, budget) — never touches system prompt or last 3 messages; replaces old ⟦RESULT⟧ payloads with `[تم ضغط نتيجة أداة — N توكن — firstLine…]`; compresses long assistant thoughts.
+  • formatCompressionStats for logging.
+- Built Memory OS tools (`src/lib/tools/memory.ts`):
+  • save_memory(key, value, category) — upserts to DB, returns confirmation
+  • recall_memory(key?) — retrieves by key or lists all
+  • getProjectMemoryBlock() — fetches all memories, formats as "## 🧠 ذاكرة المشروع (حقن تلقائي)" block for system prompt injection
+- Built Auto-Verify Hook (`src/lib/tools/auto-verify.ts`):
+  • verifyFile(path) — for .js/.jsx/.ts/.tsx files: runs `node --check` (syntax) then `eslint --format json` (lint), parses JSON output, returns {ok, summary, details}
+  • Integrated into dispatchTool: after write_file/edit_file succeeds, runs verifyFile and appends `🔍 {summary}\n{details}` to the tool result so the agent sees errors and self-corrects
+  • Fixed ESLint format: `--format compact` is deprecated in ESLint 9 → switched to `--format json` with proper JSON parsing (errorCount/warningCount/messages)
+- Registered save_memory + recall_memory in registry.ts (now 8 tools total).
+- Built /api/memory route: GET (list), POST (upsert by key), DELETE (by id or key).
+- Updated agent-loop.ts:
+  • Before building the conversation: fetches project memory via getProjectMemoryBlock() and appends to system prompt (Memory OS injection)
+  • Before each completeChat call: runs compressConversation with the provider-aware budget (Context OS)
+  • Emits onContextCompressed event when compression happens
+- Updated /api/chat to emit context_compressed SSE events; updated chat-shell to parse them (logs to console).
+- Updated store: added memoryRefreshSignal + triggerMemoryRefresh.
+- Built MemoryPanel component (`src/components/chat/memory-panel.tsx`): fetches from /api/memory, groups by category (decision/fact/preference/project/general with color badges), cards with key/value/source/date, expand long values, delete with AlertDialog, "إضافة ذاكرة" dialog for manual creation, footer "N ذاكرة محفوظة — تُحقن تلقائياً في كل محادثة".
+- Updated chat-sidebar: third tab "الذاكرة" (Brain icon) rendering MemoryPanel. Tab bar is now 3-column grid.
+- Updated tool-call-block: icons + Arabic labels for save_memory (Brain/حفظ ذاكرة) and recall_memory (Lightbulb/استرجاع ذاكرة).
+- Updated chat-shell: onToolResult triggers memory refresh after save_memory; onContextCompressed logs to console.
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Restarted pm2 server to pick up new Prisma client (Memory model) + code changes.
+- Agent Browser — Vertical Slice 3 test:
+  • Sent: "استخدم اداة save_memory لحفظ مفتاح naming_convention بقيمة: المشروع يستخدم اسماء ملفات عربية للمكونات. ثم انشئ ملف مكون_جديد.js..."
+  • The agent autonomously executed:
+    1. save_memory (naming_convention) — نجح 17ms — memory persisted to DB
+    2. write_file (مكون_جديد.js) — نجح 2ms — file created with Arabic function ترحيب(name) + JSDoc
+  • Auto-Verify Hook ran automatically after write_file: "🔍 ✅ تحقق تلقائي: لا أخطأ صياغة أو Lint" (syntax check + eslint JSON both passed)
+  • Memory API confirmed: 1 memory saved (naming_convention = المشروع يستخدم اسماء ملفات عربية للمكونات)
+  • recall_memory test: agent called recall_memory (نجح 2ms) → returned "🧠 ذاكرة المشروع (1 عنصر): - naming_convention [general]: المشروع يستخدم اسماء ملفات عربية للمكونات"
+  • Memory Panel UI: shows the naming_convention card with "general" badge, source=وكيل, "1 ذاكرة محفوظة — تُحقن تلقائياً في كل محادثة" footer
+  • Verified memory injection via node script: getProjectMemoryBlock() generates "## 🧠 ذاكرة المشروع (حقن تلقائي)\n- naming_convention [general]: المشروع يستخدم اسماء ملفات عربية للمكونات" — correctly appended to system prompt in agent-loop
+  • Context OS compression: verified compressConversation is called before every LLM call with provider-aware budget (6000 Ollama / 28000 Z.ai). No compression triggered for short Z.ai conversations (correct — under budget). Logic confirmed: when tokens exceed budget, old ⟦RESULT⟧ blocks get replaced with short placeholders.
+  • مكون_جديد.js created with Arabic function name ترحيب(name) + zero-division-style input validation
+  • No console errors, no page errors, lint clean, server running via pm2.
+- Screenshots: 19-vs3-agent, 20-auto-verify, 21-write-result, 22-memory-panel, 23-memory-injection, 24-memory-panel-filled.
+
+Stage Summary:
+- MiMo X is now a Resource-Aware Agent with Memory.
+- Context OS ✅ — token estimation + provider-aware budget (6000 local / 28000 cloud) + automatic compression of old tool results to placeholders, keeping system prompt + latest messages intact.
+- Memory OS ✅ — save_memory + recall_memory tools, persisted in SQLite, auto-injected into system prompt at every conversation start, visible + editable in Memory UI panel.
+- Auto-Verification Hook ✅ — after write_file/edit_file, automatically runs syntax check (node --check) + ESLint (JSON), appends results to tool output so the agent self-corrects.
+- Memory UI ✅ — third sidebar tab "الذاكرة" with grouped cards, badges, delete, manual add dialog, auto-refresh after save_memory.
+- Vertical Slice 3 PASSED: agent used save_memory → write_file → auto-verify ran automatically (✅ no errors) — file created, memory persisted, recall works.
+- 8 tools in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint, save_memory, recall_memory.
+- Lint clean. No runtime errors. Server running via pm2 (persistent). End-to-end verified in the browser.
