@@ -141,3 +141,50 @@ Stage Summary:
 - Vertical slice TEST PASSED: agent read calculator.js → added divide → ran tests → all passed, autonomously, no human intervention ✅
 - Screenshots: 13-agent-final, 14-agent-tool-results, 15-tool-block-expanded
 - Lint clean. No runtime errors. End-to-end verified in the browser.
+
+---
+Task ID: 5
+Agent: Z.ai Code (main)
+Task: Repository Intelligence + Git Checkpoint — add a repo-map tool (list_files), a Workspace Explorer UI panel with file highlighting, a visual Diff Viewer for edit_file, a Git Checkpoint tool + UI button for creating/reverting checkpoints, and pass the second vertical slice (agent: show structure → create utils/math.js → save checkpoint).
+
+Work Log:
+- Added 2 new tools to src/lib/tools/tools.ts:
+  • list_files: builds a file tree (ignoring node_modules/.git/.next/dist/build/out/coverage/etc.), returns an ASCII tree string for the LLM + structured TreeNode for the UI. Configurable path + depth (max 8).
+  • git_checkpoint: ensures git is initialized + user config, runs `git add -A`, checks for changes, commits with a message, returns the short hash. Gracefully handles "nothing to commit".
+- Exported buildTree + TreeNode from tools.ts so the API can reuse them.
+- Registered both tools in registry.ts (now 6 tools total).
+- Built 2 new API routes:
+  • GET /api/workspace — returns the structured file tree (depth 5) for the explorer UI.
+  • GET /api/git (list recent commits + head + dirty flag), POST /api/git (create checkpoint = add+commit), DELETE /api/git?to=<hash> (revert via git reset --hard).
+- Built DiffViewer component (src/components/chat/diff-viewer.tsx): computes an LCS-based line diff between the edit_file's search (red/removed) and replace (green/added) strings. Renders on a dark GitHub-like background with +/− markers and an added/removed count header.
+- Built WorkspaceExplorer component (src/components/chat/workspace-explorer.tsx): fetches the tree from /api/workspace, renders an expandable folder/file tree (Folder/FolderOpen/FileText icons), auto-expands top-level dirs, highlights the active file path + all ancestor folders, auto-expands the path to the active file, refresh button, file count footer.
+- Updated ToolCallBlock: added icons + Arabic labels for list_files (خريطة المستودع / FolderTree) and git_checkpoint (نقطة استرجاع / GitCommitHorizontal). For edit_file, renders the DiffViewer instead of plain JSON args. Auto-opens edit_file blocks when they succeed so the diff is immediately visible.
+- Updated ChatSidebar with a tab bar: "محادثات" (conversations) and "الملفات" (explorer). Selecting "الملفات" renders the WorkspaceExplorer. The tab auto-switches to "الملفات" when the agent touches a file.
+- Updated ChatHeader: added CheckpointMenu button ("نقاط الاسترجاع") that opens a popover with: a "حفظ الآن" (create checkpoint) action + a scrollable list of recent commits (hash, message, time-ago) each with a revert button (AlertDialog → git reset --hard <hash>). Shows an amber pulse when the working tree is dirty.
+- Built CheckpointMenu component (src/components/chat/checkpoint-menu.tsx) using Popover + AlertDialog + sonner toasts for feedback.
+- Updated chat-store: added activeFile, explorerRefreshSignal, sidebarTab state + setters.
+- Updated chat-shell: onToolCall sets activeFile + switches to explorer tab + triggers refresh for read/write/edit. onToolResult triggers explorer refresh for write/edit/git_checkpoint/terminal. Passes onRevert to header (refreshes explorer + conversations after a revert).
+- Added SonnerToaster to layout.tsx (rich colors, top-center) for toast notifications.
+- Ran `bun run lint` → clean (0 errors, 0 warnings).
+- Agent Browser — Vertical Slice 2 test:
+  • Sent: "اعرض لي هيكل المشروع ثم انشئ مجلد utils وضع بداخله ملف math.js يحتوي على دوال جمع وطرح ثم احفظ نقطة استرجاع"
+  • The agent autonomously executed 3 tools in sequence:
+    1. list_files (خريطة المستودع) — نجح 33ms — returned the project tree
+    2. write_file (utils/math.js) — نجح 2ms — created the file
+    3. git_checkpoint — نجح 233ms — committed the changes
+  • utils/math.js created with add(a,b) + subtract(a,b) + Arabic JSDoc comments + module.exports
+  • git log shows new commit e77131f "إنشاء مجلد utils مع ملف math.js يحتوي على دوال جمع وطرح" (committed by the agent via git_checkpoint)
+  • The sidebar auto-switched to the "الملفات" tab and highlighted utils/math.js (with the ancestor `utils` folder expanded + on-path highlight)
+  • The CheckpointMenu in the header opened successfully showing "حفظ الآن" + the recent commits
+  • No console errors, no console warnings
+- Screenshots: 16-vs2-agent (3 tool blocks all نجح + explorer highlighting math.js), 17-repo-map (expanded list_files block showing the tree), 18-checkpoint-menu (popover open).
+
+Stage Summary:
+- MiMo X is now an IDE-Lite with Repository Intelligence + Git Checkpoints.
+- Repo Map tool (list_files) ✅ — agent can see the whole project structure before acting
+- Workspace Explorer UI ✅ — tabbed sidebar (محادثات/الملفات), expandable tree, auto-highlight of files the agent touches, auto-expand of the path, refresh after mutations
+- Visual Diff Viewer ✅ — LCS-based line diff (red removed / green added) for edit_file, GitHub-style dark theme, auto-opens on success
+- Git Checkpoint system ✅ — git_checkpoint tool (add+commit) + header button with create/revert UI (AlertDialog confirmation, sonner toasts, dirty-tree indicator)
+- Vertical Slice 2 PASSED: agent called list_files → write_file → git_checkpoint autonomously, file created with correct content, commit persisted
+- 6 tools now in the gateway: read_file, write_file, edit_file, run_terminal_command, list_files, git_checkpoint
+- Lint clean. No runtime errors. End-to-end verified in the browser.
