@@ -749,3 +749,50 @@ Stage Summary:
 - lint: 0, typecheck: 0, server: running
 - NOT built: Personal Assistant Panels (UI work — deferred)
 - NOT buildable in sandbox: Gortex (Rust), multilspy (Python), EXE (Windows)
+
+---
+Task ID: 28-30 (PHASE 4: Personal Assistant + Autonomous Loop)
+Agent: ZAI Code (main)
+Task: Build Personal Assistant Panels (3 tabs: مساعد/معرفة/أتمتة) and activate the Autonomous Loop (connect scanner+DAG+agent+verification+recovery).
+
+Work Log:
+- TASK 28: Personal Assistant Panels
+  • Added mode toggle (Engineering ↔ Personal) at top of sidebar
+  • Personal mode shows 3 tabs: مساعد (general chat mode), معرفة (memory browsing), أتمتة (scheduled tasks)
+  • Built AutomationPanel component with:
+    - Scheduled task CRUD (create/toggle/delete)
+    - Daily/weekly/monthly scheduling
+    - "شغّل" button triggers autonomous loop
+    - Status display (last run, next run, enabled/disabled)
+  • Added ScheduledTask Prisma model (6th model)
+  • Built /api/scheduled-tasks route (GET/POST/DELETE/PATCH)
+  • Added sidebarMode + chatMode to chat store
+  • When "مساعد" selected, chatMode = "assistant" (simpler prompt, no coding tools)
+
+- TASK 29: Autonomous Loop
+  • Built /api/autonomous/run endpoint — the actual loop:
+    1. Scans workspace (calls /api/autonomous/scan) → finds TODO/FIXME/lint/git issues
+    2. Creates tasks for high/medium severity issues
+    3. Gets pending tasks from DB (ordered by creation)
+    4. For each task: builds conversation → runs runAgentStep → saves state
+    5. Checks if goal achieved → marks done/pending
+    6. On failure: marks failed, continues to next task
+    7. Returns summary (steps executed, issues found, tasks created)
+  • Test: found 4 issues, created 1 task, executed 2 tool calls (list_files + run_terminal_command via Z.ai)
+
+- TASK 30: Final verification
+  • lint: 0 errors, 0 warnings ✅
+  • typecheck: 0 errors ✅
+  • Server: HTTP 200, pm2 online ✅
+  • Autonomous run test: completed successfully ✅
+  • Scheduled tasks API: works ✅
+  • Committed + pushed to GitHub (21 commits total)
+
+Stage Summary:
+- MiMo X now has Personal OS mode + Autonomous Loop
+- Sidebar mode toggle: Engineering (5 tabs) ↔ Personal (3 tabs)
+- Automation panel: schedule tasks + trigger autonomous loop
+- Autonomous loop: scan → create → execute → verify → continue
+- 6th Prisma model (ScheduledTask) added
+- lint: 0, typecheck: 0, server: running
+- Pushed to GitHub: https://github.com/mohammadfhgjvhgi/mimo-coding-agent
