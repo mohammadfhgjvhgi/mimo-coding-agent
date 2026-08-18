@@ -112,26 +112,33 @@ export async function dispatchTool(
     // internally; we override here to keep them consistent with the agent loop).
     result.id = call.id
 
-    // Auto-Verification Hook: after write_file/edit_file, run lint/syntax
-    // check automatically so the agent sees errors and can self-correct.
+    // Verification Ladder: after write_file/edit_file, run multi-stage verification
+    // (syntax → lint → test) so the agent sees errors and can self-correct.
     if (
       (call.name === "write_file" || call.name === "edit_file") &&
       result.status === "success" &&
       typeof call.args?.path === "string"
     ) {
       try {
-        const verification = await verifyFile(String(call.args.path))
-        if (!verification.ok) {
-          // Append verification errors to the tool result so the agent sees them
-          result.result +=
-            `\n\n🔍 ${verification.summary}\n${verification.details}`
-          result.status = "success" // keep success — the file was written, just has lint issues
-          result.error = `verification: ${verification.summary}`
-        } else {
-          result.result += `\n\n🔍 ${verification.summary}`
+        const { runVerificationLadder, formatLadderResult } = await import("@/lib/verification/ladder")
+        const ladder = await runVerificationLadder(String(call.args.path))
+        result.result += `\n\n${formatLadderResult(ladder)}`
+        if (!ladder.allPassed) {
+          result.error = `verification: ${ladder.summary}`
         }
       } catch {
-        // verification is best-effort; never fail the tool because of it
+        // Fallback to simple verifyFile
+        try {
+          const verification = await verifyFile(String(call.args.path))
+          if (!verification.ok) {
+            result.result += `\n\n🔍 ${verification.summary}\n${verification.details}`
+            result.error = `verification: ${verification.summary}`
+          } else {
+            result.result += `\n\n🔍 ${verification.summary}`
+          }
+        } catch {
+          // best-effort; never fail the tool
+        }
       }
 
       // Code Intelligence Hook: reindex the modified file's symbols

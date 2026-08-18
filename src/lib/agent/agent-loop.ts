@@ -72,10 +72,32 @@ export async function runAgentLoop(opts: {
     allowedExtensions: opts.ctx?.allowedExtensions ?? null,
   }
 
-  // Build the system prompt with project memory injected (Memory OS)
+  // Build the system prompt with project memory + evidence + skills injected
   const basePrompt = buildAgentSystemPrompt()
   const memoryBlock = await getProjectMemoryBlock()
-  const systemPrompt = basePrompt + memoryBlock
+
+  // Evidence Plane: collect structured evidence before starting
+  let evidenceBlock = ""
+  try {
+    const { collectEvidence, formatEvidenceForPrompt } = await import("@/lib/evidence/plane")
+    const evidence = await collectEvidence()
+    evidenceBlock = formatEvidenceForPrompt(evidence)
+  } catch {
+    /* best-effort */
+  }
+
+  // Skills: detect relevant skills from the task text
+  let skillsBlock = ""
+  try {
+    const { detectSkills, formatSkillsForPrompt } = await import("@/lib/skills/manager")
+    const taskText = messages.map((m) => m.content).join(" ")
+    const skills = detectSkills(taskText)
+    skillsBlock = formatSkillsForPrompt(skills)
+  } catch {
+    /* best-effort */
+  }
+
+  const systemPrompt = basePrompt + memoryBlock + evidenceBlock + skillsBlock
 
   const conversation: AgentMessage[] = [
     { role: "system", content: systemPrompt },
@@ -161,6 +183,21 @@ export async function runAgentLoop(opts: {
   if (iterations >= MAX_ITERATIONS) {
     stopped = "max_iterations"
     events?.onError?.(`وصل الوكيل للحد الأقصى من التكرارات (${MAX_ITERATIONS}) دون إجابة نهائية.`)
+
+    // Recovery Manager: rollback to last checkpoint + save failure to memory
+    try {
+      const { handleFailure } = await import("@/lib/recovery/manager")
+      const taskText = messages.map((m) => m.content).join(" ").slice(0, 200)
+      const action = await handleFailure({
+        task: taskText,
+        error: "max_iterations reached",
+      })
+      if (action.type === "rollback") {
+        events?.onError?.(`🔄 Recovery: ${action.reason}`)
+      }
+    } catch {
+      /* best-effort */
+    }
   }
 
   return { finalText: "", toolResults, iterations, stopped }

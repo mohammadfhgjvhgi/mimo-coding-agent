@@ -31,7 +31,24 @@ async function buildInitialConversation(
 ): Promise<AgentMessage[]> {
   const basePrompt = buildAgentSystemPrompt()
   const memoryBlock = await getProjectMemoryBlock()
-  const systemPrompt = basePrompt + memoryBlock
+
+  // Evidence Plane: collect structured evidence
+  let evidenceBlock = ""
+  try {
+    const { collectEvidence, formatEvidenceForPrompt } = await import("@/lib/evidence/plane")
+    const evidence = await collectEvidence()
+    evidenceBlock = formatEvidenceForPrompt(evidence)
+  } catch { /* best-effort */ }
+
+  // Skills: detect relevant skills from the goal text
+  let skillsBlock = ""
+  try {
+    const { detectSkills, formatSkillsForPrompt } = await import("@/lib/skills/manager")
+    const skills = detectSkills(goal)
+    skillsBlock = formatSkillsForPrompt(skills)
+  } catch { /* best-effort */ }
+
+  const systemPrompt = basePrompt + memoryBlock + evidenceBlock + skillsBlock
 
   const criteriaText = criteria.map((c, i) => `${i + 1}. ${c}`).join("\n")
   const userMsg = [
