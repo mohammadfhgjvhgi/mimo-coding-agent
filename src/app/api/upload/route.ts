@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     writeFileSync(filePath, buffer)
 
     // Optionally ingest into knowledge base
-    let ingestResult = null
+    let ingestResult: { source?: string; chunks?: number; sourceType?: string; error?: string } | null = null
     if (ingest) {
       try {
         const result = await ingestFile(filePath)
