@@ -17,6 +17,10 @@ export interface ChatMessage {
   content: string
   model?: string | null
   toolCalls?: ToolCallRecord[] | null
+  parentMessageId?: string | null
+  tokens?: number
+  thinking?: string | null
+  isEdited?: boolean
   createdAt: string
 }
 

@@ -28,11 +28,18 @@ interface ChatState {
   memoryRefreshSignal: number
   goalsRefreshSignal: number
   symbolsRefreshSignal: number
-  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols"
+  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
   sidebarMode: "engineering" | "personal"
   chatMode: "engineering" | "assistant"
+  // Chat features
+  showThinking: boolean
+  contextTokens: number
+  contextBudget: number
+  selectedModel: string
+  systemPrompt: string | null
+  conversationFolder: string | null
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -58,6 +65,11 @@ interface ChatState {
   setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
   setSidebarMode: (m: "engineering" | "personal") => void
   setChatMode: (m: "engineering" | "assistant") => void
+  setShowThinking: (v: boolean) => void
+  setContextTokens: (n: number) => void
+  setSelectedModel: (m: string) => void
+  setSystemPrompt: (p: string | null) => void
+  setConversationFolder: (f: string | null) => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -88,6 +100,12 @@ export const useChatStore = create<ChatState>((set) => ({
   workerReason: null,
   sidebarMode: "engineering",
   chatMode: "engineering",
+  showThinking: false,
+  contextTokens: 0,
+  contextBudget: 28000,
+  selectedModel: "default",
+  systemPrompt: null,
+  conversationFolder: null,
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -119,6 +137,11 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ currentWorker, workerReason: reason }),
   setSidebarMode: (sidebarMode) => set({ sidebarMode }),
   setChatMode: (chatMode) => set({ chatMode }),
+  setShowThinking: (showThinking) => set({ showThinking }),
+  setContextTokens: (contextTokens) => set({ contextTokens }),
+  setSelectedModel: (selectedModel) => set({ selectedModel }),
+  setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
+  setConversationFolder: (conversationFolder) => set({ conversationFolder }),
 
   upsertConversation: (c) =>
     set((s) => {
