@@ -114,3 +114,54 @@ export function TitleBar({ onOpenSettings }: TitleBarProps) {
     </div>
   )
 }
+
+// Kill Switch button component
+import { useState, useEffect } from "react"
+import { ShieldAlert } from "lucide-react"
+
+export function KillSwitchButton() {
+  const [active, setActive] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    async function check() {
+      try {
+        const res = await fetch("/api/kill-switch")
+        const data = await res.json()
+        setActive(data.active)
+      } catch {}
+    }
+    check()
+    const t = setInterval(check, 10000)
+    return () => clearInterval(t)
+  }, [])
+
+  const toggle = async () => {
+    setLoading(true)
+    try {
+      await fetch("/api/kill-switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !active }),
+      })
+      setActive(!active)
+    } catch {}
+    setLoading(false)
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={`flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] transition ${
+        active
+          ? "bg-destructive text-destructive-foreground animate-pulse"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+      title={active ? "مفتاح الإيقاف مُفعّل — اضغط لإلغاء" : "تفعيل مفتاح إيقاف الطوارئ"}
+    >
+      <ShieldAlert className="h-3 w-3" />
+      {active ? "مُفعّل" : "طوارئ"}
+    </button>
+  )
+}
