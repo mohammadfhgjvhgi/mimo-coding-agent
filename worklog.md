@@ -1262,3 +1262,73 @@ Stage Summary:
 - Existing ecosystem/mcp-client.ts untouched (os.ts wraps it as transport)
 - Existing settings-dialog.tsx untouched (UI refactor to use os.ts is a follow-up)
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 43
+Agent: ZAI Code (main)
+Task: Build Plugin System (src/lib/plugins/system.ts) — 10 operations making MiMo X extensible like VS Code.
+
+Work Log:
+- Read existing module patterns (mcp/os.ts style, prisma schema conventions).
+- Confirmed no new packages needed — uses node:crypto + node:fs + dynamic import.
+
+- Added 2 new Prisma models to prisma/schema.prisma:
+  • Plugin — name (unique), displayName, version, manifestVersion, author, homepage, repository, entryPath, entryType (module|inline), inlineSource, manifest (JSON), capabilities (JSON), permissions (JSON), settings (JSON: schema + values), status (registered|enabled|disabled|error|uninstalled), checksum (SHA-256), isolation (JSON), versionHistory (JSON), activation (JSON), timestamps
+  • PluginLog — pluginName, action, level (info|warn|error|debug), message, context (JSON), durationMs, createdAt + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/plugins/system.ts (~1470 lines) — Plugin System:
+  • 10 operations:
+    1. pluginRegister(manifest, {entryPath|inlineSource}) — upsert by name, compute SHA-256 checksum
+    2. pluginGetManifest(name) — read declared manifest
+    3. pluginSetPermissions(name, perms, mode) — grant/revoke/replace; validates against 9 valid permissions
+    4. pluginSetCapabilities(name, caps, mode) — grant/revoke/replace; validates against 6 valid capabilities
+    5. pluginLifecycle(name, action) — install / activate / deactivate / uninstall
+    6. pluginUpgrade(name, newVersion, {entryPath|inlineSource}) — bumps version, re-checksums, re-activates
+    7. pluginSetIsolation(name, partial) — sandbox/timeoutMs/maxHeapMb/fsScope
+    8. pluginSetSettings(name, values) — JSON-schema-ish validation (required + type check)
+    9. pluginLogs(entry) + pluginQueryLogs({pluginName, action, level, since, limit})
+    10. pluginEnable(name) + pluginDisable(name)
+  • Activation orchestrator: pluginActivate(name) —
+      verify checksum (tamper detection) → load module (inline eval OR ESM dynamic import) →
+      validate capabilities vs exports → run onActivate hook with timeout → cache in-memory → log result
+  • Hook execution: pluginRunHook(name, event, ...args) — calls registered hooks on active plugins
+  • In-memory activation cache: Map<name, ActivatedPlugin{module, registeredHooks}>
+  • Snapshot: pluginSnapshot() — total/enabled/disabled/error/activeInMemory/byCapability/recentErrors
+  • Types: 25+ exported interfaces/types (PluginEntryType, PluginStatus, PluginCapability, PluginPermission, PluginLogLevel, PluginLogAction, PluginTool, PluginHook, PluginManifest, PluginIsolation, PluginSettings, PluginVersionEntry, PluginRecord, PluginLogEntry, PluginResult, LifecycleAction, LifecycleResult, etc.)
+  • All user-facing strings bilingual (Arabic + English)
+  • 0 LLM calls — pure deterministic + DB + crypto + module loading
+
+- Fixed 1 typecheck error:
+  • pluginLifecycle return type union — uninstall returns {deleted} not PluginRecord → added LifecycleResult type union
+
+- Verification:
+  • bun run lint: 0 errors (only pre-existing warning) ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • Smoke test with real inline plugin (loads module, runs hooks):
+    - Register ✅ → Get Manifest (Smoke Plugin v1.0.0) ✅
+    - Set Permissions: grant ["network:http"] → ["filesystem:read","network:http"]; revoke ["filesystem:read"] → ["network:http"] ✅
+    - Set Capabilities: grant ["commands"] → ["tools","hooks","commands"] ✅
+    - Lifecycle install ✅ → activate (loaded module, ran onActivate, console.log "plugin activated") ✅
+    - Run hook "beforeTool": returned "before:{\"tool\":\"test\"}" ✅
+    - Upgrade to v1.1.0 (deactivated + re-activated) ✅
+    - Set Isolation: timeoutMs=5000 ✅
+    - Set Settings: valid "أهلاً" accepted; wrong type (123 instead of string) rejected with bilingual error ✅
+    - Logs: write + query (5 entries found) ✅
+    - Disable → Enable ✅
+    - Snapshot: total=1, enabled=1, byCapability={tools:1, hooks:1, commands:1} ✅
+    - Uninstall ✅
+  • All 10 operations + lifecycle + hook execution verified end-to-end
+- Committed + pushed to GitHub: 3e53ee1 ✅
+
+Stage Summary:
+- 1 new library file (~1470 lines) + 2 new Prisma models + db schema synced
+- Plugin System = VS Code-style extension layer: register/manifest/permissions/capabilities/
+  lifecycle/versioning/isolation/settings/logs/enable-disable — all persisted, all bilingual, 0 LLM
+- Supports BOTH inline source eval (for quick dev) AND ESM dynamic import (for real plugins)
+- SHA-256 tamper detection refuses activation on checksum mismatch
+- JSON-schema-ish settings validation (required + type check)
+- Hook execution lets plugins intercept agent events (beforeTool/afterTool/etc.)
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
