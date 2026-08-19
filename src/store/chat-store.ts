@@ -40,6 +40,7 @@ interface ChatState {
   selectedModel: string
   systemPrompt: string | null
   conversationFolder: string | null
+  agentMode: string // "agent" | "plan" | "ask" | "debug" | "review" | "research" | "architect" | "refactor" | "security" | "performance"
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -70,6 +71,7 @@ interface ChatState {
   setSelectedModel: (m: string) => void
   setSystemPrompt: (p: string | null) => void
   setConversationFolder: (f: string | null) => void
+  setAgentMode: (m: string) => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -106,6 +108,7 @@ export const useChatStore = create<ChatState>((set) => ({
   selectedModel: "default",
   systemPrompt: null,
   conversationFolder: null,
+  agentMode: "agent",
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -142,6 +145,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setSelectedModel: (selectedModel) => set({ selectedModel }),
   setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
   setConversationFolder: (conversationFolder) => set({ conversationFolder }),
+  setAgentMode: (agentMode) => set({ agentMode }),
 
   upsertConversation: (c) =>
     set((s) => {

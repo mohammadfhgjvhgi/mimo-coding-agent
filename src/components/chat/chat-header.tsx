@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "./theme-toggle"
 import { CheckpointMenu } from "./checkpoint-menu"
 import { ModelSwitcher, ContextMeter } from "./model-switcher"
+import { ModeSwitcher } from "./mode-switcher"
 import { useChatStore } from "@/store/chat-store"
 
 interface ChatHeaderProps {
@@ -110,6 +111,7 @@ export function ChatHeader({
       </div>
 
       <CheckpointMenu onRevert={onRevert} />
+      <ModeSwitcher />
       <ModelSwitcher />
       <ContextMeter />
 
