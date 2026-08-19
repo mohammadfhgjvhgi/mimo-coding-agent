@@ -204,3 +204,96 @@ export function formatLadderResult(result: LadderResult): string {
   )
   return `🔍 Verification Ladder (${result.totalDurationMs}ms):\n${result.summary}\n${lines.join("\n")}`
 }
+
+// ---------------------------------------------------------------------------
+// MERGED FROM mimo-life-os/src/lib/ai/validation.ts
+// Adds: validateToolResult — deterministic checks for tool-call results.
+// The artifact / workspace / task-completion validators are NOT merged
+// because they depend on WorkspaceResult and Artifact models we don't have
+// in this workspace.
+// ---------------------------------------------------------------------------
+
+export interface ValidationCheck {
+  name: string
+  passed: boolean
+  detail?: string
+}
+
+export interface ToolResultToValidate {
+  toolName: string
+  success: boolean
+  output: unknown
+  error?: string
+  durationMs: number
+}
+
+export interface ToolValidationResult {
+  passed: boolean
+  layer: "tool"
+  checks: ValidationCheck[]
+  summary: string
+}
+
+/**
+ * Validate a tool execution result against its expected contract.
+ * Deterministic checks only — no model-in-the-loop.
+ *
+ * Checks:
+ *  1. success is a boolean
+ *  2. if success=true, output must exist
+ *  3. if success=false, error must be present
+ *  4. durationMs is a non-negative number
+ *  5. toolName is a non-empty string
+ *  6. success and error cannot both be present
+ */
+export function validateToolResult(result: ToolResultToValidate): ToolValidationResult {
+  const checks: ValidationCheck[] = []
+
+  checks.push({
+    name: "success_is_boolean",
+    passed: typeof result.success === "boolean",
+    detail: `success = ${result.success} (${typeof result.success})`,
+  })
+
+  if (result.success) {
+    checks.push({
+      name: "output_present_on_success",
+      passed: result.output !== null && result.output !== undefined,
+      detail: `output type = ${typeof result.output}`,
+    })
+  }
+
+  if (!result.success) {
+    checks.push({
+      name: "error_present_on_failure",
+      passed: result.error !== undefined && result.error !== null && result.error !== "",
+      detail: `error = ${result.error?.slice(0, 100)}`,
+    })
+  }
+
+  checks.push({
+    name: "duration_valid",
+    passed: typeof result.durationMs === "number" && result.durationMs >= 0,
+    detail: `durationMs = ${result.durationMs}`,
+  })
+
+  checks.push({
+    name: "tool_name_present",
+    passed: typeof result.toolName === "string" && result.toolName.length > 0,
+    detail: `toolName = ${result.toolName}`,
+  })
+
+  checks.push({
+    name: "no_success_with_error",
+    passed: !(result.success && result.error),
+    detail: result.success && result.error ? "success=true but error present" : "OK",
+  })
+
+  const allPassed = checks.every((c) => c.passed)
+  return {
+    passed: allPassed,
+    layer: "tool",
+    checks,
+    summary: `Tool "${result.toolName}": ${checks.filter((c) => c.passed).length}/${checks.length} checks passed`,
+  }
+}

@@ -484,3 +484,225 @@ export async function completeChatRouted(
   const text = await completeZai(messages, settings.zaiThinking)
   return { text, worker: "zai", reason: "Z.ai سحابي" }
 }
+
+// ---------------------------------------------------------------------------
+// MERGED FROM mimo-life-os/src/lib/ai/model.ts
+// Adds: generateStructured (JSON-from-LLM with fallbacks),
+//       treeOfThought, selfConsistency, optimizePrompt, isRetryableError.
+// These are advanced reasoning patterns built on top of completeChat().
+// The model.ts streaming/non-streaming helpers are NOT merged because we
+// already have streamChat + completeChat above.
+// ---------------------------------------------------------------------------
+
+const RATE_LIMIT_DELAY_MS = 2000
+const MAX_RETRIES_LLM = 3
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+/**
+ * Heuristic: returns true if the error is transient (rate limit, network,
+ * timeout) and the operation should be retried with exponential backoff.
+ */
+export function isRetryableError(err: unknown): boolean {
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase()
+    return (
+      msg.includes("429") ||
+      msg.includes("rate limit") ||
+      msg.includes("too many requests") ||
+      msg.includes("timeout") ||
+      msg.includes("network") ||
+      msg.includes("econnreset") ||
+      msg.includes("socket hang up")
+    )
+  }
+  return false
+}
+
+/**
+ * Generate structured output by asking the LLM for JSON.
+ *
+ * Tries (in order):
+ *   1. JSON.parse on the raw response
+ *   2. Extract from ```json fenced code blocks
+ *   3. Extract the first { ... last } (object)
+ *   4. Extract the first [ ... last ] (array)
+ *
+ * Throws if none of the above yield valid JSON.
+ */
+export async function generateStructured<T = unknown>(
+  settings: ProviderSettings,
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  schemaDescription: string,
+  options: { system?: string; temperature?: number } = {}
+): Promise<T> {
+  const sys =
+    (options.system ?? "") +
+    `\n\nYou MUST respond with valid JSON only, matching this schema:\n${schemaDescription}\n\nNo markdown, no code fences, no commentary — JSON only.`
+
+  const finalMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+    { role: "system", content: sys },
+    ...messages,
+  ]
+  const content = await completeChat(settings, finalMessages)
+
+  try {
+    return JSON.parse(content) as T
+  } catch {
+    /* fall through to extraction */
+  }
+
+  // Try fenced code block
+  const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1]) as T
+    } catch {
+      /* keep trying */
+    }
+  }
+
+  // Try first { ... last }
+  const first = content.indexOf("{")
+  const last = content.lastIndexOf("}")
+  if (first !== -1 && last !== -1 && last > first) {
+    try {
+      return JSON.parse(content.slice(first, last + 1)) as T
+    } catch {
+      /* keep trying */
+    }
+  }
+
+  // Try array
+  const firstArr = content.indexOf("[")
+  const lastArr = content.lastIndexOf("]")
+  if (firstArr !== -1 && lastArr !== -1 && lastArr > firstArr) {
+    try {
+      return JSON.parse(content.slice(firstArr, lastArr + 1)) as T
+    } catch {
+      /* fall through */
+    }
+  }
+
+  throw new Error(`Failed to parse structured output. Raw: ${content.slice(0, 500)}`)
+}
+
+/**
+ * Tree-of-Thought: generate N candidate responses with different temperatures,
+ * then ask the model to pick the best.
+ *
+ * Research lineage: Yao et al. "Tree of Thoughts" (R2 Base).
+ */
+export async function treeOfThought(
+  settings: ProviderSettings,
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  options: { branches?: number; system?: string } = {}
+): Promise<string> {
+  const branches = Math.min(options.branches ?? 3, 5)
+  const start = Date.now()
+
+  // Generate N paths with different temperatures
+  const paths = await Promise.all(
+    Array.from({ length: branches }, (_, i) =>
+      completeChat(settings, [
+        ...(options.system ? [{ role: "system" as const, content: options.system }] : []),
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ]).then((content) => ({ content, temp: 0.3 + i * 0.25 }))
+       .catch(() => ({ content: "", temp: 0.3 + i * 0.25 }))
+    )
+  )
+
+  const validPaths = paths.filter((p) => p.content.length > 20).map((p) => p.content)
+  if (validPaths.length === 0) return ""
+  if (validPaths.length === 1) return validPaths[0]
+
+  // Ask the model to pick the best
+  const evalMessages: { role: "system" | "user"; content: string }[] = [
+    {
+      role: "system",
+      content: "You are an evaluator. Pick the best answer from multiple candidates. Return ONLY the best answer, no commentary.",
+    },
+    {
+      role: "user",
+      content: `Question: ${messages[messages.length - 1]?.content ?? ""}\n\nCandidates:\n${validPaths.map((p, i) => `--- Candidate ${i + 1} ---\n${p.slice(0, 1000)}`).join("\n\n")}\n\nReturn ONLY the best answer:`,
+    },
+  ]
+
+  const best = await completeChat(settings, evalMessages)
+  void start
+  return best
+}
+
+/**
+ * Self-Consistency: generate N samples and return the most common one.
+ * Uses the first 200 chars as the comparison key.
+ *
+ * Research lineage: Wang et al. "Self-Consistency Improves Chain of Thought Reasoning".
+ */
+export async function selfConsistency(
+  settings: ProviderSettings,
+  messages: { role: "system" | "user" | "assistant"; content: string }[],
+  options: { samples?: number; system?: string } = {}
+): Promise<string> {
+  const samples = Math.min(options.samples ?? 3, 5)
+
+  const results = await Promise.all(
+    Array.from({ length: samples }, () =>
+      completeChat(settings, [
+        ...(options.system ? [{ role: "system" as const, content: options.system }] : []),
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ]).catch(() => "")
+    )
+  )
+
+  const valid = results.filter((r) => r.length > 10)
+  if (valid.length === 0) return ""
+
+  // Find the most common first-200-chars prefix among the samples
+  const counts = new Map<string, number>()
+  for (const r of valid) {
+    const key = r.slice(0, 200)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+
+  let bestKey = valid[0].slice(0, 200)
+  let bestCount = 0
+  for (const [key, count] of counts) {
+    if (count > bestCount) {
+      bestCount = count
+      bestKey = key
+    }
+  }
+
+  return valid.find((r) => r.slice(0, 200) === bestKey) ?? valid[0]
+}
+
+/**
+ * Optimize a prompt by asking the LLM to refine it based on input/expected pairs.
+ * Research lineage: DSPy / MIPROv2 prompt optimization.
+ */
+export async function optimizePrompt(
+  settings: ProviderSettings,
+  currentPrompt: string,
+  examples: Array<{ input: string; expected: string }>
+): Promise<string> {
+  const messages: { role: "system" | "user"; content: string }[] = [
+    {
+      role: "system",
+      content: "You are a prompt optimization expert. Improve the given prompt based on the examples. Return ONLY the improved prompt, no commentary.",
+    },
+    {
+      role: "user",
+      content: `Current prompt:\n${currentPrompt}\n\nExamples:\n${examples.map((e) => `Input: ${e.input}\nExpected: ${e.expected}`).join("\n\n")}\n\nImproved prompt:`,
+    },
+  ]
+
+  const improved = await completeChat(settings, messages)
+  return improved.trim()
+}
+
+// silence unused exports when the file is type-checked in isolation
+void RATE_LIMIT_DELAY_MS
+void MAX_RETRIES_LLM

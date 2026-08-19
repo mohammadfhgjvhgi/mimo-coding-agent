@@ -17,7 +17,7 @@ import { runCodeTool } from "@/lib/tools/code-sandbox"
 import type { ToolCall, ToolDef, ToolResult, ToolContext } from "./types"
 
 // Registry of available tools
-const REGISTRY: Record<string, ToolDef> = {
+export const REGISTRY: Record<string, ToolDef> = {
   read_file: readFileTool,
   write_file: writeFileTool,
   edit_file: editFileTool,
@@ -188,4 +188,80 @@ export function buildToolManifest(): string {
       return `### ${t.name}\n${t.description}\nالمعلمات:\n${params}`
     })
     .join("\n\n")
+}
+
+// ---------------------------------------------------------------------------
+// MERGED FROM mimo-life-os/src/lib/ai/tool-caller.ts
+// Adds: parseToolCallsFromResponse + formatToolResultsForModel — patterns
+// for converting between ZAI SDK chat completions tool_calls format and
+// our internal ToolCall / ToolResult representation.
+// The DB-coupled executeToolCall / checkToolPermission are NOT merged.
+// ---------------------------------------------------------------------------
+
+
+/**
+ * Parse tool_calls from a ZAI SDK chat.completions response.
+ *
+ * ZAI returns tool_calls as an array of:
+ *   { id, type: "function", function: { name, arguments: "<json-string>" } }
+ *
+ * This helper parses them into our internal ToolCall[] representation.
+ * Malformed arguments are captured into a `_parseError` field so downstream
+ * validation can surface the error to the model.
+ */
+export function parseToolCallsFromResponse(
+  response: unknown
+): ToolCall[] {
+  const choices = (response as { choices?: Array<{ message?: { tool_calls?: unknown[] } }> })?.choices
+  if (!choices || choices.length === 0) return []
+
+  const toolCalls = choices[0]?.message?.tool_calls
+  if (!Array.isArray(toolCalls)) return []
+
+  const results: ToolCall[] = []
+
+  for (const tc of toolCalls) {
+    const call = tc as {
+      id?: string
+      function?: { name?: string; arguments?: string | Record<string, unknown> }
+      type?: string
+    }
+    if (!call || call.type !== "function" || !call.function) continue
+
+    const name = call.function.name
+    if (!name) continue
+
+    const id = call.id ?? `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+    let args: Record<string, unknown> = {}
+    if (typeof call.function.arguments === "string") {
+      try {
+        args = JSON.parse(call.function.arguments)
+      } catch {
+        args = { _parseError: call.function.arguments }
+      }
+    } else if (typeof call.function.arguments === "object" && call.function.arguments !== null) {
+      args = call.function.arguments as Record<string, unknown>
+    }
+
+    results.push({ id, name, args })
+  }
+
+  return results
+}
+
+/**
+ * Convert our internal ToolResult[] back to the ZAI SDK message format for the
+ * follow-up chat.completions call (role: "tool" with tool_call_id).
+ */
+export function formatToolResultsForModel(
+  results: ToolResult[]
+): Array<{ role: "tool"; content: string; tool_call_id: string }> {
+  return results.map((r) => ({
+    role: "tool" as const,
+    content: r.status === "success"
+      ? String(r.result).slice(0, 8000)
+      : `Error: ${r.error ?? "unknown"}`,
+    tool_call_id: r.id,
+  }))
 }

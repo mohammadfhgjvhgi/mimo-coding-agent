@@ -171,3 +171,78 @@ export async function getProjectMemoryBlock(): Promise<string> {
     return ""
   }
 }
+
+// ---------------------------------------------------------------------------
+// MERGED FROM mimo-life-os/src/lib/ai/memory.ts
+// Adds: retrieveMemories — keyword-based recall for the context assembler.
+// ---------------------------------------------------------------------------
+
+
+export interface RetrievedMemory {
+  key: string
+  value: string
+  category: string
+  tier?: string
+  importance?: number
+}
+
+/**
+ * Retrieve memories matching a query (keyword substring match).
+ * Sorts by updatedAt DESC so the most recently touched entries surface first.
+ *
+ * Filters:
+ *   - conversationId: if provided, prefer entries that mention this ID
+ *     (this workspace's Memory model doesn't have a conversationId field,
+ *      so the filter is informational only and the call still returns global
+ *      memories — caller is responsible for further filtering).
+ */
+export async function retrieveMemories(opts: {
+  query: string
+  limit?: number
+  conversationId?: string
+}): Promise<RetrievedMemory[]> {
+  try {
+    const limit = Math.min(opts.limit ?? 5, 50)
+    const words = opts.query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
+      .slice(0, 5)
+
+    if (words.length === 0) {
+      const recent = await db.memory.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: limit,
+      })
+      return recent.map((m) => ({
+        key: m.key,
+        value: m.value,
+        category: m.category,
+        tier: m.tier,
+      }))
+    }
+
+    const entries = await db.memory.findMany({
+      where: {
+        OR: words.flatMap((w) => [
+          { key: { contains: w } },
+          { value: { contains: w } },
+          { category: { contains: w } },
+        ]),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+    })
+
+    void opts.conversationId // reserved for future per-conversation memory scoping
+
+    return entries.map((m) => ({
+      key: m.key,
+      value: m.value,
+      category: m.category,
+      tier: m.tier,
+    }))
+  } catch {
+    return []
+  }
+}

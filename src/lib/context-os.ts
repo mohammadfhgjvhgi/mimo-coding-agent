@@ -136,3 +136,109 @@ export function formatCompressionStats(stats: CompressionStats): string {
 // silence unused import
 void TOOL_OPEN
 void TOOL_CLOSE
+
+// ---------------------------------------------------------------------------
+// MERGED FROM mimo-life-os/src/lib/ai/context.ts
+// Adds: assembleContext — a pure helper that prepares a system prompt +
+// messages array for an LLM call by combining history + memory + skills.
+// The DB-coupled Knowledge Base lookup is intentionally omitted.
+// ---------------------------------------------------------------------------
+
+import { retrieveMemories } from "@/lib/tools/memory"
+
+export interface AssembleContextInput {
+  conversationId?: string
+  userMessage: string
+  history?: { role: "system" | "user" | "assistant"; content: string }[]
+  extraSystem?: string
+  /** Optional cap on the number of history messages to include. */
+  maxHistoryMessages?: number
+}
+
+export interface AssembledContext {
+  system: string
+  messages: { role: "system" | "user" | "assistant"; content: string }[]
+  memories: Array<{ key: string; value: string; category: string }>
+  tokenEstimate: number
+  historyTrimmed: boolean
+}
+
+const DEFAULT_HISTORY_MESSAGES = 20
+
+/**
+ * Assemble a system prompt + message list for an LLM call.
+ *
+ * Combines:
+ *   1. Optional conversation history (capped to maxHistoryMessages)
+ *   2. Relevant memories retrieved via the local memory tool
+ *   3. Caller-supplied extra system text
+ *
+ * Memory retrieval failures are non-fatal — the call proceeds without memories.
+ */
+export async function assembleContext(input: AssembleContextInput): Promise<AssembledContext> {
+  const { conversationId, userMessage, history, extraSystem, maxHistoryMessages } = input
+
+  let trimmedHistory = (history ?? []).slice(-Math.max(1, maxHistoryMessages ?? DEFAULT_HISTORY_MESSAGES))
+  const historyTrimmed = (history?.length ?? 0) > trimmedHistory.length
+
+  // Retrieve relevant memories (best-effort, never fails the call)
+  let memories: AssembledContext["memories"] = []
+  try {
+    const recalled = await retrieveMemories({
+      query: userMessage,
+      limit: 5,
+      conversationId,
+    })
+    memories = (recalled as Array<{ key: string; value: string; category: string }>).map((m) => ({
+      key: m.key,
+      value: m.value,
+      category: m.category,
+    }))
+  } catch {
+    // memory retrieval failure is non-fatal
+  }
+
+  const systemParts: string[] = []
+  if (memories.length > 0) {
+    systemParts.push(
+      "\n\n## Relevant Memories\n" +
+        memories
+          .map((m) => `- [${m.category}] ${m.key}: ${m.value.slice(0, 200)}`)
+          .join("\n")
+    )
+  }
+  if (extraSystem) {
+    systemParts.push("\n\n" + extraSystem)
+  }
+  const system = systemParts.join("")
+
+  const messages: AssembledContext["messages"] = [
+    ...trimmedHistory.map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: userMessage },
+  ]
+
+  // Token estimate (~3.5 chars/token — matches estimateTokens above)
+  const totalChars = system.length + messages.reduce((s, m) => s + m.content.length, 0)
+  const tokenEstimate = Math.ceil(totalChars / 3.5)
+
+  // Auto-compress if we exceed the budget (uses the existing compressConversation)
+  const budget = tokenBudgetForProvider("ollama")
+  let finalMessages = messages
+  if (tokenEstimate > budget) {
+    const compressed = compressConversation(
+      [{ role: "system", content: system }, ...messages] as { role: "system" | "user" | "assistant"; content: string }[],
+      budget
+    )
+    finalMessages = compressed.messages.filter((m) => m.role !== "system")
+  }
+
+  void trimmedHistory // quiet unused-var when history was undefined
+
+  return {
+    system,
+    messages: finalMessages,
+    memories,
+    tokenEstimate,
+    historyTrimmed,
+  }
+}
