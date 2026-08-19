@@ -1623,3 +1623,69 @@ Stage Summary:
 - Real TTS verified end-to-end via API (35KB WAV in 665ms)
 - Audio files saved to upload/voice/ (gitignored)
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (logic + real API), pushed: yes
+
+---
+Task ID: 48
+Agent: ZAI Code (main)
+Task: Build Vision OS (src/lib/vision/os.ts) — 7 operations + the crown jewel: screenshot → analyze → identify problem → suggest code fix.
+
+Work Log:
+- Added 2 new Prisma models:
+  • VisionAnalysis — type, sourcePath, sourceBase64, prompt, response, model, durationMs, tokensUsed, structured (JSON), metadata (JSON), conversationId, messageId + indexes
+  • VisionTemplate — name (unique), description, type, promptTemplate, systemPrompt, active, useCount + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/vision/os.ts (~870 lines) — 7 operations + crown jewel:
+  1. imageUpload(image) — save to upload/vision/ + return metadata
+  2. imageAnalyze(image, prompt, {systemPrompt, wantJson}) — general VLM analysis via z-ai-web-dev-sdk chat.completions.createVision; extracts JSON from ```json blocks when wantJson=true
+  3. screenshotAnalyze(image, {context}) — UI screenshot → identify problems (severity/category/description/fix); returns structured ScreenshotProblem[]
+  4. pdfVision({pdfPath|pdfBase64, prompt, pageRange}) — PDF → VLM analysis (sends as application/pdf data URL)
+  5. uiScreenshotUnderstanding(image) — UI/UX analysis: layout, colorScheme, accessibilityIssues, responsivenessIssues, suggestions
+  6. diagramUnderstanding(image) — flowchart/diagram → structured nodes + edges + description
+  7. chartUnderstanding(image) — chart → chartType + title + dataPoints (label+value) + trends
+
+  Crown Jewel: screenshotToCodeFix(image, {context}) —
+    screenshot → VLM analyze → identify specific problem → suggest code file + exact change needed
+    Returns: problems[], summary, suggestedCodeFile, suggestedCodeChanges, confidence (0-1)
+
+  Plus: visionTemplateRegister/List/Delete, visionAnalysisList/Get, visionSnapshot, formatVisionResult
+  ZAI SDK singleton loader using chat.completions.createVision with model "glm-4.5v"
+  Image storage in upload/vision/ (gitignored via /upload/)
+  Bilingual (Arabic + English) throughout
+  Structured JSON parsing with fallback (extracts from ```json blocks or raw {})
+
+- Created 4 API routes:
+  • POST /api/vision (actions: upload/analyze/screenshot/fix/pdf/ui/diagram/chart) + GET (list)
+  • GET /api/vision/[id] — get specific analysis
+  • GET /api/vision/snapshot — system snapshot
+  • POST/GET/DELETE /api/vision/template — template management
+
+- Fixed 3 typecheck errors: typed structured objects (UIAnalysis, DiagramStructure, ChartData) couldn't be assigned to Record<string, unknown> → cast through `unknown`
+- Fixed VLM call: initially used `zai.completions.create` (wrong) → changed to `zai.chat.completions.createVision` with model "glm-4.5v" (required for vision API)
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • REAL smoke test (the crown jewel):
+    - Launched browser → navigated to localhost:3000 → took screenshot (102KB PNG)
+    - screenshotToCodeFix on the real screenshot:
+      ✅ Confidence: 85%
+      ✅ Summary: "Main chat content area lacks proper left padding/margin or max-width constraint, causing layout imbalance"
+      ✅ Problem: [high] layout — content not properly constrained/padded
+      ✅ Suggested file: src/components/ChatArea.tsx
+      ✅ Suggested fix: "Add appropriate padding-left or margin-left (e.g. 'pl-6' or 'ml-4' in Tailwind), or ensure max-width constraint (e.g. 'max-w-4xl mx-auto')"
+      ✅ Model used: glm-5v-turbo (SDK rerouted the model)
+      ✅ Duration: 4319ms
+    - Analysis persisted to DB (visible in snapshot: totalAnalyses=1, byType={screenshot_fix:1})
+  • Agent Browser: 0 page errors ✅
+- Committed + pushed to GitHub: bb53984 ✅
+
+Stage Summary:
+- 1 new library file (~870 lines) + 4 API routes + 2 new Prisma models + db schema synced
+- Vision OS = full visual intelligence layer: upload → analyze → identify problems → extract data → suggest fixes
+- Crown jewel VERIFIED: screenshot of our own app → VLM correctly identified a layout issue, suggested the right file + specific Tailwind fix, 85% confidence, 4.3s
+- 7 content types: image, screenshot, pdf, ui, diagram, chart, screenshot_fix — each with type-specific system prompts
+- All analyses persisted for audit + reuse
+- lint: 0, typecheck: 0, db: synced, dev: running, real VLM test: passed, pushed: yes
