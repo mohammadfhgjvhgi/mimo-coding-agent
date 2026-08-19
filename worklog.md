@@ -1332,3 +1332,78 @@ Stage Summary:
 - JSON-schema-ish settings validation (required + type check)
 - Hook execution lets plugins intercept agent events (beforeTool/afterTool/etc.)
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 44
+Agent: ZAI Code (main)
+Task: Build Skill System (src/lib/skills/system.ts) — 8 operations + 11 default skills making MiMo X context-aware.
+
+Work Log:
+- Read existing patterns (mcp/os.ts + plugins/system.ts) for consistency.
+
+- Added 2 new Prisma models to prisma/schema.prisma:
+  • Skill — name (unique), displayName, description, category, version, versionCompat, triggers (JSON regex array), tags (JSON), dependencies (JSON), promptFragment, toolAllowlist (JSON|null), routing (JSON), memory (JSON: useCount/successRate/lastContext), status, checksum (SHA-256), loadedAt, lastUsedAt, useCount, timestamps + indexes
+  • SkillExecution — skillName, action, trigger (truncated 500), status, context (JSON), durationMs, error, createdAt + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/skills/system.ts (~1320 lines) — Skill System:
+  • 8 operations:
+    1. skillRegister(input) — declare a skill (prompt fragment + triggers + tools + routing); validates triggers are valid regex
+    2. skillDiscover(message, opts) — match user message against triggers (regex) + tags (fuzzy); returns ranked SkillMatch[] with priority-weighted scores
+    3. skillVersion(name, newVersion, {promptFragment?, triggers?}) — bump version + re-checksum
+    4. skillCheckDependencies(name) — verify all deps are registered + active; returns missing[] + inactive[]
+    5. skillLazyLoad(name, {refresh?}) — load prompt fragment on-demand, cached in-memory; SHA-256 checksum verification on load
+    6. skillRoute(message) — top-1 from discover (only autoActivate=true skills)
+    7. skillUpdateMemory(name, {success, context, durationMs}) — record execution outcome; updates useCount/successRate/lastContext
+    8. skillValidate(name) — validate manifest: triggers are valid regex, prompt non-empty, deps exist + active, checksum matches
+  • Orchestrator: skillActivate(message, {maxSkills}) — discover → for each match: check deps → lazy load → assemble prompt fragment + merge tool allowlist (intersection) → return SkillActivationResult
+  • 11 default skills seeded by skillSeedDefaults():
+    - nextjs (web, depends on react) — App Router + Turbopack + Server Components
+    - react (web) — hooks + concurrent features
+    - python (systems) — typing + async + uv/ruff
+    - plc-automation (automation) — IEC 61131-3 + Modbus/Profinet/OPC UA
+    - automation (automation) — idempotent scripts + cron + retry
+    - research (research) — web search + triangulate + inline citations
+    - academic-writing (writing) — IMRAD + APA/MLA + BibTeX
+    - git (vcs) — Conventional Commits + branching + .gitignore
+    - security (security) — OWASP Top 10 + secrets + TLS
+    - testing (testing) — pyramid + AAA + Bun test/Playwright
+    - debugging (debugging) — reproduce + bisect + root cause
+  • Each skill has: triggers (regex array) + tags + promptFragment + toolAllowlist + routing {priority, autoActivate, maxTokens}
+  • Lazy loading: skills NOT in memory until matched; cached after first load; skillUnload() to evict
+  • Memory: per-skill useCount, successCount, failureCount, successRate, lastContext — for routing improvement
+  • Snapshot: skillSnapshot() — total/active/disabled/byCategory/loadedInMemory/totalActivations/recentErrors
+  • Types: 15+ exported interfaces/types (SkillCategory, SkillStatus, SkillRouting, SkillMemory, SkillRecord, SkillMatch, SkillExecutionEntry, SkillResult, SkillActivationResult, SkillRegisterInput, etc.)
+  • All user-facing strings bilingual (Arabic + English)
+  • 0 LLM calls — pure deterministic + DB + crypto + regex matching
+
+- Verification:
+  • bun run lint: 0 errors (only pre-existing warning) ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • Smoke test:
+    - Seed: 11 skills seeded successfully ✅
+    - List: 11 skills across 9 categories (web=2, automation=2, systems/research/writing/vcs/security/testing/debugging=1 each) ✅
+    - Discover "Next.js page with server components": matched nextjs + react ✅
+    - Discover "debug this Python crash": matched debugging + python ✅
+    - Discover "PLC ladder logic for motor control with Modbus": matched plc-automation ✅
+    - Version bump nextjs → 1.1.0 ✅
+    - Check deps for nextjs: react dep resolved, missing=[], inactive=[], ok=true ✅
+    - Lazy load react: first load cached=false (126 tokens), second load cached=true ✅
+    - Route "debug a memory leak in my React app — useEffect not cleaning up": picked debugging (score=37, triggers=[debug, bug]) ✅
+    - Update memory for react: useCount=1 ✅
+    - Validate git: valid=true, 0 errors, 0 warnings ✅
+    - Orchestrator activate "set up secure auth with OWASP best practices, audit my api keys":
+      activated security skill, matched triggers=[owasp, api key, tag:audit], tokens≈136, tools=(all), deps=[] ✅
+    - Snapshot: total=11, active=11, byCategory correct, loadedInMemory=2, totalActivations=11, recentErrors=[] ✅
+  • All 8 operations + activation orchestrator verified end-to-end
+- Committed + pushed to GitHub: e5da44e ✅
+
+Stage Summary:
+- 1 new library file (~1320 lines) + 2 new Prisma models + db schema synced
+- 11 default skills pre-seeded (nextjs/react/python/plc-automation/automation/research/academic-writing/git/security/testing/debugging)
+- Skill System = context-aware knowledge layer: user message → trigger match → lazy load → assemble prompt fragment + tool allowlist → inject into agent context
+- Lazy loading (0 in-memory until matched) + SHA-256 tamper detection + memory-based routing improvement
+- Each skill has its own tool allowlist — security-scoped execution
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
