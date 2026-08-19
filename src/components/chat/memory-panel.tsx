@@ -68,7 +68,7 @@ export function MemoryPanel({ refreshSignal }: { refreshSignal?: number }) {
   const [loading, setLoading] = React.useState(true)
   const [addOpen, setAddOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
-  const [tierFilter, setTierFilter] = React.useState("")
+  const [tierFilter, setTierFilter] = React.useState("all")
 
   const load = React.useCallback(async () => {
     try {
@@ -120,7 +120,7 @@ export function MemoryPanel({ refreshSignal }: { refreshSignal?: number }) {
 
   const filtered = React.useMemo(() => {
     let result = memories
-    if (tierFilter) result = result.filter(m => m.source === tierFilter)
+    if (tierFilter && tierFilter !== "all") result = result.filter(m => m.source === tierFilter)
     if (query.trim()) {
       const q = query.toLowerCase()
       result = result.filter(m => m.key.toLowerCase().includes(q) || m.value.toLowerCase().includes(q))
@@ -170,7 +170,7 @@ export function MemoryPanel({ refreshSignal }: { refreshSignal?: number }) {
         <Select value={tierFilter} onValueChange={setTierFilter}>
           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="كل الأنواع" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">كل الأنواع ({memories.length})</SelectItem>
+            <SelectItem value="all">كل الأنواع ({memories.length})</SelectItem>
             {Object.entries(TIER_LABELS).map(([tier, label]) => {
               const count = memories.filter(m => m.source === tier).length
               if (count === 0) return null

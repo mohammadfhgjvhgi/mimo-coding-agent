@@ -48,7 +48,7 @@ export function KnowledgePanel() {
   const [loading, setLoading] = React.useState(true)
   const [searching, setSearching] = React.useState(false)
   const [query, setQuery] = React.useState("")
-  const [selectedCollection, setSelectedCollection] = React.useState<string>("")
+  const [selectedCollection, setSelectedCollection] = React.useState<string>("all")
   const [searchMode, setSearchMode] = React.useState<"hybrid" | "agentic" | "full">("hybrid")
   const [showIngest, setShowIngest] = React.useState(false)
 
@@ -72,7 +72,7 @@ export function KnowledgePanel() {
     setSearching(true)
     try {
       const params = new URLSearchParams({ q: query, limit: "10" })
-      if (selectedCollection) params.set("collectionId", selectedCollection)
+      if (selectedCollection && selectedCollection !== "all") params.set("collectionId", selectedCollection)
       if (searchMode === "agentic") params.set("action", "agentic")
       else if (searchMode === "full") params.set("action", "full")
       else params.set("action", "search")
@@ -152,7 +152,7 @@ export function KnowledgePanel() {
               <SelectValue placeholder="الكل" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">كل المجموعات</SelectItem>
+              <SelectItem value="all">كل المجموعات</SelectItem>
               {collections.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -202,7 +202,7 @@ function IngestDialog({ onDone, collections }: { onDone: () => void; collections
   const [source, setSource] = React.useState("")
   const [filePath, setFilePath] = React.useState("")
   const [folderPath, setFolderPath] = React.useState("")
-  const [collectionId, setCollectionId] = React.useState("")
+  const [collectionId, setCollectionId] = React.useState("none")
   const [incremental, setIncremental] = React.useState(true)
   const [busy, setBusy] = React.useState(false)
 
@@ -215,21 +215,21 @@ function IngestDialog({ onDone, collections }: { onDone: () => void; collections
         res = await fetch("/api/knowledge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "ingest_text", text, source, collectionId: collectionId || undefined }),
+          body: JSON.stringify({ action: "ingest_text", text, source, collectionId: collectionId === "none" ? undefined : collectionId }),
         })
       } else if (tab === "file") {
         if (!filePath.trim()) { toast.error("مسار الملف مطلوب"); setBusy(false); return }
         res = await fetch("/api/knowledge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "ingest_file", path: filePath, collectionId: collectionId || undefined }),
+          body: JSON.stringify({ action: "ingest_file", path: filePath, collectionId: collectionId === "none" ? undefined : collectionId }),
         })
       } else {
         if (!folderPath.trim()) { toast.error("مسار المجلد مطلوب"); setBusy(false); return }
         res = await fetch("/api/knowledge", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "sync_folder", path: folderPath, incremental, collectionId: collectionId || undefined }),
+          body: JSON.stringify({ action: "sync_folder", path: folderPath, incremental, collectionId: collectionId === "none" ? undefined : collectionId }),
         })
       }
       const data = await res.json()
@@ -295,7 +295,7 @@ function IngestDialog({ onDone, collections }: { onDone: () => void; collections
           <Select value={collectionId} onValueChange={setCollectionId}>
             <SelectTrigger className="text-sm"><SelectValue placeholder="بدون مجموعة" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">بدون مجموعة</SelectItem>
+              <SelectItem value="none">بدون مجموعة</SelectItem>
               {collections.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
