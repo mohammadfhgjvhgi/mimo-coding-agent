@@ -62,6 +62,7 @@ async function streamChat(
     onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
     onContextCompressed?: (stats: string) => void
     onRouterDecision?: (worker: string, reason: string) => void
+    onModeDetected?: (mode: string, reason: string) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -121,6 +122,8 @@ async function streamChat(
             handlers.onContextCompressed?.(json.stats)
           } else if (json.type === "router_decision") {
             handlers.onRouterDecision?.(json.worker, json.reason)
+          } else if (json.type === "mode_detected") {
+            handlers.onModeDetected?.(json.mode, json.reason)
           } else if (json.type === "error") {
             handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
@@ -299,6 +302,10 @@ export function ChatShell() {
               ) {
                 setCurrentConversationId(meta.conversationId)
               }
+            },
+            onModeDetected: (mode: string, reason: string) => {
+              useChatStore.getState().setAgentMode(mode)
+              toast.info(`وضع تلقائي: ${reason}`, { duration: 3000 })
             },
             onToolCall: (call) => {
               addStreamingToolCall({

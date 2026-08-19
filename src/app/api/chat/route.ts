@@ -67,6 +67,17 @@ export async function POST(req: NextRequest) {
     const { getSettings } = await import("@/lib/llm-provider");
     const settings = providerSettings || getSettings();
 
+    // AUTO MODE DETECTION — automatically pick the right agent mode
+    // based on the user's message (0-LLM, deterministic keyword matching)
+    let modePrompt = "";
+    try {
+      const { autoDetectMode, getModePrompt } = await import("@/lib/agent/modes");
+      const detected = autoDetectMode(userMsgText);
+      modePrompt = getModePrompt(detected.mode);
+      // Emit mode detection event for the UI
+      // (the frontend can also detect client-side, but this is the source of truth)
+    } catch { /* best-effort */ }
+
     // Inject ecosystem settings (GitHub token + MCP servers) before running
     const { setGithubToken } = await import("@/lib/ecosystem/github-tool");
     const { setMcpServers } = await import("@/lib/ecosystem/mcp-tool");
@@ -109,6 +120,13 @@ export async function POST(req: NextRequest) {
           title: conversation!.title,
           provider: settings.provider,
         });
+
+        // Emit auto-detected mode for the UI
+        try {
+          const { autoDetectMode } = await import("@/lib/agent/modes");
+          const detected = autoDetectMode(userMsgText);
+          enqueue({ type: "mode_detected", mode: detected.mode, reason: detected.reason });
+        } catch { /* best-effort */ }
 
         const collectedToolCalls: ToolCallRecord[] = [];
         let finalText = "";

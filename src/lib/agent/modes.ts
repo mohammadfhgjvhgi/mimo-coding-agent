@@ -178,3 +178,62 @@ export function getModeTools(mode: AgentMode): string[] | "all" {
 export function getModeLabel(mode: AgentMode): string {
   return MODE_CONFIG[mode]?.label || mode
 }
+
+// ============ AUTO MODE DETECTION ============
+// Analyzes the user's message and automatically determines the best mode.
+// 0-LLM — pure deterministic keyword matching.
+// This replaces manual mode selection: the user just types their request,
+// and the system picks the right tools + system prompt automatically.
+
+export function autoDetectMode(message: string): { mode: AgentMode; reason: string } {
+  const text = message.toLowerCase().trim()
+
+  // 1. Debug mode — error fixing
+  if (/\b(خطأ|error|bug|crash|فشل|fail|broken|استثناء|exception|stack trace|debug|صلح|أصلح|اصلح|fix)\b/i.test(text)) {
+    return { mode: "debug", reason: "كلمات: خطأ/فشل/صلح → وضع التصحيح" }
+  }
+
+  // 2. Review mode — code review
+  if (/\b(راجع|مراجعة|review|analyze.*code|تحليل.*كود|quality|جودة|check.*code)\b/i.test(text)) {
+    return { mode: "review", reason: "كلمات: راجع/مراجعة → وضع المراجعة" }
+  }
+
+  // 3. Research mode — web search
+  if (/\b(ابحث|بحث|research|search.*web|search.*online|find.*information|google|دورك|duckduckgo)\b/i.test(text)) {
+    return { mode: "research", reason: "كلمات: ابحث/بحث → وضع البحث" }
+  }
+
+  // 4. Architect mode — design/structure
+  if (/\b(معماري|architecture|design.*system|بنية|هيكل|structure|pattern|design pattern|مكونات|components)\b/i.test(text)) {
+    return { mode: "architect", reason: "كلمات: معماري/بنية/هيكل → وضع المعماري" }
+  }
+
+  // 5. Refactor mode — restructuring
+  if (/\b(refactor|هيكلة|إعادة هيكلة|اعادة هيكلة|نظف|clean.*code|simplify|تبسيط|restructure|reorganize)\b/i.test(text)) {
+    return { mode: "refactor", reason: "كلمات: هيكلة/نظف → وضع إعادة الهيكلة" }
+  }
+
+  // 6. Security mode — vulnerability analysis
+  if (/\b(أمن|security|vulnerab|ثغرة|cve|owasp|injection|xss|sql.*inject|exploit|hack|penetr)\b/i.test(text)) {
+    return { mode: "security", reason: "كلمات: أمن/ثغرة → وضع الأمن" }
+  }
+
+  // 7. Performance mode — optimization
+  if (/\b(أداء|performance|optimi|speed|slow|بطيء|تسريع|memory leak|bottleneck|اختناق|قياس|benchmark)\b/i.test(text)) {
+    return { mode: "performance", reason: "كلمات: أداء/بطيء → وضع الأداء" }
+  }
+
+  // 8. Plan mode — planning only
+  if (/\b(plan|خطط|خطة|تخطيط|plan.*project|design.*plan|how.*should|what.*approach|استراتيجية)\b/i.test(text)) {
+    return { mode: "plan", reason: "كلمات: خطط/خطة → وضع التخطيط" }
+  }
+
+  // 9. Ask mode — questions about code
+  if (/^(ما|ماذا|كيف|لماذا|متى|اين|أين|اشرح|يشرح|what|how|why|when|where|explain|difference|فرق|مقارنة)\b/i.test(text)) {
+    return { mode: "ask", reason: "سؤال مباشر → وضع الأسئلة" }
+  }
+
+  // 10. Default: agent mode — autonomous execution
+  // Triggered by: "انشئ", "اكتب", "عدّل", "نفّذ", "create", "write", "edit", "run", "build", "test"
+  return { mode: "agent", reason: "طلب تنفيذ → وضع الوكيل المستقل" }
+}
