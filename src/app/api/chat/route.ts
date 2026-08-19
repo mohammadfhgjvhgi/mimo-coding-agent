@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
     setGithubToken(settings.githubToken || null);
     setMcpServers(settings.mcpServers || []);
 
-    // Build the agent's message list (no system prompt — the loop adds it)
+    // Build the agent's message list
+    // Chat Intelligence: use ContextAssembler for automatic context selection
     const agentMessages = history
       .filter((m) => m && m.content)
       .slice(-20)
@@ -85,6 +86,14 @@ export async function POST(req: NextRequest) {
         content: m.content,
       }));
     agentMessages.push({ role: "user", content: userMsgText });
+
+    // Auto-summarization: if conversation is long, compress older messages
+    try {
+      const { summarizeConversation } = await import("@/lib/context/summarizer")
+      const { getSettings } = await import("@/lib/llm-provider")
+      const settings = getSettings()
+      await summarizeConversation(conversation.id, settings)
+    } catch { /* best-effort */ }
 
     // Outbound SSE stream
     const encoder = new TextEncoder();
