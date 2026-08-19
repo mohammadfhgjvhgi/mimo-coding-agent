@@ -1538,3 +1538,88 @@ Stage Summary:
 - Version snapshots saved to .file-intel/versions/<fileId>/v<N>.bin (gitignored)
 - Bilingual (Arabic + English), 0 LLM calls (except OCR which uses VLM)
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 47
+Agent: ZAI Code (main)
+Task: Build Voice OS (src/lib/voice/os.ts) — 7 operations: STT, voice input, TTS, voice conversation, push-to-talk, hands-free, voice commands.
+
+Work Log:
+- Added 2 new Prisma models:
+  • VoiceSession — status, conversationId, ttsVoice, ttsSpeed, ttsFormat, asrLanguage, mode, sttCount, ttsCount, totalAudioMs, vadEnabled, silenceThresholdMs, startedAt, endedAt + indexes
+  • VoiceCommand — pattern (unique), displayName, description, action, params (JSON), active, confirmRequired, useCount, lastUsedAt + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/voice/os.ts (~1080 lines) — 7 operations:
+  1. voiceStt(input) — audio base64 OR audioPath → z-ai-web-dev-sdk audio.asr.create → text; updates session stats
+  2. voiceInput(input) — save audio buffer to upload/voice/ + create/find session + optional immediate transcription
+  3. voiceTts(input) — text → z-ai-web-dev-sdk audio.tts.create → WAV/MP3 buffer saved to upload/voice/; updates session stats
+  4. voiceConversation(input) — orchestrator: STT user audio → text → TTS response text → audio; returns both texts + response audio path
+  5. voicePushToTalk({action: start|stop}) — start/end a push_to_talk session
+  6. voiceHandsFree({action, vadEnabled, silenceThresholdMs}) — start/end a hands_free session with VAD config
+  7. voiceCommands — register (regex or literal pattern), list, match (against transcribed text), execute (returns action + params + captures), delete
+- Session management: voiceSessionStart/End/Pause/Resume/List/Get
+- 7 default voice commands seeded by voiceSeedDefaultCommands():
+  - "محادثة جديدة|new chat" → new_chat
+  - "افتح الإعدادات|open settings" → open_settings
+  - "بدّل الوضع إلى engineering|personal" → switch_mode
+  - "أوقف الكلام|stop speaking" → stop_speaking
+  - "امسح الإدخال|clear input" → clear_input
+  - "أرسل الرسالة|send message" → send_message
+  - "اقرأ هذا بصوت|read aloud" → read_aloud
+- Snapshot: voiceSnapshot() — total sessions, active sessions, total commands, STT/TTS counts, recent commands
+- Audio files saved to upload/voice/ (already gitignored via /upload/)
+- ZAI SDK lazy singleton loader (getZai()) — imports z-ai-web-dev-sdk only when needed
+- Types: 15+ exported interfaces/types (VoiceMode, VoiceSessionStatus, VoiceCommandAction, VoiceSessionRecord, VoiceCommandRecord, SttResult, TtsResult, VoiceConversationTurn, VoiceCommandMatch, VoiceResult, etc.)
+- All user-facing strings bilingual (Arabic + English)
+- 0 LLM calls for command matching (deterministic regex); TTS/STT use z-ai SDK skills
+
+- Created 4 API routes:
+  • POST /api/voice/stt — audio base64 → text
+  • POST /api/voice/tts (text → audio file + URL) + GET (?path=... → stream audio)
+  • POST /api/voice/session (start/end/pause/resume) + GET (list)
+  • POST /api/voice/command (register/match/execute/seed) + GET (list) + DELETE
+  • GET /api/voice/snapshot
+
+- Fixed 3 typecheck errors:
+  • ZAI.create() cast through unknown for singleton type
+  • SttInput.audioBase64 made optional (audioPath alternative)
+  • voiceConversation function declaration lost during MultiEdit — re-added
+
+- Hit Prisma client cache issue (db.voiceSession undefined) — fixed by force-killing all next dev processes + regenerating Prisma client + fresh dev server restart.
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • Smoke test (pure logic):
+    - Seed 7 default commands ✅
+    - Register custom command (regex pattern) ✅
+    - List: 8 commands total ✅
+    - Match "محادثة جديدة من فضلك" → new_chat ✅
+    - Match "اعرض الملفات لو سمحت" → switch_tab with captures ✅
+    - Match "أوقف الكلام الآن" → stop_speaking ✅
+    - Match "كلام عشوائي" → correctly no match ✅
+    - Execute matched command (useCount incremented) ✅
+    - Session start + Push-to-talk start/stop ✅
+    - Hands-free start (VAD enabled, threshold 3000ms) + stop ✅
+    - Session list + Snapshot ✅
+  • Smoke test (real API calls):
+    - POST /api/voice/command {action: seed} → 7 commands seeded ✅
+    - GET /api/voice/command → list returned ✅
+    - POST /api/voice/command {action: match, text: "محادثة جديدة"} → match returned ✅
+    - GET /api/voice/snapshot → 8 commands, 3 sessions ✅
+    - POST /api/voice/tts {text: "مرحباً"} → 35KB WAV in 665ms ✅
+    - POST /api/voice/session {} → active session created ✅
+  • Agent Browser: page renders cleanly, 0 errors ✅
+- Committed + pushed to GitHub: 6ca6db6 ✅
+
+Stage Summary:
+- 1 new library file (~1080 lines) + 4 API routes + 2 new Prisma models + db schema synced
+- Voice OS = full voice interaction layer: STT (z-ai ASR) → text → agent → response text → TTS (z-ai TTS) → audio
+- 7 default voice commands (bilingual patterns) seeded for immediate use
+- 3 modes: push_to_talk (manual), hands_free (VAD auto-detect), voice_command (regex match)
+- Real TTS verified end-to-end via API (35KB WAV in 665ms)
+- Audio files saved to upload/voice/ (gitignored)
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (logic + real API), pushed: yes
