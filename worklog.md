@@ -874,3 +874,70 @@ Stage Summary:
 - NOT ported: Citation Verifier (deferred), Code Sandbox (Docker-only)
 - lint: 0, typecheck: 0, server: running
 - Pushed to GitHub: https://github.com/mohammadfhgjvhgi/mimo-coding-agent
+
+---
+Task ID: 39
+Agent: ZAI Code (main)
+Task: Build the comprehensive Verification OS (14 stages) + Self-Repair loop (7 stages) on top of the existing verification/ladder.ts and recovery/manager.ts. Deterministic, 0 LLM calls, bilingual (Arabic + English).
+
+Work Log:
+- Read existing src/lib/verification/ladder.ts (basic 3-stage ladder: syntax/lint/test) and src/lib/recovery/manager.ts (rollback/retry/abort + failure memory + loop detection)
+- Read code-intel/ast-engine.ts exports (isParsable, parseFile, ParseResult{symbols,imports,lineCount})
+- Confirmed prisma SystemState model = {key, value, updatedAt} (no category field)
+
+- Created src/lib/verification/os.ts (~880 lines) — Verification OS:
+  • 14 stages: syntax, ast, lsp_diagnostics, typecheck, lint, unit_tests, integration_tests,
+    regression_tests, targeted_tests, full_test_suite, build, diff_review, security_scan,
+    definition_of_done
+  • 5 profiles: fast (4 stages), standard (7), full (12), pre_commit (6), ci (11)
+  • Stage 1 Syntax: node --check for JS, tsc --noEmit for TS, dir-mode walks
+  • Stage 2 AST: uses code-intel isParsable + parseFile, counts symbols
+  • Stage 3 LSP Diagnostics: 5 deterministic checks (no-explicit-any, no-console, TODO/FIXME, eval, @ts-ignore/@ts-nocheck)
+  • Stage 4 Typecheck: tsc --noEmit, parses TSxxxx errors into Diagnostic[]
+  • Stage 5 Lint: eslint --format json, parses error/warning counts
+  • Stage 6 Unit Tests: discovers *.test.ts/*.spec.ts (excluding integration/regression), runs bun test or vitest
+  • Stage 7 Integration Tests: discovers *.integration.test.ts
+  • Stage 8 Regression Tests: compares against .verification/baseline.json + saveRegressionBaseline()
+  • Stage 9 Targeted Tests: runs a single named test file
+  • Stage 10 Full Test Suite: bun test / vitest run
+  • Stage 11 Build Verification: tsc --noEmit as cheap proxy
+  • Stage 12 Diff Review: parses git diff, flags console.log/secrets/eval/@ts-ignore additions
+  • Stage 13 Security Scan: 6 secret patterns (AWS/OpenAI/GitHub/Slack/generic/private-key) + 4 danger patterns (eval/shell-injection/unvalidated-fs/insecure-http)
+  • Stage 14 Definition of Done: aggregate gate — all required stages must pass
+  • runVerificationOS(ctx) orchestrator: runs profile stages, short-circuits on blocking failures, builds digest
+  • formatVerificationOSResult() for agent/UI
+  • Re-exports * from "./ladder" so callers can use one import surface
+
+- Created src/lib/recovery/self-repair.ts (~800 lines) — Self-Repair loop:
+  • Stage 1 Failure Classification: 9 classes (syntax/type/lint/test/build/security/runtime/dependency/unknown),
+    priority order security > syntax > type > lint > build > test > runtime > unknown
+  • Stage 2 Error Localization: picks highest-severity Diagnostic with file:line, severity-ranked sort
+  • Stage 3 Repair Planning: 9 strategies (fix_syntax/fix_type/fix_lint/fix_test/fix_build/fix_security/
+    install_dependency/revert_and_retry/escalate), each with bilingual instructions + commands + shouldRollback flag
+  • Stage 4 Bounded Retry: RetryPolicy{maxAttempts=3, backoffMs=500, backoffMultiplier=2} with exponential backoff
+  • Stage 5 Regression Protection: takeRegressionSnapshot (sha256 of protected files) + diffRegressionSnapshot
+    to detect repairs that leaked outside protected files
+  • Stage 6 Rollback: rollbackNow() wraps recovery/manager.rollbackToCheckpoint + saveFailureMemory
+  • Stage 7 Checkpoint Restore: saveCheckpoint/restoreCheckpoint/listCheckpoints to .verification/checkpoints/*.json
+  • runSelfRepairLoop(opts): verify → classify → localize → plan → (apply repair) → re-verify, stops on DoD pass
+    or retry exhaustion, optional repair() callback for deterministic side-effecting repairs
+  • persistSelfRepairRun() — saves summary to SystemState{key:"self_repair_last_run"}
+  • formatSelfRepairResult() + repairPlanToPrompt() for agent feed
+
+- Verification:
+  • bun run lint: 0 errors, 0 new warnings (1 pre-existing in files-panel.tsx) ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • dev server: HTTP 200, healthy ✅
+  • Smoke test (bun /tmp/smoke.mjs): synthetic mixed failure (type+test+security) →
+    correctly classified as security_violation (highest priority), localized to critical secret at
+    example.ts:1, planned fix_security + shouldRollback=true, all 5 profiles configured correctly ✅
+  • No existing imports broken (agent-loop.ts uses recovery/manager.handleFailure,
+    tools/registry.ts uses verification/ladder — both still work; os.ts re-exports ladder)
+
+Stage Summary:
+- 2 new files, ~1680 lines of deterministic verification + self-repair code
+- Verification OS: 14 stages, 5 profiles, Definition of Done gate
+- Self-Repair: 7-stage pipeline (classify → localize → plan → retry → protect → rollback → restore)
+- Bilingual (Arabic + English) throughout, 0 LLM calls
+- Integrates with existing ast-engine, recovery/manager, db (SystemState)
+- lint: 0, typecheck: 0, smoke test: passed
