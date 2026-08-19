@@ -42,6 +42,8 @@
     "skills",
     "infrastructure",
     "electron",
-    "testproj"
+    "testproj",
+    "src/components/chat/panels/pending",
+    "skills/imported"
   ]
 }
