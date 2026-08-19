@@ -190,7 +190,7 @@ export function ChatShell() {
     }).catch(() => {})
   }, [settings.provider, settings.ollamaUrl, settings.ollamaModel, settings.zaiThinking, settings.loaded])
 
-  const thinking = settings.provider === "zai" ? settings.zaiThinking : false
+  const thinking = settings.zaiThinking
 
   const loadConversations = React.useCallback(async () => {
     setLoadingConversations(true)
@@ -609,7 +609,7 @@ export function ChatShell() {
               settings.setZaiThinking(v)
               useChatStore.getState().setShowThinking(v)
             }}
-            showThinkingToggle={settings.provider === "zai" || settings.provider === "dual"}
+            showThinkingToggle={true}
             placeholder={
               currentConversationId
                 ? "راسل MiMo X…"
