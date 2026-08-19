@@ -128,14 +128,32 @@ model SystemState {
 }
 
 model KnowledgeChunk {
-  id          String   @id @default(cuid())
-  source      String
-  content     String
-  embedding   String
-  chunkIndex  Int
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  collectionId  String?
+  source        String
+  sourceType    String   @default("text") // text|pdf|docx|md|code|url|note
+  content       String
+  embedding     String
+  chunkIndex    Int
+  tokens        Int      @default(0)
+  metadata      String?
+  createdAt     DateTime @default(now())
 
   @@index([source])
+  @@index([collectionId])
+  @@index([sourceType])
+}
+
+model KnowledgeCollection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  scope       String   @default("personal") // personal|project|shared
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([scope])
 }
 
 model ResearchJob {

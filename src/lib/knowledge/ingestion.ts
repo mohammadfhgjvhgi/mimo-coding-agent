@@ -1,213 +1,211 @@
-// MiMo AI — Knowledge Ingestion
-// Pipeline: source → text → chunks → embeddings → Prisma.
-// Emits `knowledge:ingested` event on success.
+// Knowledge Ingestion — pipeline: file/text/URL → parse → chunk → embed → DB.
+// Also handles: metadata extraction, collection assignment, incremental sync.
 
+import { db } from "@/lib/db"
+import { parseDocument, parseTextContent, detectSourceType } from "./parser"
+import { hashEmbed } from "./search-engine"
+import { readFileSync, readdirSync, statSync } from "node:fs"
+import path from "node:path"
 
+// Ingest a file from the filesystem.
+export async function ingestFile(
+  filePath: string,
+  collectionId?: string
+): Promise<{ source: string; chunks: number; sourceType: string }> {
+  const parsed = parseDocument(filePath)
+  if (!parsed) throw new Error(`Failed to parse: ${filePath}`)
 
-// ============ Internal: embedding ↔ storage ============
+  // Delete existing chunks for this source
+  await db.knowledgeChunk.deleteMany({ where: { source: filePath } })
 
-/**
- * Copy a Float32Array embedding into a fresh Uint8Array view backed by a
- * real ArrayBuffer. Prisma's `Bytes` column type wants `Uint8Array<ArrayBuffer>`,
- * but `embeddingToBuffer` returns `Buffer<ArrayBufferLike>` which TS rejects.
- * Mirrors the workaround in src/lib/memory/store.ts.
- */
-function embeddingToBytes(vec: Float32Array): Uint8Array<ArrayBuffer> {
-  const out = new Uint8Array(vec.byteLength)
-  out.set(new Uint8Array(vec.buffer, vec.byteOffset, vec.byteLength))
-  return out as Uint8Array<ArrayBuffer>
-}
+  // Hash-embed each chunk
+  for (let i = 0; i < parsed.chunks.length; i++) {
+    const chunk = parsed.chunks[i]
+    const embedding = hashEmbed(chunk)
+    const tokens = Math.ceil(chunk.length / 3.5)
 
-// ============ Helpers ============
+    await db.knowledgeChunk.create({
+      data: {
+        collectionId: collectionId || null,
+        source: filePath,
+        sourceType: parsed.metadata.sourceType,
+        content: chunk,
+        embedding: JSON.stringify(Array.from(embedding)),
+        chunkIndex: i,
+        tokens,
+        metadata: JSON.stringify(parsed.metadata),
+      },
+    })
+  }
 
-function toKnowledgeDoc(row: {
-  id: string
-  source: string
-  sourceType: string
-  title: string
-  content: string
-  chunkCount: number
-}): KnowledgeDoc {
   return {
-    id: row.id,
-    source: row.source,
-    sourceType: row.sourceType as 'file' | 'url' | 'manual',
-    title: row.title,
-    content: row.content,
-    chunkCount: row.chunkCount,
+    source: filePath,
+    chunks: parsed.chunks.length,
+    sourceType: parsed.metadata.sourceType,
   }
 }
 
-/** Very small HTML→text stripper. Avoids adding a heavy dep. */
-function stripHtml(html: string): string {
-  return html
-    // Drop scripts/styles entirely
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    // Turn block-level tags into newlines so chunking sees paragraph breaks
-    .replace(/<\/(p|div|section|article|li|h[1-6]|tr|br)>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    // Strip the rest of the tags
-    .replace(/<[^>]+>/g, '')
-    // Decode the few entities we care about
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    // Collapse whitespace
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-// ============ Public API ============
-
-/**
- * Core ingestion entrypoint. Creates the KnowledgeDoc row, chunks the content,
- * embeds each chunk (batched), persists Chunk rows with embeddings, and emits
- * `knowledge:ingested`.
- *
- * Embedding failures are graceful: the chunk is still stored without an
- * embedding so the keyword side of retrieval keeps working.
- */
-export async function ingestDocument(
+// Ingest text content (pasted text, URL content, notes).
+export async function ingestText(
+  text: string,
   source: string,
-  sourceType: 'file' | 'url' | 'manual',
-  title: string,
-  content: string,
-): Promise<KnowledgeDoc> {
-  const trimmed = content.trim()
-  if (!trimmed) {
-    throw new Error(`ingestDocument: empty content for "${title}" (${source})`)
-  }
+  sourceType: string = "text",
+  collectionId?: string
+): Promise<{ source: string; chunks: number }> {
+  const parsed = parseTextContent(text, source, sourceType)
 
-  const doc = await db.knowledgeDoc.create({
-    data: {
-      source,
-      sourceType,
-      title,
-      content: trimmed,
-      chunkCount: 0,
-    },
-  })
+  // Delete existing chunks for this source
+  await db.knowledgeChunk.deleteMany({ where: { source } })
 
-  const chunks = chunkText(trimmed)
-  logger.info('Ingesting document', {
-    docId: doc.id,
-    title,
-    sourceType,
-    chars: trimmed.length,
-    chunks: chunks.length,
-  })
+  for (let i = 0; i < parsed.chunks.length; i++) {
+    const chunk = parsed.chunks[i]
+    const embedding = hashEmbed(chunk)
+    const tokens = Math.ceil(chunk.length / 3.5)
 
-  // Embed all chunks (batched). embedBatch already iterates and tolerates
-  // per-text fallbacks inside the embedder; if a chunk still throws we record
-  // it with no embedding and keep going.
-  let embeddings: Float32Array[] = []
-  try {
-    embeddings = await embedBatch(chunks)
-  } catch (err) {
-    logger.warn('embedBatch failed; chunks will be stored without embeddings', {
-      docId: doc.id,
-      error: String(err),
+    await db.knowledgeChunk.create({
+      data: {
+        collectionId: collectionId || null,
+        source,
+        sourceType,
+        content: chunk,
+        embedding: JSON.stringify(Array.from(embedding)),
+        chunkIndex: i,
+        tokens,
+        metadata: JSON.stringify(parsed.metadata),
+      },
     })
-    embeddings = chunks.map(() => new Float32Array(0))
   }
 
-  // Persist chunks. We do this in one transaction for atomicity.
-  const chunkRows = chunks.map((content, i) => {
-    const emb = embeddings[i]
-    const hasEmb = emb && emb.length > 0
-    return {
-      docId: doc.id,
-      content,
-      embedding: hasEmb ? embeddingToBytes(emb) : null,
-      metadata: JSON.stringify({
-        index: i,
-        charStart: 0, // chunkText doesn't track offsets; cheap placeholder
-        charLen: content.length,
-        hasEmbedding: hasEmb,
-      }),
+  return { source, chunks: parsed.chunks.length }
+}
+
+// Folder sync — recursively ingest all text files in a folder.
+export async function syncFolder(
+  folderPath: string,
+  collectionId?: string
+): Promise<{ files: number; chunks: number; errors: string[] }> {
+  const errors: string[] = []
+  let totalFiles = 0
+  let totalChunks = 0
+
+  async function walk(dir: string) {
+    let entries
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
     }
-  })
 
-  await db.$transaction(async (tx) => {
-    await tx.chunk.createMany({ data: chunkRows })
-    await tx.knowledgeDoc.update({
-      where: { id: doc.id },
-      data: { chunkCount: chunkRows.length },
-    })
-  })
+    for (const entry of entries) {
+      const name = String(entry.name)
+      if (name.startsWith(".") || name === "node_modules" || name === ".git") continue
+      const fullPath = path.join(dir, name)
 
-  const finalDoc = await db.knowledgeDoc.findUnique({ where: { id: doc.id } })
-  if (!finalDoc) {
-    throw new Error(`Ingested doc vanished: ${doc.id}`)
+      if (entry.isDirectory()) {
+        await walk(fullPath)
+      } else {
+        const ext = path.extname(name).toLowerCase()
+        // Only ingest text-based files
+        if ([".txt", ".md", ".js", ".ts", ".tsx", ".jsx", ".py", ".json", ".csv", ".html", ".yaml", ".yml"].includes(ext)) {
+          try {
+            const result = await ingestFile(fullPath, collectionId)
+            totalFiles++
+            totalChunks += result.chunks
+          } catch (e) {
+            errors.push(`${fullPath}: ${e instanceof Error ? e.message : String(e)}`)
+          }
+        }
+      }
+    }
   }
 
-  await emit('knowledge:ingested', {
-    docId: finalDoc.id,
-    title: finalDoc.title,
-    source: finalDoc.source,
-    sourceType: finalDoc.sourceType,
-    chunkCount: finalDoc.chunkCount,
-  })
-
-  logger.info('Document ingested', {
-    docId: finalDoc.id,
-    chunkCount: finalDoc.chunkCount,
-  })
-
-  return toKnowledgeDoc(finalDoc)
+  await walk(folderPath)
+  return { files: totalFiles, chunks: totalChunks, errors }
 }
 
-/**
- * Read a file from disk and ingest it. .txt/.md are read as UTF-8 text
- * directly; any other extension is also read as text (best-effort).
- */
-export async function ingestFile(filePath: string): Promise<KnowledgeDoc> {
-  const abs = path.resolve(filePath)
-  const base = path.basename(abs)
-  const ext = path.extname(abs).toLowerCase()
+// Incremental sync — only ingest files that changed since last sync.
+export async function incrementalSync(
+  folderPath: string,
+  collectionId?: string
+): Promise<{ new: number; updated: number; unchanged: number; errors: string[] }> {
+  const errors: string[] = []
+  let newCount = 0
+  let updatedCount = 0
+  let unchangedCount = 0
 
-  let content: string
-  try {
-    content = await fs.readFile(abs, 'utf-8')
-  } catch (err) {
-    logger.error('Failed to read file for ingestion', { path: abs, error: String(err) })
-    throw err
+  // Get existing sources with their latest chunk timestamps
+  const existing = await db.knowledgeChunk.findMany({
+    where: { source: { startsWith: folderPath } },
+    select: { source: true, createdAt: true },
+    distinct: ["source"],
+  })
+  const existingMap = new Map(existing.map(e => [e.source, e.createdAt]))
+
+  async function walk(dir: string) {
+    let entries
+    try { entries = readdirSync(dir, { withFileTypes: true }) } catch { return }
+
+    for (const entry of entries) {
+      const name = String(entry.name)
+      if (name.startsWith(".") || name === "node_modules" || name === ".git") continue
+      const fullPath = path.join(dir, name)
+
+      if (entry.isDirectory()) {
+        await walk(fullPath)
+      } else {
+        const ext = path.extname(name).toLowerCase()
+        if (![".txt", ".md", ".js", ".ts", ".tsx", ".jsx", ".py", ".json", ".csv", ".html", ".yaml", ".yml"].includes(ext)) continue
+
+        try {
+          const stat = statSync(fullPath)
+          const fileTime = stat.mtime
+          const existingTime = existingMap.get(fullPath)
+
+          if (!existingTime) {
+            // New file
+            await ingestFile(fullPath, collectionId)
+            newCount++
+          } else if (fileTime > existingTime) {
+            // Updated file
+            await ingestFile(fullPath, collectionId)
+            updatedCount++
+          } else {
+            unchangedCount++
+          }
+        } catch (e) {
+          errors.push(`${fullPath}: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+    }
   }
 
-  // Markdown: strip frontmatter for cleaner chunking.
-  if (ext === '.md') {
-    content = content.replace(/^---[\s\S]*?---\n?/, '').trim()
-  }
-
-  return ingestDocument(abs, 'file', base, content)
+  await walk(folderPath)
+  return { new: newCount, updated: updatedCount, unchanged: unchangedCount, errors }
 }
 
-/**
- * Fetch a URL via the Z.ai page_reader function and ingest its text content.
- */
-export async function ingestUrl(url: string): Promise<KnowledgeDoc> {
-  logger.info('Ingesting URL', { url })
-
-  const zai = await ZAI.create()
-  const result = await zai.functions.invoke('page_reader', { url }) as {
-    data?: { title?: string; html?: string; url?: string }
-  }
-
-  const data = result?.data ?? {}
-  const title = data.title?.trim() || url
-  const html = data.html ?? ''
-  const text = stripHtml(html)
-
-  if (!text) {
-    throw new Error(`ingestUrl: page_reader returned no usable text for ${url}`)
-  }
-
-  return ingestDocument(url, 'url', title, text)
+// Delete all chunks for a source.
+export async function deleteSource(source: string): Promise<number> {
+  const result = await db.knowledgeChunk.deleteMany({ where: { source } })
+  return result.count
 }
 
-export default ingestDocument
+// Get knowledge stats.
+export async function getKnowledgeStats() {
+  const [totalChunks, totalSources, totalCollections] = await Promise.all([
+    db.knowledgeChunk.count(),
+    db.knowledgeChunk.groupBy({ by: ["source"], _count: true }),
+    db.knowledgeCollection.count(),
+  ])
+
+  const byType = await db.knowledgeChunk.groupBy({ by: ["sourceType"], _count: true })
+  const typeStats: Record<string, number> = {}
+  for (const t of byType) typeStats[t.sourceType] = t._count
+
+  return {
+    totalChunks,
+    totalSources: totalSources.length,
+    totalCollections,
+    byType: typeStats,
+    sources: totalSources.map(s => ({ source: s.source, chunks: s._count })),
+  }
+}

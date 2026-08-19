@@ -45,6 +45,7 @@ import { useChatStore } from "@/store/chat-store"
 import { ThemeToggle } from "./theme-toggle"
 import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
+import { KnowledgePanel } from "./knowledge-panel"
 import { GoalsPanel } from "./goals-panel"
 import { SymbolsPanel } from "./symbols-panel"
 import { AutomationPanel } from "./automation-panel"
@@ -520,7 +521,7 @@ export function ChatSidebar({
           {/* Personal mode content */}
           {sidebarTab === "memory" ? (
             <div className="flex flex-1 flex-col overflow-hidden">
-              <MemoryPanel refreshSignal={memoryRefreshSignal} />
+              <KnowledgePanel />
             </div>
           ) : sidebarTab === "symbols" ? (
             <div className="flex flex-1 flex-col overflow-hidden">
