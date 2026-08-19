@@ -1125,3 +1125,69 @@ Stage Summary:
 - All 0 LLM calls, all bilingual (Arabic + English), all type-safe
 - Existing ecosystem/github-tool.ts untouched (refactor to wrap new client later)
 - lint: 0, typecheck: 0, dev: running, integration smoke: passed
+
+---
+Task ID: 41
+Agent: ZAI Code (main)
+Task: Build Browser Agent module (src/lib/browser/agent.ts) — 16 operations via Playwright with persistent sessions.
+
+Work Log:
+- Read existing src/lib/ecosystem/browser-tool.ts — only has 2 features (navigate + screenshot), launches a new browser per call (no session persistence). The new module is a proper superset.
+- Checked package.json — playwright@1.62.1 already installed. Chromium binaries needed for v1234.
+
+- Created src/lib/browser/agent.ts (~1100 lines) — Browser Agent:
+  • Session manager: Map<name, BrowserSession> with browser + context + page + console/network buffers
+  • 16 operations:
+    1. browserLaunch(opts) — headless, viewport, UA, locale, timezone, blockedResources, storageState, slowMo
+    2. browserNavigate(url, session, opts) — waitUntil + timeout
+    3. browserInspectPage(session) — title, url, meta, viewport, headings, paragraphs, links, visibleText
+    4. browserInspectDom(selector, session, limit) — query elements + return ElementInfo[]
+    5. browserSelectElement(sel, session) — pick by css/text/role/testid/xpath/xy + return metadata
+    6. browserClick(sel, session, opts) — modifiers + double-click + xy support
+    7. browserType(sel, text, session, opts) — delay + clearFirst
+    8. browserScroll(opts) — by amount / to selector / by BrowserSelector
+    9. browserScreenshot(opts) — viewport / fullPage / by selector
+    10. browserInspectConsole(session, opts) — filter by type + since + limit; browserClearConsole()
+    11. browserInspectNetwork(session, opts) — filter by urlContains/method/resourceType/status/failedOnly; browserClearNetwork()
+    12. browserTestForm(opts) — fill multiple fields + submit + return final state
+    13. browserTestWebApp(steps, session) — multi-step DSL: navigate/click/type/scroll/wait/assert/screenshot
+        with 5 assert types: url/title/text/visible/hidden
+    14. browserNavigateMulti(urls, session, opts) — visit sequence + per-URL status
+    15. browserAuthSession(opts) — login via steps + persist storageState to disk + count cookies/localStorage
+    16. browserProfilesList/Create/Delete — manage .browser-profiles/ directory
+  • Session management: browserSessionsList(), browserSessionClose(), browserCloseAll()
+  • BrowserSelector union: 6 selector kinds (css/text/role/testid/xpath/xy)
+  • BrowserResult<T> discriminated union for clean error handling
+  • All user-facing strings bilingual (Arabic + English)
+  • 0 LLM calls — pure Playwright automation
+  • formatBrowserResult() formatter
+
+- Type definitions: 20+ interfaces exported (LaunchOptions, SessionInfo, ElementInfo, DomQueryResult, ClickResult, TypeResult, ScrollResult, ScreenshotResult, ConsoleEntry, NetworkRequest, FormTestStep/Result, WebAppTestStep/Result, MultiNavResult, AuthSessionResult, BrowserProfile, BrowserResult, BrowserSelector)
+
+- Installed missing chromium-headless-shell v1234 (Playwright's required version was newer than what was cached)
+- Fixed one typecheck error: `let url = null` → `let url: string | null = null` (TypeScript strict null inference)
+
+- Verification:
+  • bun run lint: 0 errors (only pre-existing warning in files-panel.tsx) ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • dev server: HTTP 200, healthy ✅
+  • Smoke test against localhost:3000 (real app):
+    - browserLaunch: ok ✅
+    - browserNavigate: title "MiMo X — مساعد ذكاء اصطناعي محلي" ✅
+    - browserInspectPage: headings + links + visibleText extracted ✅
+    - browserInspectDom("h1"): 1 element found with full metadata (tag, text, attrs, box, visible, path) ✅
+    - browserScreenshot: 104KB PNG saved to upload/browser/smoke-test.png ✅
+    - browserInspectConsole: 2 entries captured ✅
+    - browserInspectNetwork: 39 requests captured with method+status+url ✅
+    - browserSessionsList: showed "test" session active ✅
+    - browserCloseAll: closed 1 session cleanly ✅
+  • Agent Browser self-verification: page renders cleanly, 0 page errors, 0 runtime errors in dev.log ✅
+
+Stage Summary:
+- 1 new file, ~1100 lines of deterministic Playwright automation code
+- 16 operations covering: launch, navigate, inspect (page/DOM/element), click, type, scroll, screenshot, console, network, form test, webapp test (DSL), multi-nav, auth session, profiles
+- Persistent session manager — multiple named sessions with isolated contexts
+- 6 selector kinds (css/text/role/testid/xpath/xy) — flexible element targeting
+- WebApp test DSL supports 7 actions + 5 assert types — fully scriptable end-to-end tests
+- Auth session persists cookies + localStorage to disk for reuse
+- lint: 0, typecheck: 0, dev: running, smoke test: passed, agent-browser: verified
