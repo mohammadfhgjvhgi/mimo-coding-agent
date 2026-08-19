@@ -5,8 +5,11 @@
 
 
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require("fs") as typeof import("fs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { WORKSPACE_ROOT } = require("@/lib/tools/workspace");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require("path") as typeof import("path");
  
  
