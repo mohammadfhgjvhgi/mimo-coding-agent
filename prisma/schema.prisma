@@ -694,3 +694,41 @@ model VisionTemplate {
   @@index([active])
   @@index([type])
 }
+
+// Creative Tools — image generation + editing + diagram/chart generation.
+// Backed by z-ai-web-dev-sdk images.generations + images.edit + images.search.
+model ImageCreation {
+  id          String   @id @default(cuid())
+  // "image_gen" | "image_edit" | "image_search" | "diagram" | "flowchart" | "architecture" | "chart"
+  type        String
+  // The prompt (for gen) or source image path (for edit)
+  prompt      String
+  // Generated image path (in upload/creative/)
+  imagePath   String?
+  // Source image path (for edit operations)
+  sourcePath  String?
+  // "1024x1024" | "512x512" | "256x256" | custom
+  size        String   @default("1024x1024")
+  // Quality: "standard" | "hd"
+  quality     String   @default("standard")
+  // Style: "natural" | "vivid" | "artistic" | "minimal" | ...
+  style       String?
+  // Model used
+  model       String?
+  // Whether the generation succeeded
+  success     Boolean  @default(false)
+  durationMs  Int      @default(0)
+  // JSON: metadata { width, height, mimeType, seed, ... }
+  metadata    String   @default("{}")
+  // JSON: extra params used
+  params      String   @default("{}")
+  // Optional conversation/message link
+  conversationId String?
+  messageId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([success])
+  @@index([createdAt])
+  @@index([conversationId])
+}
