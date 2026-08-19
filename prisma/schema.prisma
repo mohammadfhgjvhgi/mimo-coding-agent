@@ -486,3 +486,97 @@ model ArtifactShare {
   @@index([artifactId])
   @@index([token])
 }
+
+// File Intelligence — file indexing, search, metadata, dedup, versioning.
+// Tracks files in the workspace + uploaded files, with incremental indexing
+// + content hashing for duplicate detection + folder watching.
+model FileIndex {
+  id            String   @id @default(cuid())
+  // Absolute path (for workspace files) or upload id (for uploaded files)
+  path          String   @unique
+  // "workspace" | "upload" | "external"
+  source        String   @default("workspace")
+  // Original filename (basename)
+  filename      String
+  // Extension without dot: "ts", "tsx", "md", "pdf"
+  extension     String   @default("")
+  // MIME type guess: "text/typescript", "application/pdf", "image/png"
+  mimeType      String   @default("")
+  // File size in bytes
+  sizeBytes     Int      @default(0)
+  // SHA-256 hash of content (for dedup + tamper detection)
+  checksum      String?
+  // JSON: extracted metadata { title, author, pages, dimensions, duration, ... }
+  metadata      String   @default("{}")
+  // Extracted text content (for search + indexing). null = not extracted yet.
+  extractedText String?
+  // Whether the file has been OCR'd (for images/PDFs with images)
+  ocrDone       Boolean  @default(false)
+  // Indexing state: "pending" | "indexed" | "error" | "deleted"
+  indexStatus   String   @default("pending")
+  // Last time the file was scanned (for incremental indexing)
+  indexedAt     DateTime?
+  // File modification time (for detecting changes since last index)
+  fileModifiedAt DateTime?
+  // If this file is a duplicate, the original (canonical) file id
+  duplicateOfId String?
+  // Number of versions tracked
+  versionCount  Int      @default(0)
+  // Tags for search/filter
+  tags          String   @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([source])
+  @@index([extension])
+  @@index([mimeType])
+  @@index([indexStatus])
+  @@index([checksum])
+  @@index([duplicateOfId])
+  @@index([filename])
+}
+
+// File Versions — snapshot of a file at a point in time.
+// Created when content changes are detected (different checksum).
+model FileVersion {
+  id          String   @id @default(cuid())
+  fileId      String
+  version     Int
+  checksum    String
+  sizeBytes   Int
+  // Snapshot path (relative to .file-intel/versions/): "<fileId>/v<N>.bin"
+  snapshotPath String?
+  // JSON: edit summary { reason, authorId, trigger }
+  editSummary String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([fileId])
+  @@index([version])
+  @@unique([fileId, version])
+}
+
+// Folder Watchers — watched directories with optional glob patterns.
+// Polling-based (no chokidar dependency) — checks mtime on each scan.
+model FolderWatcher {
+  id          String   @id @default(cuid())
+  // Absolute or workspace-relative path
+  path        String   @unique
+  // Glob patterns to include: ["**/*.ts", "**/*.md"]. Empty = all.
+  includeGlobs String   @default("[]")
+  // Glob patterns to exclude: ["**/node_modules/**", "**/.git/**"]
+  excludeGlobs String   @default("[\"**/node_modules/**\",\"**/.git/**\",\"**/.next/**\"]")
+  // Whether the watcher is active
+  active      Boolean  @default(true)
+  // Polling interval in seconds
+  intervalSec Int      @default(60)
+  // Last scan timestamp
+  lastScanAt  DateTime?
+  // Stats from last scan
+  lastScanAdded    Int  @default(0)
+  lastScanModified Int  @default(0)
+  lastScanDeleted  Int  @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+}
