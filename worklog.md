@@ -1407,3 +1407,70 @@ Stage Summary:
 - Lazy loading (0 in-memory until matched) + SHA-256 tamper detection + memory-based routing improvement
 - Each skill has its own tool allowlist — security-scoped execution
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 45
+Agent: ZAI Code (main)
+Task: Build Artifacts System (src/lib/artifacts/system.ts + 9 API routes + UI preview) — Claude/Open-WebUI-style interactive, editable, versioned artifacts.
+
+Work Log:
+- Read existing /api/artifacts/route.ts (legacy code-block extractor from messages) — preserved for back-compat.
+- Added 3 new Prisma models:
+  • Artifact — slug (unique), title, description, type, content, language, checksum (SHA-256), version, metadata (JSON), conversationId, messageId, authorId, visibility (private|unlisted|public), tags (JSON), forkedFromId, viewCount, forkCount, status, timestamps + 7 indexes
+  • ArtifactVersion — artifactId, version, content, checksum, editSummary (JSON: authorId/reason/editSource), sizeBytes, diff (JSON: additions/deletions/blocks), createdAt + unique constraint on (artifactId, version)
+  • ArtifactShare — artifactId, token (unique), password (SHA-256 hash|null), expiresAt, maxViews, viewCount, allowFork, createdBy, createdAt
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/artifacts/system.ts (~1150 lines) — 8 operations:
+  1. artifactCreate(input) — create + initial version 1
+  2. artifactPreview(idOrSlug, {version?, raw?}) — sanitize HTML (strip scripts/on*/javascript:), validate SVG, wrap markdown/code/react for iframe sandbox
+  3. artifactEdit(id, {content, reason, editSource, title?, description?}) — creates new ArtifactVersion row + computes diff vs previous version + updates current content
+  4. artifactListVersions + artifactGetVersion + artifactRestore — full version history with restore-to-version
+  5. artifactDiff(id, fromV, toV) — LCS-based line diff (Myers-lite) with addition/deletion/context blocks
+  6. artifactExport(id, {format: raw|html|svg|md|json}) — returns filename + mimeType + content + size
+  7. artifactFork(id, {title?, authorId?, visibility?}) — creates new artifact with forkedFromId set + increments parent's forkCount
+  8. artifactShare(input) — creates share link with optional password (SHA-256) + expiry + maxViews + allowFork; artifactGetByShare(token, {password?}) — validates password, checks expiry + view cap, increments view counts
+  Plus: artifactGet, artifactList, artifactArchive, artifactDelete (soft), artifactListShares, artifactRevokeShare, artifactSnapshot, formatArtifactResult
+- 7 content types supported: html, svg, dashboard, diagram, report, code, markdown, react, visualization
+
+- Created 9 API routes:
+  • POST /api/artifacts — create + GET (legacy code-block extraction preserved + new ?mode=list|snapshot)
+  • GET /api/artifacts/[id] — get single
+  • PATCH /api/artifacts/[id] — edit (creates new version) OR archive
+  • DELETE /api/artifacts/[id] — soft delete
+  • GET /api/artifacts/[id]/preview — render-safe HTML
+  • GET /api/artifacts/[id]/versions — list + POST (restore or get_version)
+  • GET /api/artifacts/[id]/diff?from=X&to=Y — diff between two versions
+  • GET /api/artifacts/[id]/export?format=html|svg|md|json|raw — download
+  • POST /api/artifacts/[id]/fork — fork into new artifact
+  • GET/POST/DELETE /api/artifacts/[id]/share — list/create/revoke shares
+  • GET /api/artifacts/share/[token]?password=... — public access
+
+- Created src/components/chat/artifact-preview.tsx (~440 lines) — UI component:
+  • 4 tabs: Preview (iframe sandbox srcDoc) / Code (raw view + inline edit) / History (version list with restore button) / Diff (version picker + colored diff blocks)
+  • Header: type badge (color-coded per type) + title + version + fullscreen button
+  • Action buttons: Edit (inline Textarea), Fork, Share (dialog with password + expiry), Export (HTML)
+  • Fullscreen dialog: 95vw × 90vh iframe
+  • Share dialog: password input + expiry select (1h/1d/1w/1m/never) + generates shareable URL + copies to clipboard
+  • Auto-loads preview on tab switch; lazy-loads versions/diff
+
+- Hit a runtime issue: Prisma client cached old schema (no artifact models) in globalThis — fixed by force-restarting dev server (killed all next dev processes + waited for port 3000 to free + restarted fresh).
+
+- Verification:
+  • bun run lint: 0 errors (1 pre-existing warning in files-panel.tsx) ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • Smoke test (library): all 8 operations work — create HTML + preview sanitized + edit (v2 with diff) + list versions + diff (1 add 1 del, 2 blocks) + export HTML (374 bytes) + export SVG + fork (forkedFromId set) + share with password + correct rejection of no/wrong password + correct acceptance of right password + snapshot ✅
+  • Smoke test (API via curl): all 9 routes respond correctly — POST create 201, PATCH edit creates v2, GET versions returns both, GET diff returns blocks, GET preview returns sanitized HTML, GET export returns text/html 200, POST fork creates new, POST share returns token+expiry, GET snapshot returns totals ✅
+  • Agent Browser self-verification: page renders, 0 errors, 0 console errors ✅
+- Committed + pushed to GitHub: 3aaca45 ✅
+
+Stage Summary:
+- 3 new files (library + UI component + 9 API routes across 8 directories) + 3 new Prisma models + db schema synced
+- Artifacts System = Claude/Open-WebUI-style interactive artifacts: create → preview (sandboxed iframe) → edit (versioned) → diff (LCS) → export → fork → share (password+expiry)
+- 7 content types with type-specific rendering (HTML sanitized, SVG validated, markdown rendered, code displayed)
+- Every edit creates a non-destructive version with diff stored — full history + restore to any version
+- Share links support password (SHA-256), expiry, max views, view count tracking
+- UI: 4-tab component (preview/code/history/diff) + fullscreen + inline edit + share dialog
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
