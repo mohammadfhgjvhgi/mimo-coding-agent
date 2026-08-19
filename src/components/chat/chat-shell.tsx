@@ -605,7 +605,11 @@ export function ChatShell() {
             onStop={stopGeneration}
             isStreaming={isStreaming}
             thinking={thinking}
-            onToggleThinking={(v) => settings.setZaiThinking(v)}
+            onToggleThinking={(v) => {
+              settings.setZaiThinking(v)
+              useChatStore.getState().setShowThinking(v)
+            }}
+            showThinkingToggle={settings.provider === "zai" || settings.provider === "dual"}
             placeholder={
               currentConversationId
                 ? "راسل MiMo X…"

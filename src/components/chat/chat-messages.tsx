@@ -4,6 +4,7 @@ import * as React from "react"
 import { EnhancedMessage } from "./enhanced-message"
 import { ChatEmptyState } from "./chat-empty-state"
 import type { ChatMessage, ToolCallRecord } from "@/types/chat"
+import { useChatStore } from "@/store/chat-store"
 
 interface ChatMessagesProps {
   messages: ChatMessage[]
@@ -33,6 +34,7 @@ export function ChatMessages({
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const bottomRef = React.useRef<HTMLDivElement>(null)
   const [pinned, setPinned] = React.useState(false)
+  const showThinking = useChatStore((s) => s.showThinking)
 
   React.useEffect(() => {
     const el = scrollRef.current
@@ -83,6 +85,7 @@ export function ChatMessages({
                   message={m}
                   isStreaming={isStreamingMsg}
                   streamingToolCalls={isStreamingMsg ? streamingToolCalls : undefined}
+                  showThinking={showThinking}
                   onRegenerate={onRegenerate}
                   onBranch={onBranch}
                   onEdit={onEdit}
