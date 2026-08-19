@@ -252,3 +252,75 @@ model McpAuditLog {
   @@index([status])
   @@index([createdAt])
 }
+
+// Plugins — plug-and-play extension system for MiMo X.
+// Plugins are JS/TS modules loaded at runtime that can register tools,
+// hooks, UI panels, and providers. They are isolated, versioned, and
+// permission-gated — inspired by VS Code extensions.
+model Plugin {
+  id              String   @id @default(cuid())
+  // Unique plugin slug: e.g. "com.mimo.calculator"
+  name            String   @unique
+  // Human-readable display name
+  displayName     String
+  description     String?
+  version         String
+  // Semantic version of the manifest schema (for forward-compat)
+  manifestVersion String   @default("1.0.0")
+  author          String?
+  homepage        String?
+  repository      String?
+  // Filesystem path to the plugin entry (relative to workspace or absolute)
+  entryPath       String
+  // "module" (ESM/CJS import) | "inline" (code in `inlineSource`)
+  entryType       String   @default("module")
+  inlineSource    String?
+  // JSON: manifest as declared by the plugin (capabilities, permissions, hooks, tools)
+  manifest        String   @default("{}")
+  // JSON: capabilities granted: ["tools", "hooks", "ui_panels", "providers", "commands"]
+  capabilities    String   @default("[]")
+  // JSON: permissions granted: ["filesystem:read", "shell:exec", "network:http", "db:rw"]
+  permissions     String   @default("[]")
+  // JSON: settings schema + current values: { schema: {}, values: {} }
+  settings        String   @default("{}")
+  // "registered" | "enabled" | "disabled" | "error" | "uninstalled"
+  status          String   @default("registered")
+  // SHA-256 of the entry file at registration time (for tamper detection)
+  checksum        String?
+  // JSON: isolation policy: { sandbox: boolean, maxHeapMb: number, timeoutMs: number }
+  isolation       String   @default("{}")
+  // JSON: version history: [{ version, installedAt, checksum }]
+  versionHistory  String   @default("[]")
+  // JSON: last activation result: { ok, error?, activatedAt }
+  activation      String   @default("{}")
+  registeredAt    DateTime @default(now())
+  installedAt     DateTime?
+  lastActivatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([name])
+}
+
+// Plugin Logs — every plugin lifecycle event + tool call goes here.
+// Used for debugging, audit, and the plugin dev panel.
+model PluginLog {
+  id         String   @id @default(cuid())
+  pluginName String
+  // "register" | "enable" | "disable" | "activate" | "deactivate"
+  // | "tool_call" | "hook_run" | "settings_change" | "error" | "install"
+  action     String
+  // "info" | "warn" | "error" | "debug"
+  level      String   @default("info")
+  message    String
+  // JSON: structured context (toolName, args, durationMs, etc.)
+  context    String   @default("{}")
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([pluginName])
+  @@index([action])
+  @@index([level])
+  @@index([createdAt])
+}
