@@ -324,3 +324,72 @@ model PluginLog {
   @@index([level])
   @@index([createdAt])
 }
+
+// Skills — reusable, declarative knowledge + capability bundles.
+// Each skill is a system-prompt fragment + tool allowlist + routing rules,
+// loaded lazily when the agent's task matches the skill's triggers.
+// Inspired by Claude Code's "/skills" + Aider's conventions.
+model Skill {
+  id            String   @id @default(cuid())
+  // Unique skill slug: e.g. "nextjs", "python", "plc-automation"
+  name          String   @unique
+  displayName   String
+  description   String
+  // Category for grouping: "web" | "systems" | "automation" | "research"
+  // | "writing" | "vcs" | "security" | "testing" | "debugging" | "general"
+  category      String
+  version       String   @default("1.0.0")
+  // JSON: semantic version requirements: { minCore, maxCore }
+  versionCompat String   @default("{}")
+  // JSON: array of trigger patterns (regex strings) matched against the user's message
+  triggers      String   @default("[]")
+  // JSON: array of tags for fuzzy search: ["react", "ssr", "app-router"]
+  tags          String   @default("[]")
+  // JSON: list of skill names this skill depends on
+  dependencies  String   @default("[]")
+  // The system-prompt fragment injected when the skill is activated
+  promptFragment String
+  // JSON: tool allowlist: ["write_file", "read_file", ...] (null = all tools)
+  toolAllowlist String?
+  // JSON: routing rules: { priority: number, autoActivate: boolean, maxTokens: number }
+  routing       String   @default("{}")
+  // JSON: memory cache: { lastUsedAt, useCount, successRate, lastContext }
+  memory        String   @default("{}")
+  // "active" | "disabled" | "deprecated"
+  status        String   @default("active")
+  // SHA-256 of promptFragment (for tamper detection + cache invalidation)
+  checksum      String?
+  // Lazy-loading: skill is NOT loaded into memory until matched
+  loadedAt      DateTime?
+  lastUsedAt    DateTime?
+  useCount      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([name])
+}
+
+// Skill Executions — every time a skill is activated/used, log it.
+// Used for routing improvement + skill memory (success rate, etc.).
+model SkillExecution {
+  id          String   @id @default(cuid())
+  skillName   String
+  // "activate" | "use" | "deactivate" | "validate" | "fail"
+  action      String
+  // The user message that triggered the skill (truncated 500 chars)
+  trigger     String?
+  // "success" | "error" | "skipped"
+  status      String
+  // JSON: context at activation: { toolsUsed, tokensSaved, durationMs }
+  context     String   @default("{}")
+  durationMs  Int      @default(0)
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([skillName])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}
