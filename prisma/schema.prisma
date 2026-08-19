@@ -110,3 +110,20 @@ model ScheduledTask {
   @@index([enabled])
   @@index([nextRun])
 }
+
+model SystemState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model KnowledgeChunk {
+  id          String   @id @default(cuid())
+  source      String
+  content     String
+  embedding   String
+  chunkIndex  Int
+  createdAt   DateTime @default(now())
+
+  @@index([source])
+}

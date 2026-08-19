@@ -44,6 +44,16 @@
     "electron",
     "testproj",
     "src/components/chat/panels/pending",
-    "skills/imported"
+    "skills/imported",
+    "src/lib/ai/embeddings.ts",
+    "src/lib/autonomy/triggers.ts",
+    "src/lib/knowledge/graph.ts",
+    "src/lib/knowledge/ingestion.ts",
+    "src/lib/knowledge/retrieval.ts",
+    "src/lib/learning/engine.ts",
+    "src/lib/evaluation/suite.ts",
+    "src/lib/security/policy.ts",
+    "src/lib/security/audit.ts",
+    "src/lib/memory/consolidation.ts"
   ]
 }

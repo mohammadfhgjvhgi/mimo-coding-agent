@@ -152,6 +152,12 @@ export async function dispatchTool(
       }
     }
 
+    // STEP 1: Sanitize tool output before returning (Prompt Injection Defense)
+    try {
+      const { sanitizeToolOutput } = await import("@/lib/security/sanitizer")
+      result.result = sanitizeToolOutput(result.result)
+    } catch { /* best-effort */ }
+
     return result
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
