@@ -48,6 +48,7 @@ import { MemoryPanel } from "./memory-panel"
 import { GoalsPanel } from "./goals-panel"
 import { SymbolsPanel } from "./symbols-panel"
 import { AutomationPanel } from "./automation-panel"
+import { ResearchPanel } from "./research-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -508,12 +509,22 @@ export function ChatSidebar({
             >
               <Calendar className="h-3.5 w-3.5" /> أتمتة
             </button>
+            <button
+              onClick={() => setSidebarTab("symbols" as never)}
+              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            >
+              <FolderTree className="h-3.5 w-3.5" /> بحث
+            </button>
           </div>
 
           {/* Personal mode content */}
           {sidebarTab === "memory" ? (
             <div className="flex flex-1 flex-col overflow-hidden">
               <MemoryPanel refreshSignal={memoryRefreshSignal} />
+            </div>
+          ) : sidebarTab === "symbols" ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <ResearchPanel />
             </div>
           ) : (
             <div className="flex flex-1 flex-col overflow-hidden">

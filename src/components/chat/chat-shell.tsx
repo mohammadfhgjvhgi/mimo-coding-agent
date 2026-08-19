@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { toast } from "sonner"
 import { useChatStore } from "@/store/chat-store"
 import { useSettingsStore } from "@/store/settings-store"
 import { ChatSidebar } from "./chat-sidebar"
@@ -557,6 +558,38 @@ export function ChatShell() {
             conversationId={currentConversationId}
             onPickSuggestion={(p) => sendMessage(p)}
             onRegenerate={regenerate}
+            onBranch={async (messageId: string) => {
+              if (!currentConversationId) return
+              try {
+                const res = await fetch(`/api/conversations/${currentConversationId}/branch`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ fromMessageId: messageId }),
+                })
+                const data = await res.json()
+                if (data.conversation) {
+                  toast.success(`تم إنشاء فرع (${data.copiedMessages} رسالة)`)
+                  loadConversations()
+                  setCurrentConversationId(data.conversation.id)
+                }
+              } catch { toast.error("فشل التفريع") }
+            }}
+            onEdit={async (messageId: string, newContent: string) => {
+              try {
+                await fetch(`/api/messages/${messageId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: newContent }),
+                })
+                // Reload messages
+                if (currentConversationId) {
+                  const res = await fetch(`/api/conversations/${currentConversationId}`)
+                  const data = await res.json()
+                  setMessages((data.conversation.messages || []) as ChatMessage[])
+                }
+                toast.success("تم التعديل")
+              } catch { toast.error("فشل التعديل") }
+            }}
           />
 
           {streamingError && (

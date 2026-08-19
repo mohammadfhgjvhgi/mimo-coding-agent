@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChatMessageItem } from "./chat-message"
+import { EnhancedMessage } from "./enhanced-message"
 import { ChatEmptyState } from "./chat-empty-state"
 import type { ChatMessage, ToolCallRecord } from "@/types/chat"
 
@@ -14,6 +14,8 @@ interface ChatMessagesProps {
   conversationId: string | null
   onPickSuggestion: (prompt: string) => void
   onRegenerate?: () => void
+  onBranch?: (messageId: string) => void
+  onEdit?: (messageId: string, newContent: string) => void
 }
 
 export function ChatMessages({
@@ -25,6 +27,8 @@ export function ChatMessages({
   conversationId,
   onPickSuggestion,
   onRegenerate,
+  onBranch,
+  onEdit,
 }: ChatMessagesProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const bottomRef = React.useRef<HTMLDivElement>(null)
@@ -74,12 +78,14 @@ export function ChatMessages({
               const isLast = i === visible.length - 1
               const isStreamingMsg = isStreaming && isLast && m.id === "streaming"
               return (
-                <ChatMessageItem
+                <EnhancedMessage
                   key={m.id}
                   message={m}
                   isStreaming={isStreamingMsg}
                   streamingToolCalls={isStreamingMsg ? streamingToolCalls : undefined}
                   onRegenerate={onRegenerate}
+                  onBranch={onBranch}
+                  onEdit={onEdit}
                 />
               )
             })}
