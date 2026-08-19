@@ -580,3 +580,61 @@ model FolderWatcher {
 
   @@index([active])
 }
+
+// Voice OS — speech-to-text, text-to-speech, voice conversations.
+// Backed by z-ai-web-dev-sdk ASR + TTS skills.
+model VoiceSession {
+  id          String   @id @default(cuid())
+  // "active" | "ended" | "paused"
+  status      String   @default("active")
+  // Linked conversation if part of a chat session
+  conversationId String?
+  // TTS settings
+  ttsVoice    String   @default("alloy")
+  ttsSpeed    Float    @default(1.0)
+  ttsFormat   String   @default("mp3")
+  // ASR settings
+  asrLanguage String   @default("ar")
+  // "push_to_talk" | "hands_free" | "voice_command"
+  mode        String   @default("push_to_talk")
+  // Stats
+  sttCount    Int      @default(0)
+  ttsCount    Int      @default(0)
+  totalAudioMs Int     @default(0)
+  // VAD (voice activity detection) settings
+  vadEnabled  Boolean  @default(true)
+  silenceThresholdMs Int @default(2000)
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([conversationId])
+}
+
+// Voice Commands — registered slash-command-style voice triggers.
+// e.g. "ابدأ محادثة جديدة" → new conversation, "افتح الإعدادات" → settings.
+model VoiceCommand {
+  id          String   @id @default(cuid())
+  // Pattern (regex or literal) matched against transcribed text
+  pattern     String   @unique
+  // Arabic + English display name
+  displayName String
+  description String?
+  // Action type: "new_chat" | "open_settings" | "switch_mode" | "custom"
+  action      String
+  // JSON: action params
+  params      String   @default("{}")
+  // Whether the command is active
+  active      Boolean  @default(true)
+  // Optional confirmation required before running
+  confirmRequired Boolean @default(false)
+  useCount    Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([action])
+}
