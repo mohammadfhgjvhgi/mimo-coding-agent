@@ -2,10 +2,15 @@
 // Skills are JSON files that contain expert instructions for specific domains.
 // When the agent works on a task, relevant skills are detected and injected.
 
-import fs from "node:fs"
-import path from "node:path"
-import yaml from "js-yaml"
-import { WORKSPACE_ROOT } from "@/lib/tools/workspace"
+
+
+
+const fs = require("fs") as typeof import("fs");
+const { WORKSPACE_ROOT } = require("@/lib/tools/workspace");
+const path = require("path") as typeof import("path");
+ 
+ 
+
 
 export interface Skill {
   name: string
@@ -170,7 +175,7 @@ function parseSkillMd(raw: string): { frontmatter: SkillFrontmatter; body: strin
   }
   let fm: SkillFrontmatter = {}
   try {
-    const parsed = yaml.load(match[1])
+    const parsed = JSON.parse(match[1])
     if (parsed && typeof parsed === "object") {
       fm = parsed as SkillFrontmatter
     }
