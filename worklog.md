@@ -1689,3 +1689,62 @@ Stage Summary:
 - 7 content types: image, screenshot, pdf, ui, diagram, chart, screenshot_fix — each with type-specific system prompts
 - All analyses persisted for audit + reuse
 - lint: 0, typecheck: 0, db: synced, dev: running, real VLM test: passed, pushed: yes
+
+---
+Task ID: 49
+Agent: ZAI Code (main)
+Task: Build Creative Tools (src/lib/creative/os.ts) — 6 operations: image generation, image editing, diagram/flowchart/architecture generation, chart generation.
+
+Work Log:
+- Added 1 new Prisma model: ImageCreation — type, prompt, imagePath, sourcePath, size, quality, style, model, success, durationMs, metadata (JSON), params (JSON), conversationId, messageId + 4 indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/creative/os.ts (~900 lines) — 6 operations:
+  1. imageGenerate({prompt, size, conversationId}) — z-ai-web-dev-sdk images.generations.create → PNG file saved to upload/creative/
+  2. imageEdit({base64|path, prompt, size, conversationId}) — z-ai images.generations.edit → edited PNG
+  3. diagramGenerate({description, context}) — VLM (glm-4.5v) → SVG diagram (general-purpose)
+  4. flowchartGenerate({description, context}) — VLM → SVG flowchart (ovals/rectangles/diamonds/arrows)
+  5. architectureDiagramGenerate({description, context}) — VLM → SVG architecture diagram (components/layers/data flow)
+  6. chartGenerate({type, title, dataPoints, xLabel, yLabel, width, height, colors}) — DETERMINISTIC SVG chart (no VLM):
+     - bar: bars with value labels + gridlines + axes
+     - line: polyline with dots + gridlines
+     - pie: slices with percentages + legend
+     - area: polygon with gradient fill + axes
+  Plus: creativeList, creativeGet, creativeSnapshot, formatCreativeResult
+  ZAI SDK singleton with images.generations.create/edit + chat.completions.createVision (for SVG generation)
+  VLM-generated SVG: strips markdown fences, extracts <svg>...</svg> portion
+  Chart generation: pure deterministic SVG with professional styling (Tailwind-like colors, gridlines, labels, legend)
+  XML escaping for chart labels
+  Images saved to upload/creative/ (gitignored via /upload/)
+
+- Created 3 API routes:
+  • POST /api/creative (actions: image_generate/image_edit/diagram/flowchart/architecture/chart) + GET (list)
+  • GET /api/creative/[id] — get single creation
+  • GET /api/creative/snapshot — system snapshot
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • REAL smoke test (all 6 operations):
+    - bar chart: ✅ (4 data points, title in Arabic + English, xLabel + yLabel)
+    - pie chart: ✅ (4 slices with percentages + legend)
+    - line chart: ✅ (5 points with dots + gridlines)
+    - area chart: ✅ (gradient fill + axes)
+    - imageGenerate "modern minimalist logo for MiMo X": ✅ PNG generated, saved to upload/creative/
+    - diagramGenerate "client-server architecture with auth/users/orders microservices": ✅ SVG generated via VLM
+    - All persisted to DB (snapshot showed 6 creations: 4 charts + 1 image_gen + 1 diagram, all successful)
+  • Agent Browser: 0 page errors ✅
+- Committed + pushed to GitHub: 2b49067 ✅
+
+Stage Summary:
+- 1 new library file (~900 lines) + 3 API routes + 1 new Prisma model + db schema synced
+- Creative Tools = full visual content generation: text→image (z-ai), image→edited image (z-ai),
+  text→diagram/flowchart/architecture (VLM-generated SVG), data→chart (deterministic SVG)
+- 4 chart types (bar/line/pie/area) with professional styling, gridlines, labels, legend — all deterministic
+- 3 diagram types via VLM: general diagram, flowchart (standard shapes), architecture (components + layers)
+- Real image generation verified (logo prompt → PNG)
+- All creations persisted for audit + reuse
+- Bilingual (Arabic + English) throughout, 0 LLM calls for charts (deterministic), VLM for diagrams
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
