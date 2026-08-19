@@ -638,3 +638,59 @@ model VoiceCommand {
   @@index([active])
   @@index([action])
 }
+
+// Vision OS — image + screenshot + PDF analysis via VLM.
+// Tracks every analysis for audit + reuse. The crown jewel is the
+// screenshot→fix workflow: take screenshot → analyze → identify problem
+// → suggest code fix.
+model VisionAnalysis {
+  id          String   @id @default(cuid())
+  // "image" | "screenshot" | "pdf" | "ui" | "diagram" | "chart" | "screenshot_fix"
+  type        String
+  // Source: file path OR base64 (for uploaded)
+  sourcePath  String?
+  sourceBase64 String?
+  // The prompt sent to the VLM
+  prompt      String
+  // The VLM's response (analysis text)
+  response    String   @default("")
+  // Model used (e.g. "glm-4.5v")
+  model       String?
+  // Stats
+  durationMs  Int      @default(0)
+  tokensUsed Int      @default(0)
+  // JSON: structured result { problems?, suggestedFix?, codeFile?, codeChanges? }
+  structured  String   @default("{}")
+  // JSON: metadata { width, height, pages, mimeType }
+  metadata    String   @default("{}")
+  // Optional conversation/message link
+  conversationId String?
+  messageId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([conversationId])
+}
+
+// Vision Templates — saved prompts for common analyses.
+// e.g. "UI accessibility audit", "chart data extraction", "diagram to code"
+model VisionTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  // "image" | "screenshot" | "pdf" | "ui" | "diagram" | "chart" | "screenshot_fix"
+  type        String
+  // The user prompt template (with {{placeholders}})
+  promptTemplate String
+  // Optional system prompt
+  systemPrompt String?
+  active      Boolean  @default(true)
+  useCount    Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([type])
+}
