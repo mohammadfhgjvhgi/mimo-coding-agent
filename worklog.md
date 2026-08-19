@@ -1474,3 +1474,67 @@ Stage Summary:
 - Share links support password (SHA-256), expiry, max views, view count tracking
 - UI: 4-tab component (preview/code/history/diff) + fullscreen + inline edit + share dialog
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 46
+Agent: ZAI Code (main)
+Task: Build File Intelligence System (src/lib/file-intel/system.ts) — 11 operations for file indexing, search, metadata, dedup, versioning.
+
+Work Log:
+- Added 3 new Prisma models:
+  • FileIndex — path (unique), source, filename, extension, mimeType, sizeBytes, checksum (SHA-256), metadata (JSON), extractedText, ocrDone, indexStatus, indexedAt, fileModifiedAt, duplicateOfId, versionCount, tags + 7 indexes
+  • FileVersion — fileId, version, checksum, sizeBytes, snapshotPath, editSummary, createdAt + unique on (fileId, version)
+  • FolderWatcher — path (unique), includeGlobs, excludeGlobs, active, intervalSec, lastScanAt/Added/Modified/Deleted, timestamps
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/file-intel/system.ts (~1450 lines) — 11 operations:
+  1. fileUpload(input) — save buffer to upload/ + compute SHA-256 + create FileIndex + extract immediately + auto-mark duplicates
+  2. filePreview(idOrPath, {maxBytes, asBase64}) — text (utf8) | image (base64) | binary with truncation
+  3. fileExtract(idOrPath) — text files (direct) | PDF (heuristic Tj operator extraction) | OOXML docx/pptx/xlsx (heuristic w:t/a:t/t extraction) | CSV/TSV (direct) | images (mark for OCR)
+  4. fileOcr(idOrPath) — image → base64 → z-ai-web-dev-sdk VLM chat → extracted text; saves as extractedText with [OCR] marker
+  5. fileParse(idOrPath) — markdown parsing: headings (h1-h6), sections (per heading), links ([text](href)), code blocks (```lang), word count
+  6. fileSearch(query, {extensions, limit, snippetChars}) — full-text over extractedText; returns ranked hits with snippet + matched line + score (occurrences × 10)
+  7. folderWatcherAdd({path, includeGlobs, excludeGlobs, intervalSec}) + folderWatcherList + folderWatcherRemove
+  8. folderWatcherScan(watcherId) — walks dir respecting globs; detects added (new file) / modified (mtime changed + checksum differs → creates version) / deleted (mark as deleted); folderWatcherScanAll() for all active watchers
+  9. fileDedup({mark}) — groups files by SHA-256 checksum; marks duplicates with duplicateOfId; returns wastedBytes per group
+  10. fileGetMetadata + fileSetMetadata({metadata?, tags?, addTags?, removeTags?}) — merge metadata + set/add/remove tags
+  11. fileCreateVersion(id, {reason, authorId, trigger}) — snapshots to .file-intel/versions/<fileId>/v<N>.bin; fileListVersions + fileRestoreVersion (creates pre-restore version first, then copies snapshot back)
+  Plus: fileList, fileGet, fileDelete (soft + optional disk), fileSnapshot, formatFileResult
+- Glob matching: minimal implementation (supports ** and *) with regex conversion
+- File extension maps: TEXT_EXTENSIONS (30+ types), IMAGE_EXTENSIONS (8), DOC_EXTENSIONS (7)
+- MIME map: 30+ types
+- OCR uses z-ai-web-dev-sdk VLM skill (chat.completions with image_url content type)
+
+- Fixed 1 typecheck error: VLM SDK message content type doesn't match strict TS — used `as never` casts on the call site
+- Added .file-intel/ to .gitignore (version snapshots shouldn't be committed)
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • Smoke test:
+    - Upload markdown: created FileIndex with checksum + extracted 90 chars via "direct" ✅
+    - Preview: type=text, len=90 ✅
+    - Extract: 90 chars via "direct" ✅
+    - Parse: title="Test", 2 headings (h1+h2 with line numbers), 1 link, wordCount=12 ✅
+    - Search "hello": 1 hit, score=10, matchedLine=3 ✅
+    - Folder Watcher Add on src/lib: registered with include="**/*.ts" ✅
+    - Folder Watcher Scan: Added=100 files, Modified=0, Deleted=0, Unchanged=0, 399ms, 0 errors ✅
+    - Dedup: 1 group, 1 duplicate (uploaded identical content) ✅
+    - Metadata: set author + addTags=["favorite"], tags=["test","demo","favorite"] ✅
+    - Versioning: v1 + v2 created with different checksums; restore to v1 succeeded; content reverted to "# v1\nOriginal content" ✅
+  • Agent Browser: page renders cleanly, 0 page errors, 0 console errors ✅
+- Committed + pushed to GitHub: 1a57f8a ✅
+
+Stage Summary:
+- 1 new library file (~1450 lines) + 3 new Prisma models + db schema synced
+- File Intelligence = complete file management: upload → preview → extract text → OCR images
+  → parse structure → search full-text → watch folders → dedup → metadata → version + restore
+- Incremental indexing only re-hashes files whose mtime changed (fast scans)
+- SHA-256 checksums enable dedup + tamper detection
+- OCR via z-ai-web-dev-sdk VLM skill (no external OCR dependency)
+- Folder watching is polling-based (no chokidar dependency) with glob include/exclude
+- Version snapshots saved to .file-intel/versions/<fileId>/v<N>.bin (gitignored)
+- Bilingual (Arabic + English), 0 LLM calls (except OCR which uses VLM)
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
