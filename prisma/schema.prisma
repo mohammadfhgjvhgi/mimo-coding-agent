@@ -137,3 +137,22 @@ model KnowledgeChunk {
 
   @@index([source])
 }
+
+model ResearchJob {
+  id           String   @id @default(cuid())
+  query        String
+  status       String   @default("pending")
+  depth        String   @default("standard")
+  plan         String?
+  sources      String   @default("[]")
+  findings     String   @default("[]")
+  claims       String   @default("[]")
+  report       String?
+  citations    String?
+  tokenUsage   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
