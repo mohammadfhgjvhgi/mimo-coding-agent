@@ -393,3 +393,96 @@ model SkillExecution {
   @@index([status])
   @@index([createdAt])
 }
+
+// Artifacts — Claude/Open-WebUI-style interactive, editable, versioned artifacts.
+// Each artifact is a piece of generated content (HTML/SVG/dashboard/diagram/report/code/viz)
+// attached to a conversation message, with full version history + diff + fork + share.
+model Artifact {
+  id            String   @id @default(cuid())
+  // Stable slug for URLs + sharing: e.g. "abc123xy"
+  slug          String   @unique @default(cuid())
+  title         String
+  description   String?
+  // "html" | "svg" | "dashboard" | "diagram" | "report" | "code" | "visualization" | "react" | "markdown"
+  type          String
+  // The current content (latest version's content is mirrored here for fast reads)
+  content       String
+  // Language for syntax highlighting (for code type): "typescript" | "python" | ...
+  language      String?
+  // SHA-256 of the current content (for tamper detection + cache invalidation)
+  checksum      String?
+  // Current version number (starts at 1, increments on each edit)
+  version       Int      @default(1)
+  // JSON: metadata { width, height, theme, dependencies[], standalone }
+  metadata      String   @default("{}")
+  // Conversation/message this artifact is attached to (nullable for orphan/shared artifacts)
+  conversationId String?
+  messageId     String?
+  // Author + visibility
+  authorId      String?
+  // "private" | "unlisted" | "public"
+  visibility    String   @default("private")
+  // Tags for search/filter
+  tags          String   @default("[]")
+  // If this artifact was forked from another, the parent id
+  forkedFromId  String?
+  // Stats
+  viewCount     Int      @default(0)
+  forkCount     Int      @default(0)
+  // Status: "active" | "archived" | "deleted"
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([type])
+  @@index([visibility])
+  @@index([status])
+  @@index([forkedFromId])
+  @@index([createdAt])
+}
+
+// Artifact Versions — every save creates a new version with full content snapshot.
+// Enables diff between versions + restore to any previous version.
+model ArtifactVersion {
+  id          String   @id @default(cuid())
+  artifactId  String
+  version     Int
+  content     String
+  checksum    String?
+  // JSON: edit summary { authorId, reason, editSource }
+  editSummary String   @default("{}")
+  // Size in bytes (for stats)
+  sizeBytes   Int      @default(0)
+  // Diff against previous version: JSON { additions, deletions, blocks }
+  diff        String?
+  createdAt   DateTime @default(now())
+
+  @@index([artifactId])
+  @@index([version])
+  @@unique([artifactId, version])
+}
+
+// Artifact Shares — short-lived or permanent share links with optional password + expiry.
+model ArtifactShare {
+  id          String   @id @default(cuid())
+  artifactId  String
+  // The share token in the URL: e.g. "s_abc123"
+  token       String   @unique @default(cuid())
+  // Optional password (bcrypt hash). null = no password.
+  password    String?
+  // Optional expiry. null = never expires.
+  expiresAt   DateTime?
+  // Max views allowed. 0 = unlimited.
+  maxViews    Int      @default(0)
+  viewCount   Int      @default(0)
+  // Whether to allow viewer to fork (else view-only)
+  allowFork   Boolean  @default(true)
+  // Who created this share link
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([artifactId])
+  @@index([token])
+}
