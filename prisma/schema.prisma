@@ -174,3 +174,81 @@ model ResearchJob {
   @@index([status])
   @@index([createdAt])
 }
+
+// MCP OS — Model Context Protocol servers (plug-and-play integration layer).
+// Stores discovered tools, capability scopes, permissions, secrets, health, rate limits.
+model McpServer {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  // url | stdio | sse
+  transport     String   @default("url")
+  // For url/sse: the endpoint URL. For stdio: the command.
+  endpoint      String
+  // JSON: { args?: string[], env?: Record<string,string>, headers?: Record<string,string> }
+  config        String   @default("{}")
+  // "discovered" | "installed" | "enabled" | "disabled" | "error"
+  status        String   @default("discovered")
+  // JSON: array of discovered tools: [{ name, description, inputSchema }]
+  tools         String   @default("[]")
+  // JSON: capability scopes granted: ["read", "write", "network", "shell"]
+  scopes        String   @default("[]")
+  // JSON: per-tool permission overrides: { toolName: "allow"|"deny"|"ask" }
+  permissions   String   @default("{}")
+  // JSON: rate-limit policy: { rpm: number, burst: number, lastWindowStart: string, count: number }
+  rateLimit     String   @default("{}")
+  // Health-check metadata: { lastCheckAt, ok, latencyMs, error? }
+  health        String   @default("{}")
+  // Reference to secrets (stored separately, never inline): { apiKey: "secret:uuid" }
+  secretRefs    String   @default("{}")
+  description   String?
+  version       String?
+  installedAt   DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+// MCP OS — secrets storage. Values are encrypted at the application layer
+// using a simple AES-256-GCM cipher with a key derived from MCP_SECRET_KEY env
+// (or a per-workspace fallback key).
+model McpSecret {
+  id        String   @id @default(cuid())
+  // Logical name within a server's config: e.g. "apiKey", "dbPassword"
+  name      String
+  // Cipher text + IV + tag, JSON: { iv, tag, ciphertext }
+  value     String
+  serverId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serverId])
+  @@index([name])
+}
+
+// MCP OS — audit log of every tool call (success + failure + permission denial).
+// Used for observability, compliance, and post-mortem analysis.
+model McpAuditLog {
+  id         String   @id @default(cuid())
+  serverName String
+  toolName   String
+  // "call" | "permission_denied" | "rate_limited" | "discovery" | "health" | "install"
+  action     String
+  // "success" | "error" | "denied" | "skipped"
+  status     String
+  // Truncated arguments JSON (first 2000 chars)
+  args       String   @default("{}")
+  // Truncated result JSON (first 2000 chars)
+  result     String?
+  durationMs Int      @default(0)
+  // caller: "agent" | "user" | "system"
+  caller     String   @default("agent")
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([serverName])
+  @@index([toolName])
+  @@index([status])
+  @@index([createdAt])
+}
