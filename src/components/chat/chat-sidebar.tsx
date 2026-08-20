@@ -18,6 +18,7 @@ import {
   Calendar,
   MessageCircle,
   BookOpen,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,6 +48,7 @@ import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
 import { KnowledgePanel } from "./knowledge-panel"
 import { GoalsPanel } from "./goals-panel"
+import { SmartToolsPanel } from "./smart-tools-panel"
 import { SymbolsPanel } from "./symbols-panel"
 import { AutomationPanel } from "./automation-panel"
 import { ResearchPanel } from "./research-panel"
@@ -415,7 +417,7 @@ export function ChatSidebar({
 
       {/* Engineering tabs */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-1 grid grid-cols-5 rounded-lg bg-muted/60 p-0.5 text-xs">
+      <div className="mx-3 mb-1 grid grid-cols-6 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
           className={cn(
@@ -471,17 +473,29 @@ export function ChatSidebar({
         >
           <Target className="h-3.5 w-3.5" />
         </button>
+        <button
+          onClick={() => setSidebarTab("smart_tools")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "smart_tools"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </button>
       </div>
       )}
 
       {/* Tab labels */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-2 grid grid-cols-5 text-[0.55rem] text-muted-foreground">
+      <div className="mx-3 mb-2 grid grid-cols-6 text-[0.55rem] text-muted-foreground">
         <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
         <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
         <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>الرموز</span>
         <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
         <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
+        <span className={cn("text-center", sidebarTab !== "smart_tools" && "opacity-50")}>أدوات</span>
       </div>
       )}
 
@@ -567,6 +581,10 @@ export function ChatSidebar({
       ) : sidebarTab === "memory" ? (
         <div className="flex flex-1 flex-col overflow-hidden">
           <MemoryPanel refreshSignal={memoryRefreshSignal} />
+        </div>
+      ) : sidebarTab === "smart_tools" ? (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <SmartToolsPanel />
         </div>
       ) : (
         <div className="flex flex-1 flex-col overflow-hidden">
