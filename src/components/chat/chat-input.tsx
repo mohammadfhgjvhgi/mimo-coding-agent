@@ -176,7 +176,7 @@ export function ChatInput({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-3 pb-3 sm:px-4">
-      <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm transition focus-within:border-primary/40 focus-within:shadow-md">
+      <div className="group relative flex items-end gap-1 rounded-2xl border border-border/70 bg-card/80 p-1.5 shadow-sm backdrop-blur-md transition-all duration-200 focus-within:border-primary/40 focus-within:shadow-md focus-within:ring-2 focus-within:ring-primary/20 elevate-1">
         <input
           ref={fileInputRef}
           type="file"
@@ -200,7 +200,7 @@ export function ChatInput({
                 size="icon"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground"
+                className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-accent/60 hover:text-foreground"
                 aria-label="رفع ملف"
               >
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
@@ -219,7 +219,7 @@ export function ChatInput({
                 variant="ghost"
                 size="icon"
                 onClick={() => imageInputRef.current?.click()}
-                className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground"
+                className="h-9 w-9 shrink-0 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-accent/60 hover:text-foreground"
                 aria-label="رفع صورة"
               >
                 <ImagePlus className="h-4 w-4" />
@@ -240,8 +240,8 @@ export function ChatInput({
                 onClick={toggleRecording}
                 disabled={transcribing}
                 className={cn(
-                  "h-9 w-9 shrink-0 rounded-xl",
-                  recording ? "text-red-500 bg-red-500/10 animate-pulse" : "text-muted-foreground"
+                  "h-9 w-9 shrink-0 rounded-xl transition-all duration-200 hover:bg-accent/60 hover:text-foreground",
+                  recording ? "text-red-500 bg-red-500/10 hover:bg-red-500/15 animate-pulse" : "text-muted-foreground"
                 )}
                 aria-label="تسجيل صوتي"
               >
@@ -262,7 +262,7 @@ export function ChatInput({
           placeholder={placeholder || "أرسل رسالة…"}
           rows={1}
           disabled={disabled}
-          className="min-h-[40px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-[0.95rem] shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+          className="min-h-[40px] flex-1 resize-none border-0 bg-transparent px-2 py-2 text-[0.95rem] shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
         />
 
         {showThinkingToggle && (
@@ -275,10 +275,10 @@ export function ChatInput({
                 size="icon"
                 onClick={() => onToggleThinking(!thinking)}
                 className={cn(
-                  "h-9 w-9 shrink-0 rounded-xl",
+                  "h-9 w-9 shrink-0 rounded-xl transition-all duration-200 hover:bg-accent/60",
                   thinking
-                    ? "text-amber-500 hover:text-amber-600"
-                    : "text-muted-foreground"
+                    ? "text-amber-500 hover:text-amber-600 bg-amber-500/10"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
                 aria-label="تفعيل التفكير"
               >
@@ -297,7 +297,7 @@ export function ChatInput({
             type="button"
             size="icon"
             onClick={onStop}
-            className="h-9 w-9 shrink-0 rounded-xl"
+            className="h-9 w-9 shrink-0 rounded-xl bg-destructive text-destructive-foreground shadow-sm transition-all hover:bg-destructive/90 elevate-1"
             aria-label="إيقاف التوليد"
           >
             <Square className="h-3.5 w-3.5 fill-current" />
@@ -308,20 +308,20 @@ export function ChatInput({
             size="icon"
             onClick={submit}
             disabled={!value.trim() || disabled}
-            className="h-9 w-9 shrink-0 rounded-xl"
+            className="group/send h-9 w-9 shrink-0 rounded-xl gradient-primary text-white shadow-md transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-md elevate-1"
             aria-label="إرسال الرسالة"
           >
-            <ArrowUp className="h-4 w-4" />
+            <ArrowUp className="h-4 w-4 transition-transform duration-200 group-hover/send:translate-y-[-1px]" />
           </Button>
         )}
       </div>
       <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
         قد يخطئ MiMo X. تحقّق من المعلومات المهمة. اضغط{" "}
-        <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[0.65rem]">
+        <kbd className="rounded border border-border bg-muted/80 px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm">
           Enter
         </kbd>{" "}
         للإرسال،{" "}
-        <kbd className="rounded border border-border bg-muted px-1 py-0.5 text-[0.65rem]">
+        <kbd className="rounded border border-border bg-muted/80 px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground shadow-sm">
           Shift + Enter
         </kbd>{" "}
         لسطر جديد.

@@ -137,14 +137,15 @@ function ConversationItem({
   return (
     <div
       className={cn(
-        "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition cursor-pointer",
+        "group relative flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-all duration-200 cursor-pointer",
         active
-          ? "bg-accent text-accent-foreground"
-          : "hover:bg-accent/60 text-muted-foreground hover:text-foreground"
+          ? "sidebar-tab-indicator bg-primary/12 text-primary"
+          : "hover:bg-sidebar-accent/60 text-muted-foreground hover:text-foreground"
       )}
       onClick={onSelect}
+      data-active={active}
     >
-      <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
+      <MessageSquare className={cn("h-4 w-4 shrink-0 transition-colors", active ? "text-primary" : "opacity-60 group-hover:opacity-100")} />
       {editing ? (
         <input
           ref={inputRef}
@@ -248,22 +249,22 @@ function ConversationList({
       <div className="px-3 pb-2">
         <Button
           onClick={onNewChat}
-          className="w-full justify-start gap-2 rounded-xl"
+          className="group w-full justify-start gap-2 rounded-xl gradient-primary text-white shadow-md elevate-1 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
           variant="default"
         >
-          <Plus className="h-4 w-4" /> محادثة جديدة
+          <Plus className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" /> محادثة جديدة
         </Button>
       </div>
 
       {/* Search */}
       <div className="px-3 pb-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ابحث في المحادثات…"
-            className="h-9 rounded-lg pr-8 text-sm"
+            className="h-9 rounded-lg border-border/60 bg-sidebar-accent/40 pr-8 text-sm transition-all duration-200 focus-visible:border-primary/50 focus-visible:ring-primary/20"
           />
         </div>
       </div>
@@ -388,6 +389,41 @@ function ConversationList({
   )
 }
 
+function TabButton({
+  icon,
+  label,
+  active,
+  onClick,
+  title,
+  className,
+}: {
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  onClick: () => void
+  title?: string
+  className?: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title || label}
+      className={cn(
+        "sidebar-tab-indicator group relative flex flex-col items-center justify-center gap-1 rounded-lg py-2 transition-all duration-200",
+        "focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 focus-visible:ring-offset-sidebar",
+        active
+          ? "bg-primary/12 text-primary"
+          : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+        className
+      )}
+      data-active={active}
+    >
+      <span className="transition-transform duration-200 group-hover:scale-110">{icon}</span>
+      <span className="text-[0.6rem] font-medium leading-none">{label}</span>
+    </button>
+  )
+}
+
 export function ChatSidebar({
   onNewChat,
   onSelect,
@@ -413,7 +449,7 @@ export function ChatSidebar({
     <div className="flex h-full w-full flex-col bg-sidebar">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-sm">
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl gradient-primary text-white shadow-md elevate-1">
           <MessageSquare className="h-4 w-4" />
         </div>
         <span className="flex-1 text-sm font-bold tracking-tight">MiMo X</span>
@@ -429,14 +465,14 @@ export function ChatSidebar({
         <ThemeToggle onOpenSettings={onOpenSettings} />
       </div>
 
-      {/* Mode toggle */}
-      <div className="mx-3 mb-1 grid grid-cols-2 rounded-lg bg-muted/60 p-0.5 text-xs">
+      {/* Mode toggle — segmented control style */}
+      <div className="mx-3 mb-2 grid grid-cols-2 rounded-xl border border-sidebar-border/60 bg-sidebar-accent/40 p-1 text-xs">
         <button
           onClick={() => setSidebarMode("engineering")}
           className={cn(
-            "rounded-md py-1 font-medium transition",
+            "rounded-lg py-1.5 font-medium transition-all duration-200",
             sidebarMode === "engineering"
-              ? "bg-background text-foreground shadow-sm"
+              ? "bg-background text-foreground shadow-sm elevate-1"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -445,9 +481,9 @@ export function ChatSidebar({
         <button
           onClick={() => setSidebarMode("personal")}
           className={cn(
-            "rounded-md py-1 font-medium transition",
+            "rounded-lg py-1.5 font-medium transition-all duration-200",
             sidebarMode === "personal"
-              ? "bg-background text-foreground shadow-sm"
+              ? "bg-background text-foreground shadow-sm elevate-1"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -455,160 +491,29 @@ export function ChatSidebar({
         </button>
       </div>
 
-      {/* Engineering tabs */}
+      {/* Engineering tabs — Linear-style icon grid with active indicator */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-1 grid grid-cols-6 rounded-lg bg-muted/60 p-0.5 text-xs">
-        <button
-          onClick={() => setSidebarTab("conversations")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "conversations"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("explorer")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "explorer"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <FolderTree className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("symbols")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "symbols"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Code2 className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("memory")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "memory"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Brain className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("goals")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "goals"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Target className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("smart_tools")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "smart_tools"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("editor")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "editor"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="محرر الكود / Code Editor"
-        >
-          <FileCode className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("git")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "git"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="Git"
-        >
-          <GitBranch className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={() => setSidebarTab("context")}
-          className={cn(
-            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-            sidebarTab === "context"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-          title="مفتش السياق / Context Inspector"
-        >
-          <Activity className="h-3.5 w-3.5" />
-        </button>
+      <div className="mx-3 mb-2 grid grid-cols-3 gap-1">
+        <TabButton icon={<MessageSquare className="h-4 w-4" />} label="محادثات" active={sidebarTab === "conversations"} onClick={() => setSidebarTab("conversations")} />
+        <TabButton icon={<FolderTree className="h-4 w-4" />} label="ملفات" active={sidebarTab === "explorer"} onClick={() => setSidebarTab("explorer")} />
+        <TabButton icon={<Code2 className="h-4 w-4" />} label="رموز" active={sidebarTab === "symbols"} onClick={() => setSidebarTab("symbols")} />
+        <TabButton icon={<Brain className="h-4 w-4" />} label="ذاكرة" active={sidebarTab === "memory"} onClick={() => setSidebarTab("memory")} />
+        <TabButton icon={<Target className="h-4 w-4" />} label="أهداف" active={sidebarTab === "goals"} onClick={() => setSidebarTab("goals")} />
+        <TabButton icon={<Sparkles className="h-4 w-4" />} label="أدوات" active={sidebarTab === "smart_tools"} onClick={() => setSidebarTab("smart_tools")} />
+        <TabButton icon={<FileCode className="h-4 w-4" />} label="محرر" active={sidebarTab === "editor"} onClick={() => setSidebarTab("editor")} title="محرر الكود / Code Editor" />
+        <TabButton icon={<GitBranch className="h-4 w-4" />} label="git" active={sidebarTab === "git"} onClick={() => setSidebarTab("git")} title="Git" />
+        <TabButton icon={<Activity className="h-4 w-4" />} label="سياق" active={sidebarTab === "context"} onClick={() => setSidebarTab("context")} title="مفتش السياق / Context Inspector" />
       </div>
       )}
 
-      {/* Tab labels */}
-      {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-2 grid grid-cols-9 text-[0.5rem] text-muted-foreground">
-        <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
-        <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>ملفات</span>
-        <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>رموز</span>
-        <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>ذاكرة</span>
-        <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>أهداف</span>
-        <span className={cn("text-center", sidebarTab !== "smart_tools" && "opacity-50")}>أدوات</span>
-        <span className={cn("text-center", sidebarTab !== "editor" && "opacity-50")}>محرر</span>
-        <span className={cn("text-center", sidebarTab !== "git" && "opacity-50")}>git</span>
-        <span className={cn("text-center", sidebarTab !== "context" && "opacity-50")}>سياق</span>
-      </div>
-      )}
-
-      {/* Personal mode tabs */}
+      {/* Personal mode tabs — segmented control style */}
       {sidebarMode === "personal" && (
         <>
-          <div className="mx-3 mb-1 grid grid-cols-3 rounded-lg bg-muted/60 p-0.5 text-xs">
-            <button
-              onClick={() => { setChatMode("assistant"); setSidebarTab("conversations" as never) }}
-              className={cn(
-                "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
-                "bg-background text-foreground shadow-sm"
-              )}
-            >
-              <MessageCircle className="h-3.5 w-3.5" /> مساعد
-            </button>
-            <button
-              onClick={() => setSidebarTab("memory" as never)}
-              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
-            >
-              <BookOpen className="h-3.5 w-3.5" /> معرفة
-            </button>
-            <button
-              onClick={() => setSidebarTab("goals" as never)}
-              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
-            >
-              <Calendar className="h-3.5 w-3.5" /> أتمتة
-            </button>
-            <button
-              onClick={() => setSidebarTab("symbols" as never)}
-              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
-            >
-              <FolderTree className="h-3.5 w-3.5" /> بحث
-            </button>
+          <div className="mx-3 mb-2 grid grid-cols-3 gap-1">
+            <TabButton icon={<MessageCircle className="h-4 w-4" />} label="مساعد" active={true} onClick={() => { setChatMode("assistant"); setSidebarTab("conversations" as never) }} />
+            <TabButton icon={<BookOpen className="h-4 w-4" />} label="معرفة" active={sidebarTab === "memory"} onClick={() => setSidebarTab("memory" as never)} />
+            <TabButton icon={<Calendar className="h-4 w-4" />} label="أتمتة" active={sidebarTab === "goals"} onClick={() => setSidebarTab("goals" as never)} />
+            <TabButton icon={<FolderTree className="h-4 w-4" />} label="بحث" active={sidebarTab === "symbols"} onClick={() => setSidebarTab("symbols" as never)} className="col-span-3" />
           </div>
 
           {/* Personal mode content */}

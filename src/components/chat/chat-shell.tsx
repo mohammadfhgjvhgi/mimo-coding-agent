@@ -466,13 +466,18 @@ export function ChatShell() {
         </Sheet>
 
         {/* Main panel — switches between Home Dashboard and Chat */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          {/* Soft ambient gradient on main panel */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-70 hero-gradient"
+            aria-hidden
+          />
           {view === "home" ? (
             <div className="relative flex-1 overflow-hidden">
               {/* Floating "New Chat" button (top-left) */}
               <button
                 onClick={startNewChat}
-                className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition hover:bg-accent/40"
+                className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-md transition-all duration-200 hover:bg-accent/60 hover:shadow-md elevate-1"
               >
                 <Plus className="h-3.5 w-3.5" />
                 محادثة جديدة / New Chat
@@ -482,7 +487,7 @@ export function ChatShell() {
                   to access conversations/memory/tools from the Home view. */}
               <button
                 onClick={toggleSidebar}
-                className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card shadow-sm transition hover:bg-accent/40 md:hidden"
+                className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/80 shadow-sm backdrop-blur-md transition-all duration-200 hover:bg-accent/60 hover:shadow-md md:hidden elevate-1"
                 aria-label="إظهار/إخفاء القائمة"
                 title="إظهار/إخفاء القائمة"
               >
@@ -506,16 +511,17 @@ export function ChatShell() {
                 }}
               />
 
-              <ChatMessages
-                messages={messages}
-                streamingContent={streamingContent}
-                streamingToolCalls={streamingToolCalls}
-                isStreaming={isStreaming}
-                streamingRole="assistant"
-                conversationId={currentConversationId}
-                onPickSuggestion={(p) => sendMessage(p)}
-                onRegenerate={regenerate}
-                onBranch={async (messageId: string) => {
+              <div className="relative flex min-h-0 flex-1 flex-col">
+                <ChatMessages
+                  messages={messages}
+                  streamingContent={streamingContent}
+                  streamingToolCalls={streamingToolCalls}
+                  isStreaming={isStreaming}
+                  streamingRole="assistant"
+                  conversationId={currentConversationId}
+                  onPickSuggestion={(p) => sendMessage(p)}
+                  onRegenerate={regenerate}
+                  onBranch={async (messageId: string) => {
                   if (!currentConversationId) return
                   try {
                     const res = await fetch(`/api/conversations/${currentConversationId}/branch`, {
@@ -532,29 +538,30 @@ export function ChatShell() {
                   } catch { toast.error("فشل التفريع") }
                 }}
                 onEdit={async (messageId: string, newContent: string) => {
-                  try {
-                    await fetch(`/api/messages/${messageId}`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ content: newContent }),
-                    })
-                    if (currentConversationId) {
-                      const res = await fetch(`/api/conversations/${currentConversationId}`)
-                      const data = await res.json()
-                      setMessages((data.conversation.messages || []) as ChatMessage[])
-                    }
-                    toast.success("تم التعديل")
-                  } catch { toast.error("فشل التعديل") }
-                }}
-              />
+                    try {
+                      await fetch(`/api/messages/${messageId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ content: newContent }),
+                      })
+                      if (currentConversationId) {
+                        const res = await fetch(`/api/conversations/${currentConversationId}`)
+                        const data = await res.json()
+                        setMessages((data.conversation.messages || []) as ChatMessage[])
+                      }
+                      toast.success("تم التعديل")
+                    } catch { toast.error("فشل التعديل") }
+                  }}
+                />
 
-              {streamingError && (
-                <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
-                  <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                    خطأ: {streamingError}
+                {streamingError && (
+                  <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      خطأ: {streamingError}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <ChatInput
                 onSend={sendMessage}

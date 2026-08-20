@@ -46,13 +46,16 @@ export function ChatMessageItem({
     <div className="group w-full animate-fade-up px-3 py-5 sm:px-4 md:px-6">
       <div className="mx-auto flex w-full max-w-3xl gap-3 sm:gap-4">
         {/* Avatar */}
-        <Avatar className="mt-0.5 h-8 w-8 shrink-0 rounded-lg border border-border">
+        <Avatar className={cn(
+          "mt-0.5 h-8 w-8 shrink-0 rounded-xl border border-border/60 transition-all duration-200",
+          isUser ? "shadow-sm" : "shadow-md elevate-1"
+        )}>
           <AvatarFallback
             className={cn(
-              "rounded-lg text-xs font-medium",
+              "rounded-xl text-xs font-semibold",
               isUser
-                ? "bg-primary text-primary-foreground"
-                : "bg-gradient-to-br from-emerald-500/15 to-cyan-500/15 text-emerald-600 dark:text-emerald-400"
+                ? "bg-gradient-to-br from-zinc-700 to-zinc-900 text-white dark:from-zinc-600 dark:to-zinc-800"
+                : "gradient-primary text-white"
             )}
           >
             {isUser ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
@@ -61,12 +64,12 @@ export function ChatMessageItem({
 
         {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="text-sm font-semibold">
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-tight">
               {isUser ? "أنت" : "MiMo X"}
             </span>
             {message.model && message.model !== "default" && !isStreaming && (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] text-muted-foreground" dir="ltr">
+              <span className="rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[0.6rem] font-medium text-muted-foreground" dir="ltr">
                 {message.model}
               </span>
             )}
@@ -88,8 +91,10 @@ export function ChatMessageItem({
           {/* Text content */}
           <div
             className={cn(
-              "min-w-0 text-[0.95rem] leading-7",
-              isUser ? "whitespace-pre-wrap break-words" : ""
+              "min-w-0 rounded-lg text-[0.95rem] leading-7 transition-colors duration-200",
+              isUser
+                ? "whitespace-pre-wrap break-words bg-primary/8 border border-primary/15 px-3 py-2 -mx-3 sm:mx-0 sm:px-3"
+                : "px-0"
             )}
           >
             {isUser ? (
@@ -100,7 +105,12 @@ export function ChatMessageItem({
                   <MarkdownRenderer content={content} />
                 ) : toolCalls.length === 0 ? (
                   <span className="flex items-center gap-2 text-muted-foreground">
-                    <Sparkles className="h-3 w-3 animate-pulse" /> يفكّر…
+                    <span className="flex gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </span>
+                    يفكّر…
                   </span>
                 ) : null}
                 {isStreaming && content && (
@@ -112,16 +122,16 @@ export function ChatMessageItem({
 
           {/* Actions */}
           {!isStreaming && message.content && (
-            <div className="mt-2 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+            <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCopy}
-                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60"
               >
                 {copied ? (
                   <>
-                    <Check className="h-3 w-3" /> نُسخ
+                    <Check className="h-3 w-3 text-emerald-500" /> نُسخ
                   </>
                 ) : (
                   <>
@@ -134,7 +144,7 @@ export function ChatMessageItem({
                   variant="ghost"
                   size="sm"
                   onClick={onRegenerate}
-                  className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60"
                 >
                   <RefreshCw className="h-3 w-3" /> إعادة التوليد
                 </Button>
