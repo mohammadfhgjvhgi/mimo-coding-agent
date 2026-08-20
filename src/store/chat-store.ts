@@ -28,7 +28,7 @@ interface ChatState {
   memoryRefreshSignal: number
   goalsRefreshSignal: number
   symbolsRefreshSignal: number
-  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools"
+  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools" | "editor" | "git" | "context" | "evidence" | "benchmarks" | "autonomous"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
   sidebarMode: "engineering" | "personal"
@@ -64,7 +64,7 @@ interface ChatState {
   triggerMemoryRefresh: () => void
   triggerGoalsRefresh: () => void
   triggerSymbolsRefresh: () => void
-  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "smart_tools") => void
+  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools" | "editor" | "git" | "context" | "evidence" | "benchmarks" | "autonomous") => void
   setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
   setSidebarMode: (m: "engineering" | "personal") => void
   setChatMode: (m: "engineering" | "assistant") => void

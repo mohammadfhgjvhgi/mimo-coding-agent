@@ -19,6 +19,11 @@ import {
   MessageCircle,
   BookOpen,
   Sparkles,
+  FileCode,
+  GitBranch,
+  Activity,
+  Gauge,
+  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -51,6 +56,9 @@ import { SmartToolsPanel } from "./smart-tools-panel"
 import { SymbolsPanel } from "./symbols-panel"
 import { AutomationPanel } from "./automation-panel"
 import { ResearchPanel } from "./research-panel"
+import { CodeEditorPanel } from "./code-editor-panel"
+import { GitPanel } from "./git-panel"
+import { ContextInspectorPanel } from "./context-inspector-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -516,18 +524,57 @@ export function ChatSidebar({
         >
           <Sparkles className="h-3.5 w-3.5" />
         </button>
+        <button
+          onClick={() => setSidebarTab("editor")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "editor"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title="محرر الكود / Code Editor"
+        >
+          <FileCode className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => setSidebarTab("git")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "git"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title="Git"
+        >
+          <GitBranch className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => setSidebarTab("context")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "context"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+          title="مفتش السياق / Context Inspector"
+        >
+          <Activity className="h-3.5 w-3.5" />
+        </button>
       </div>
       )}
 
       {/* Tab labels */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-2 grid grid-cols-6 text-[0.55rem] text-muted-foreground">
+      <div className="mx-3 mb-2 grid grid-cols-9 text-[0.5rem] text-muted-foreground">
         <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
-        <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
-        <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>الرموز</span>
-        <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
-        <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
+        <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>ملفات</span>
+        <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>رموز</span>
+        <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>ذاكرة</span>
+        <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>أهداف</span>
         <span className={cn("text-center", sidebarTab !== "smart_tools" && "opacity-50")}>أدوات</span>
+        <span className={cn("text-center", sidebarTab !== "editor" && "opacity-50")}>محرر</span>
+        <span className={cn("text-center", sidebarTab !== "git" && "opacity-50")}>git</span>
+        <span className={cn("text-center", sidebarTab !== "context" && "opacity-50")}>سياق</span>
       </div>
       )}
 
@@ -619,6 +666,18 @@ export function ChatSidebar({
       ) : sidebarTab === "smart_tools" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <SmartToolsPanel />
+        </div>
+      ) : sidebarTab === "editor" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <CodeEditorPanel />
+        </div>
+      ) : sidebarTab === "git" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <GitPanel />
+        </div>
+      ) : sidebarTab === "context" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ContextInspectorPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
