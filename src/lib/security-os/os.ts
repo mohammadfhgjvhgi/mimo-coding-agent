@@ -478,8 +478,11 @@ export async function auditLog(opts: {
     })
     const prevHash = lastEntry?.hash ?? null
 
-    // Compute this entry's hash: SHA-256(prevHash + canonical data)
-    const canonical = `${opts.action}|${opts.resource}|${opts.target}|${opts.principal ?? "agent"}|${opts.allowed}|${Date.now()}`
+    // Compute this entry's hash: SHA-256(prevHash + canonical data).
+    // NOTE: deterministic canonical — no Date.now() here, otherwise auditVerify
+    // (which reads createdAt back from DB) will compute a different hash and the
+    // chain will always appear broken.
+    const canonical = `${opts.action}|${opts.resource}|${opts.target}|${opts.principal ?? "agent"}|${opts.allowed}`
     const hash = sha256((prevHash ?? "genesis") + canonical)
 
     const entry = await db.auditEntry.create({
@@ -530,8 +533,8 @@ export async function auditVerify(): Promise<SecurityResult<{
           data: { verified: false, totalEntries: entries.length, brokenAt: i, brokenHash: entry.hash },
         }
       }
-      // Recompute hash
-      const canonical = `${entry.action}|${entry.resource}|${entry.target}|${entry.principal}|${entry.allowed}|${entry.createdAt.getTime()}`
+      // Recompute hash — must match auditLog's canonical exactly (no timestamp).
+      const canonical = `${entry.action}|${entry.resource}|${entry.target}|${entry.principal}|${entry.allowed}`
       const expectedHash = sha256((prevHash ?? "genesis") + canonical)
       if (entry.hash !== expectedHash) {
         return {

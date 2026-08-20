@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { toast } from "sonner"
-import { Plus } from "lucide-react"
+import { Plus, PanelRight } from "lucide-react"
 import { useChatStore } from "@/store/chat-store"
 import { useSettingsStore } from "@/store/settings-store"
 import { ChatSidebar } from "./chat-sidebar"
@@ -460,13 +460,24 @@ export function ChatShell() {
         <div className="flex min-w-0 flex-1 flex-col">
           {view === "home" ? (
             <div className="relative flex-1 overflow-hidden">
-              {/* Floating "New Chat" button */}
+              {/* Floating "New Chat" button (top-left) */}
               <button
                 onClick={startNewChat}
                 className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition hover:bg-accent/40"
               >
                 <Plus className="h-3.5 w-3.5" />
                 محادثة جديدة / New Chat
+              </button>
+              {/* Floating "Toggle Sidebar" button (top-right, mobile only).
+                  On mobile the desktop sidebar is hidden, so users had no way
+                  to access conversations/memory/tools from the Home view. */}
+              <button
+                onClick={toggleSidebar}
+                className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card shadow-sm transition hover:bg-accent/40 md:hidden"
+                aria-label="إظهار/إخفاء القائمة"
+                title="إظهار/إخفاء القائمة"
+              >
+                <PanelRight className="h-4 w-4" />
               </button>
               <HomeDashboard />
             </div>

@@ -7,6 +7,8 @@ export interface ResearchSource {
   url: string
   title: string
   snippet: string
+  /** Where this result came from: "duckduckgo" | "zai" | ... */
+  source?: string
   text?: string // full extracted text
   reliability: number // 0-1
   relevanceScore: number // 0-1
@@ -45,6 +47,7 @@ export function toResearchSources(results: SearchResult[]): ResearchSource[] {
       url: r.url,
       title: r.title,
       snippet: r.snippet,
+      source: r.source,
       reliability,
       relevanceScore: 0.5, // updated later
     }

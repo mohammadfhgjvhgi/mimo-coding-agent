@@ -1,15 +1,46 @@
-// Web Search — DuckDuckGo HTML scraping (no API key needed, free, unlimited).
+// Web Search — primary: DuckDuckGo HTML scraping (no API key).
+// Fallback: z-ai-web-dev-sdk web_search (used when DuckDuckGo returns a
+// CAPTCHA / anomaly page, which is common from sandbox IPs).
 // Returns { title, url, snippet } results.
 
 export interface SearchResult {
   title: string
   url: string
   snippet: string
-  source: string // "duckduckgo"
+  source: string // "duckduckgo" | "zai"
+}
+
+// Search via z-ai-web-dev-sdk (server-side only). Used as fallback when
+// DuckDuckGo is blocked / returns CAPTCHA.
+async function zaiWebSearch(query: string, maxResults: number): Promise<SearchResult[]> {
+  try {
+    const ZAI = (await import("z-ai-web-dev-sdk")).default
+    const zai = await ZAI.create()
+    const results = await zai.functions.invoke("web_search", {
+      query,
+      num: Math.min(maxResults, 10),
+    })
+    if (!Array.isArray(results)) return []
+    return results.slice(0, maxResults).map((r) => ({
+      title: String(r.name || "").trim() || r.url,
+      url: String(r.url || ""),
+      snippet: String(r.snippet || "").slice(0, 300),
+      source: "zai",
+    })).filter((r) => r.url)
+  } catch (e) {
+    console.error("[zaiWebSearch] error:", e instanceof Error ? e.message : String(e))
+    return []
+  }
+}
+
+// Detect DuckDuckGo CAPTCHA / anomaly pages (no real results).
+function isDuckDuckGoBlocked(html: string): boolean {
+  return html.includes("anomaly-modal") || html.includes("If this error persists")
 }
 
 // Search DuckDuckGo via HTML scraping (no API key).
 export async function webSearch(query: string, maxResults = 5): Promise<SearchResult[]> {
+  // Try DuckDuckGo first.
   try {
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
     const res = await fetch(url, {
@@ -19,47 +50,53 @@ export async function webSearch(query: string, maxResults = 5): Promise<SearchRe
       signal: AbortSignal.timeout(15000),
     })
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const html = await res.text()
+    if (res.ok) {
+      const html = await res.text()
+      if (!isDuckDuckGoBlocked(html)) {
+        // Parse DuckDuckGo HTML results
+        const results: SearchResult[] = []
+        const linkPattern = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/g
+        const snippetPattern = /<a[^>]+class="result__snippet"[^>]*>(.*?)<\/a>/g
 
-    // Parse DuckDuckGo HTML results
-    const results: SearchResult[] = []
-    const linkPattern = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/g
-    const snippetPattern = /<a[^>]+class="result__snippet"[^>]*>(.*?)<\/a>/g
+        const links: { url: string; title: string }[] = []
+        let match: RegExpExecArray | null
 
-    const links: { url: string; title: string }[] = []
-    let match: RegExpExecArray | null
+        while ((match = linkPattern.exec(html)) !== null) {
+          const rawUrl = match[1]
+          const title = match[2].replace(/<[^>]+>/g, "").trim()
+          // DuckDuckGo wraps URLs — extract the actual URL
+          const urlMatch = rawUrl.match(/uddg=([^&]+)/)
+          const actualUrl = urlMatch ? decodeURIComponent(urlMatch[1]) : rawUrl
+          if (title && actualUrl && !actualUrl.includes("duckduckgo.com")) {
+            links.push({ url: actualUrl, title })
+          }
+        }
 
-    while ((match = linkPattern.exec(html)) !== null) {
-      const rawUrl = match[1]
-      const title = match[2].replace(/<[^>]+>/g, "").trim()
-      // DuckDuckGo wraps URLs — extract the actual URL
-      const urlMatch = rawUrl.match(/uddg=([^&]+)/)
-      const actualUrl = urlMatch ? decodeURIComponent(urlMatch[1]) : rawUrl
-      if (title && actualUrl && !actualUrl.includes("duckduckgo.com")) {
-        links.push({ url: actualUrl, title })
+        const snippets: string[] = []
+        while ((match = snippetPattern.exec(html)) !== null) {
+          snippets.push(match[1].replace(/<[^>]+>/g, "").trim())
+        }
+
+        for (let i = 0; i < Math.min(links.length, maxResults); i++) {
+          results.push({
+            title: links[i].title,
+            url: links[i].url,
+            snippet: snippets[i] || "",
+            source: "duckduckgo",
+          })
+        }
+
+        if (results.length > 0) return results
+      } else {
+        console.warn("[webSearch] DuckDuckGo returned CAPTCHA/anomaly page — falling back to z-ai")
       }
     }
-
-    const snippets: string[] = []
-    while ((match = snippetPattern.exec(html)) !== null) {
-      snippets.push(match[1].replace(/<[^>]+>/g, "").trim())
-    }
-
-    for (let i = 0; i < Math.min(links.length, maxResults); i++) {
-      results.push({
-        title: links[i].title,
-        url: links[i].url,
-        snippet: snippets[i] || "",
-        source: "duckduckgo",
-      })
-    }
-
-    return results
   } catch (e) {
-    console.error("[webSearch] error:", e instanceof Error ? e.message : String(e))
-    return []
+    console.error("[webSearch] DuckDuckGo error:", e instanceof Error ? e.message : String(e))
   }
+
+  // Fallback: z-ai web search.
+  return zaiWebSearch(query, maxResults)
 }
 
 // Multi-query search — runs multiple queries and deduplicates.

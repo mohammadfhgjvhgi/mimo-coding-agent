@@ -192,11 +192,12 @@ export function HomeDashboard() {
           </Card>
         </div>
 
-        {/* Footer */}
-        <div className="mt-6 flex items-center justify-center gap-2 text-[0.65rem] text-muted-foreground">
+        {/* Footer — semantic <footer> with mt-auto so it sticks to the bottom
+            on short content and is pushed down naturally on long content. */}
+        <footer className="mt-auto flex items-center justify-center gap-2 border-t border-border/50 pt-4 pb-2 text-[0.65rem] text-muted-foreground">
           <TrendingUp className="h-3 w-3" />
           MiMo X • {tasks.length} مهام • {projects.length} مشاريع • {conversations.length} محادثات
-        </div>
+        </footer>
       </div>
     </div>
   )

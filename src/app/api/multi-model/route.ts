@@ -77,13 +77,15 @@ export async function GET() {
   }
 }
 
-// Default LLM caller — uses the existing provider infrastructure
+// Default LLM caller — uses the server-side getSettings() (NOT the client
+// Zustand store, which is undefined during SSR/API routes and silently fell
+// back to a placeholder string, making "model debate" fake).
 function makeCallLLM(_caller: string) {
   return async (modelId: string, systemPrompt: string, userMessage: string): Promise<string> => {
     try {
       const { fallbackComplete } = await import("@/lib/llm-providers/fallback-chain")
-      const { useSettingsStore } = await import("@/store/settings-store")
-      const settings = useSettingsStore.getState().snapshot()
+      const { getSettings } = await import("@/lib/llm-provider")
+      const settings = getSettings()
       const result = await fallbackComplete(
         [
           { role: "system", content: systemPrompt },
@@ -92,8 +94,10 @@ function makeCallLLM(_caller: string) {
         settings
       )
       return result.content || "(no response)"
-    } catch {
-      return `[${modelId} responded to: ${userMessage.slice(0, 80)}...]`
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error("[multi-model callLLM] failed:", msg)
+      return `(model ${modelId} error: ${msg.slice(0, 100)})`
     }
   }
 }
