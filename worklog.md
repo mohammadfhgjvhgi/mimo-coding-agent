@@ -2050,3 +2050,58 @@ Stage Summary:
 - Planning assistant auto-generates time-blocked day plan from tasks (priority-sorted) + habits + goals
 - All operations persisted, bilingual (Arabic + English), 0 LLM calls
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real data), pushed: yes
+
+---
+Task ID: 58
+Agent: ZAI Code (main)
+Task: Build Agent Teams (src/lib/agent/teams.ts) — 7 logical roles, sequential execution, no 7 independent models.
+
+Work Log:
+- Pre-flight: dev server was down → restarted it first (HTTP 200 ✅)
+- No new Prisma models needed — pure orchestration layer over existing agent loop
+- Built on existing swarm-roles.ts (13 roles from Task 31-38)
+
+- Created src/lib/agent/teams.ts (~475 lines):
+  • 7 core roles: Researcher (🔍), Coder (💻), Debugger (🐛), Tester (🧪), Reviewer (👀), Architect (🏛️), Security (🔒)
+  • 6 supporting roles: Writer, Refactorer, EE, Fact Checker, Bias Auditor, Device Controller
+  • CORE_TEAM registry with displayName + description + tools + systemPrompt per role
+  • Key design decision: Debugger maps to generalist role, Reviewer maps to analyst role
+    (swarm-roles.ts doesn't have separate debugger/reviewer types)
+  • Partial<Record<MiMoRole, TeamMember>> to avoid TS errors on missing keys
+
+- 4 operations:
+  1. teamPlan({task, maxSubtasks}) — keyword-based deterministic planning:
+     design→architect, research→researcher, code→coder, test→tester, debug→debugger,
+     review→reviewer, security→security; fallback→generalist
+  2. teamRoute(task) — pick best single role via matchRole()
+  3. teamRun({plan, callLLM, onProgress}) — sequential execution:
+     iterate subtasks, call LLM with role's systemPrompt, pass context between steps
+     (output of step N = input to step N+1), report progress via callback
+  4. teamCompose(outputs) — combine multiple role outputs into one markdown report
+  Plus: teamList(), teamGet(role), teamSnapshot()
+
+- Fixed 3 typecheck errors:
+  • 'debugger' not in MiMoRole type → use 'generalist' role with debugger prompt
+  • SwarmPlan requires taskId → added `team_${Date.now()}`
+  • Partial<Record> returns TeamMember | undefined → added null checks
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • Smoke test:
+    - teamPlan "Design and code a REST API, then test it": 3 subtasks (architect→coder→tester) ✅
+    - teamRoute "fix this bug": role=coder ✅
+    - teamRun: 3 steps sequential, all success, context passed between steps ✅
+    - teamCompose: 180 chars combined output ✅
+    - teamList: 13 roles with tools + displayNames ✅
+    - teamSnapshot: 13 total roles ✅
+- Committed + pushed to GitHub: 27eaa3a ✅
+
+Stage Summary:
+- 1 new file (~475 lines) — no new Prisma models, no new API routes
+- Agent Teams = logical roles on SAME model (not 7 independent models)
+  - i7-3770 constraint respected: sequential execution, system prompt switching
+  - Future: parallel execution when hardware allows
+- Uses existing swarm-roles.ts infrastructure (ROLE_PROMPTS + ROLE_TOOLS)
+- Context passes between roles (output of step N = input to step N+1)
+- Bilingual (Arabic + English), 0 LLM calls for planning/routing (deterministic)
