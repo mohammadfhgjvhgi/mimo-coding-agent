@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -180,7 +179,7 @@ export function MemoryPanel({ refreshSignal }: { refreshSignal?: number }) {
         </Select>
       </div>
 
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mb-2" />
@@ -207,7 +206,7 @@ export function MemoryPanel({ refreshSignal }: { refreshSignal?: number }) {
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       <div className="border-t border-sidebar-border px-3 py-1.5">
         <span className="text-[0.7rem] text-muted-foreground">

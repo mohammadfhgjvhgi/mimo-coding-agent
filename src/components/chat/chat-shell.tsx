@@ -184,12 +184,17 @@ export function ChatShell() {
   const [initialized, setInitialized] = React.useState(false)
 
   // --- Resizable sidebar ---
-  const [sidebarWidth, setSidebarWidth] = React.useState(() => {
-    if (typeof window === "undefined") return 288
-    const saved = localStorage.getItem("mimo-sidebar-width")
-    return saved ? Math.max(200, Math.min(600, Number(saved))) : 288
-  })
+  // Start with default 288 on both server + client to avoid hydration mismatch.
+  // Then read localStorage in useEffect (client-only) after mount.
+  const [sidebarWidth, setSidebarWidth] = React.useState(288)
   const [isResizing, setIsResizing] = React.useState(false)
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem("mimo-sidebar-width")
+    if (saved) {
+      setSidebarWidth(Math.max(200, Math.min(600, Number(saved))))
+    }
+  }, [])
 
   React.useEffect(() => {
     if (!isResizing) return

@@ -10,7 +10,6 @@ import {
   ChevronLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 interface TreeNode {
@@ -224,7 +223,7 @@ export function WorkspaceExplorer({
       </div>
 
       {/* Tree */}
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mb-2" />
@@ -253,7 +252,7 @@ export function WorkspaceExplorer({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="border-t border-sidebar-border px-3 py-1.5">

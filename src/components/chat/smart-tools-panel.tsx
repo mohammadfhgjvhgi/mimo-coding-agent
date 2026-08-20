@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -46,13 +45,13 @@ export function SmartToolsPanel() {
         ))}
       </div>
       {/* Content */}
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {tab === "vision" && <VisionTab />}
         {tab === "creative" && <CreativeTab />}
         {tab === "data" && <DataTab />}
         {tab === "study" && <StudyTab />}
         {tab === "productivity" && <ProductivityTab />}
-      </ScrollArea>
+      </div>
     </div>
   )
 }

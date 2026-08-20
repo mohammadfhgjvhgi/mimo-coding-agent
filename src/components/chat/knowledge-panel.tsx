@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { toast } from "sonner"
@@ -163,7 +162,7 @@ export function KnowledgePanel() {
       </div>
 
       {/* Results */}
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {searching ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -191,7 +190,7 @@ export function KnowledgePanel() {
             {stats?.totalChunks === 0 ? "لا معرفة بعد. أضف ملفات أو نصوصاً." : "اكتب استعلاماً للبحث."}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   )
 }

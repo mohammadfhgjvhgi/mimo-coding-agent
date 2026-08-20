@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -174,7 +173,7 @@ export function ResearchPanel() {
             <p className="text-xs text-muted-foreground">جارٍ البحث والتحقق…</p>
           </div>
         ) : result ? (
-          <ScrollArea className="flex-1 chat-scroll">
+          <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
             <div className="p-3 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-sm font-semibold">{result.query}</h3>
@@ -228,14 +227,14 @@ export function ResearchPanel() {
                 <p className="text-[0.65rem] text-muted-foreground text-center">{result.tokenUsage} tokens</p>
               )}
             </div>
-          </ScrollArea>
+          </div>
         ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Search className="h-8 w-8 opacity-40 mb-2" />
             <p className="text-xs">لا أبحاث بعد. ابدأ بحثاً جديداً.</p>
           </div>
         ) : (
-          <ScrollArea className="flex-1 chat-scroll">
+          <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
             <div className="space-y-2 p-2">
               {jobs.map(j => (
                 <div key={j.id} className="group rounded-lg border border-border bg-card p-2.5">
@@ -259,7 +258,7 @@ export function ResearchPanel() {
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
     </div>

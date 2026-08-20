@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Terminal as TerminalIcon, Play, Trash2, Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
