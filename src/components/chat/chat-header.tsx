@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { PanelRight, Plus, Pencil, Check, Brain } from "lucide-react"
+import { PanelRight, Plus, Pencil, Check, Brain, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "./theme-toggle"
@@ -13,6 +13,7 @@ import { useChatStore } from "@/store/chat-store"
 interface ChatHeaderProps {
   onToggleSidebar: () => void
   onNewChat: () => void
+  onGoHome: () => void
   onRename: (title: string) => void
   thinking: boolean
   onOpenSettings?: () => void
@@ -22,6 +23,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   onToggleSidebar,
   onNewChat,
+  onGoHome,
   onRename,
   thinking,
   onOpenSettings,
@@ -114,6 +116,17 @@ export function ChatHeader({
       <ModeSwitcher />
       <ModelSwitcher />
       <ContextMeter />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onGoHome}
+        className="h-9 w-9 rounded-lg"
+        aria-label="الرئيسية / Home"
+        title="الرئيسية / Home"
+      >
+        <Home className="h-4 w-4" />
+      </Button>
 
       <Button
         variant="ghost"

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { toast } from "sonner"
+import { Plus } from "lucide-react"
 import { useChatStore } from "@/store/chat-store"
 import { useSettingsStore } from "@/store/settings-store"
 import { ChatSidebar } from "./chat-sidebar"
@@ -189,7 +190,7 @@ export function ChatShell() {
     }
   }, [isResizing, sidebarWidth])
 
-  // --- Init: load conversations ---
+  // --- Init: load conversations (but DON'T auto-select or switch view) ---
   React.useEffect(() => {
     if (initialized) return
     setInitialized(true)
@@ -197,27 +198,15 @@ export function ChatShell() {
     fetchConversations()
       .then((convs) => {
         setConversations(convs)
-        if (convs.length > 0) {
-          // Auto-select first conversation → switch to chat view
-          setCurrentConversationId(convs[0].id)
-          fetchConversation(convs[0].id)
-            .then((conv) => {
-              setMessages((conv.messages || []) as ChatMessage[])
-              setView("chat")
-            })
-            .catch(() => {})
-        }
+        // DON'T auto-select first conversation — stay on Home Dashboard
       })
       .catch(() => {})
       .finally(() => setLoadingConversations(false))
-  }, [initialized, setConversations, setLoadingConversations, setCurrentConversationId, setMessages])
+  }, [initialized, setConversations, setLoadingConversations])
 
   // --- Auto-switch views ---
-  React.useEffect(() => {
-    if (currentConversationId || messages.length > 0) {
-      setView("chat")
-    }
-  }, [currentConversationId, messages.length])
+  // Only switch to chat when user sends a message or selects a conversation
+  // NOT automatically on app load (stay on Home Dashboard)
 
   // --- Send message ---
   const sendMessage = React.useCallback(
@@ -311,8 +300,13 @@ export function ChatShell() {
     resetStreamingToolCalls()
     setIsStreaming(false)
     setStreamingError(null)
-    setView("chat")
+    setView("chat") // Go to chat view (empty state with suggestions)
   }, [setCurrentConversationId, setMessages, setStreamingContent, resetStreamingToolCalls, setIsStreaming, setStreamingError])
+
+  // --- Go to Home Dashboard ---
+  const goHome = React.useCallback(() => {
+    setView("home")
+  }, [])
 
   // --- Select conversation ---
   const selectConversation = React.useCallback(
@@ -465,12 +459,23 @@ export function ChatShell() {
         {/* Main panel — switches between Home Dashboard and Chat */}
         <div className="flex min-w-0 flex-1 flex-col">
           {view === "home" ? (
-            <HomeDashboard />
+            <div className="relative flex-1 overflow-hidden">
+              {/* Floating "New Chat" button */}
+              <button
+                onClick={startNewChat}
+                className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition hover:bg-accent/40"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                محادثة جديدة / New Chat
+              </button>
+              <HomeDashboard />
+            </div>
           ) : (
             <>
               <ChatHeader
                 onToggleSidebar={toggleSidebar}
                 onNewChat={startNewChat}
+                onGoHome={goHome}
                 onRename={(t) =>
                   currentConversationId && handleRename(currentConversationId, t)
                 }
