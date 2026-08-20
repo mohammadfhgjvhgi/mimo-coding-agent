@@ -156,7 +156,6 @@ function TreeItem({
       )}
       style={{ paddingLeft: `${depth * 12 + 24}px` }}
     >
-      {/* eslint-disable-next-line react-hooks/static-components */}
       <FileIconComponent className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
       <span className="truncate">{node.name}</span>
       {node.file && (

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { toast } from "sonner"
 import { useChatStore } from "@/store/chat-store"
 import { useSettingsStore } from "@/store/settings-store"
@@ -583,6 +583,7 @@ export function ChatShell() {
         {/* Mobile sidebar (drawer) */}
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetContent side="right" className="w-72 p-0 sm:w-80">
+            <SheetTitle className="sr-only">القائمة الجانبية / Sidebar</SheetTitle>
             {sidebar}
           </SheetContent>
         </Sheet>

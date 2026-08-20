@@ -110,6 +110,11 @@ function ConversationItem({
   const [draft, setDraft] = React.useState(conv.title)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
+  // Sync draft with conv.title when not editing (handles external updates)
+  React.useEffect(() => {
+    if (!editing) setDraft(conv.title)
+  }, [conv.title, editing])
+
   React.useEffect(() => {
     if (editing) inputRef.current?.focus()
   }, [editing])
