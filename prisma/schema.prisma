@@ -792,3 +792,53 @@ model DataAnalysis {
   @@index([createdAt])
   @@index([conversationId])
 }
+
+// Spreadsheet Intelligence — workbook/sheet/formula analysis.
+// Higher-level than Data Analysis: focuses on cells, formulas (A1 notation),
+// pivot tables, workbook summarization.
+model Workbook {
+  id          String   @id @default(cuid())
+  name        String
+  // "csv" | "xlsx" | "google_sheets" | "inline"
+  source      String
+  sourcePath  String?
+  // JSON: sheets array [{ name, rowCount, colCount, headers, cells }]
+  sheets      String   @default("[]")
+  // Active sheet name (default: first)
+  activeSheet String?
+  // Total cells across all sheets
+  cellCount   Int      @default(0)
+  // SHA-256 for dedup
+  checksum    String?
+  conversationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([source])
+  @@index([conversationId])
+}
+
+// Formula — saved formulas for reuse + debugging.
+model Formula {
+  id          String   @id @default(cuid())
+  workbookId  String?
+  // The formula text (without leading =)
+  formula     String
+  // A1 range the formula references
+  range       String?
+  // "sum" | "average" | "count" | "vlookup" | "if" | "concat" | "custom"
+  category    String   @default("custom")
+  // The computed result (after evaluation)
+  result      String?
+  // "ok" | "error" | "pending"
+  status      String   @default("pending")
+  // Error message if status=error
+  error       String?
+  useCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workbookId])
+  @@index([category])
+  @@index([status])
+}
