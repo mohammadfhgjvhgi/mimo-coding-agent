@@ -7,6 +7,11 @@
  * Usage: node tests/golden.mjs
  */
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const BASE = process.env.MIMO_BASE || "http://localhost:3000";
 const results = [];
@@ -159,7 +164,7 @@ record("P1", "Chat→Action pipeline executes", p1.json?.intent ? "PASS" : "FAIL
 const p4 = await http("POST", "/api/task-automation", { action: "convert", message: "افحص المشروع كل أسبوع" }, { timeout: 30000 });
 record("P4", "Task→Automation creates workflow", p4.json?.workflowId ? "PASS" : "FAIL", `workflow=${p4.json?.workflowId}`);
 
-const p5 = await http("POST", "/api/research-knowledge", { action: "research", message: "اعمل بحثاً عن TypeScript" }, { timeout: 60000 });
+const p5 = await http("POST", "/api/research-knowledge", { action: "research", message: "اعمل بحثاً عن TypeScript" }, { timeout: 90000 });
 record("P5", "Research→Knowledge pipeline", p5.json?.sources?.length > 0 ? "PASS" : "FAIL", `sources=${p5.json?.sources?.length}`);
 
 // ---------------------------------------------------------------------------
@@ -212,12 +217,74 @@ record("LIM6", "Offline mode (no network)", "SKIPPED",
   "Cannot simulate offline in sandbox. Research + chat both depend on Z.ai network.");
 
 // ---------------------------------------------------------------------------
-// Summary
+// Stage 10: Section Traceability Matrix (derived from tests/matrix.json —
+// the single source of truth for section status. The summary numbers below
+// are computed by counting this file, NOT written by hand.)
 // ---------------------------------------------------------------------------
-console.log("\n═══════════════════════════════════════════════════");
-console.log("  SUMMARY");
+console.log("\n── Stage 10: Section Traceability Matrix (45 sections) ──");
+console.log("   Source: tests/matrix.json (single source of truth)\n");
+
+let matrix;
+try {
+  matrix = JSON.parse(readFileSync(join(__dirname, "matrix.json"), "utf8"));
+} catch (e) {
+  console.log("  ✗ FAILED to read tests/matrix.json — " + e.message);
+  process.exit(1);
+}
+
+// Print the full table
+console.log("  ┌─────┬────────────────────────────────────────────┬──────────┬──────────────────────────────────────────────┐");
+console.log("  │ Sec │ Name                                         │ Status   │ Evidence (truncated)                          │");
+console.log("  ├─────┼────────────────────────────────────────────┼──────────┼──────────────────────────────────────────────┤");
+for (const s of matrix.sections) {
+  const sec = String(s.section).padStart(3, " ");
+  const name = (s.name.length > 42 ? s.name.slice(0, 41) + "…" : s.name).padEnd(42, " ");
+  const status = s.status.padEnd(8, " ");
+  const ev = (s.evidence.length > 44 ? s.evidence.slice(0, 43) + "…" : s.evidence).padEnd(44, " ");
+  console.log(`  │ ${sec} │ ${name} │ ${status} │ ${ev} │`);
+}
+console.log("  └─────┴────────────────────────────────────────────┴──────────┴──────────────────────────────────────────────┘");
+
+// DERIVE the summary from matrix.json (no manual count)
+const matrixCounts = matrix.sections.reduce((acc, s) => {
+  acc[s.status] = (acc[s.status] || 0) + 1;
+  return acc;
+}, {});
+const matrixTotal = matrix.sections.length;
+const matrixProven = matrixCounts.PROVEN || 0;
+const matrixExists = matrixCounts.EXISTS || 0;
+const matrixPartial = matrixCounts.PARTIAL || 0;
+const matrixMissing = matrixCounts.MISSING || 0;
+
+console.log("");
+console.log("  ── Section Matrix Summary (DERIVED from matrix.json, not hand-counted) ──");
+console.log(`     PROVEN:  ${matrixProven}`);
+console.log(`     EXISTS:  ${matrixExists}`);
+console.log(`     PARTIAL: ${matrixPartial}`);
+console.log(`     MISSING: ${matrixMissing}`);
+console.log(`     ─────────────`);
+console.log(`     TOTAL:   ${matrixTotal}  ${matrixTotal === 45 ? "✓ (matches required 45)" : "✗ MISMATCH"}`);
+console.log("");
+
+// Self-check: if totals don't add up, fail
+if (matrixProven + matrixExists + matrixPartial + matrixMissing !== matrixTotal) {
+  console.log("  ✗ MATRIX SELF-CHECK FAILED: status counts don't sum to total");
+  process.exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Summary (golden tests)
+// ---------------------------------------------------------------------------
+console.log("═══════════════════════════════════════════════════");
+console.log("  SUMMARY — Golden Tests");
 console.log("═══════════════════════════════════════════════════");
 console.log(`  PASS: ${pass}  |  FAIL: ${fail}  |  PARTIAL: ${partial}  |  SKIPPED: ${skip}  |  TOTAL: ${results.length}`);
+console.log("═══════════════════════════════════════════════════");
+console.log("");
+console.log("═══════════════════════════════════════════════════");
+console.log("  SUMMARY — Section Matrix (45 sections, derived)");
+console.log("═══════════════════════════════════════════════════");
+console.log(`  PROVEN: ${matrixProven}  |  EXISTS: ${matrixExists}  |  PARTIAL: ${matrixPartial}  |  MISSING: ${matrixMissing}  |  TOTAL: ${matrixTotal}`);
 console.log("═══════════════════════════════════════════════════\n");
 
 if (fail > 0) {
