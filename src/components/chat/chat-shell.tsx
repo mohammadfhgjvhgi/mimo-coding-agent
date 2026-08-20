@@ -479,7 +479,7 @@ export function ChatShell() {
               >
                 <PanelRight className="h-4 w-4" />
               </button>
-              <HomeDashboard />
+              <HomeDashboard startNewChat={startNewChat} />
             </div>
           ) : (
             <>

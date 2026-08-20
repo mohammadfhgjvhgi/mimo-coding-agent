@@ -23,7 +23,7 @@ interface SystemStats { totalRamMb: number; usedRamMb: number; ramUsagePct: numb
 // Main Dashboard Component
 // ---------------------------------------------------------------------------
 
-export function HomeDashboard() {
+export function HomeDashboard({ startNewChat }: { startNewChat?: () => void } = {}) {
   const [tasks, setTasks] = React.useState<Task[]>([])
   const [projects, setProjects] = React.useState<Project[]>([])
   const [knowledge, setKnowledge] = React.useState<KnowledgeItem[]>([])
@@ -34,6 +34,7 @@ export function HomeDashboard() {
 
   const setMessages = useChatStore((s) => s.setMessages)
   const setCurrentConversationId = useChatStore((s) => s.setCurrentConversationId)
+  const safeStartNewChat = startNewChat ?? (() => {})
 
   React.useEffect(() => {
     setGreeting(getGreeting())
@@ -182,12 +183,12 @@ export function HomeDashboard() {
           {/* Quick Actions */}
           <Card title="إجراءات سريعة" subtitle="Quick Actions" icon={<Zap className="h-4 w-4" />} className="sm:col-span-2">
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              <QuickAction icon={<MessageSquare className="h-5 w-5" />} label="محادثة" color="text-blue-500" onClick={() => {}} />
-              <QuickAction icon={<Search className="h-5 w-5" />} label="بحث" color="text-emerald-500" onClick={() => {}} />
-              <QuickAction icon={<Code className="h-5 w-5" />} label="كود" color="text-purple-500" onClick={() => {}} />
-              <QuickAction icon={<FileSearch className="h-5 w-5" />} label="تحليل" color="text-amber-500" onClick={() => {}} />
-              <QuickAction icon={<Plus className="h-5 w-5" />} label="مهمة" color="text-rose-500" onClick={() => {}} />
-              <QuickAction icon={<Play className="h-5 w-5" />} label="وكيل" color="text-cyan-500" onClick={() => {}} />
+              <QuickAction icon={<MessageSquare className="h-5 w-5" />} label="محادثة" color="text-blue-500" onClick={() => { safeStartNewChat(); }} />
+              <QuickAction icon={<Search className="h-5 w-5" />} label="بحث" color="text-emerald-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-search")); }} />
+              <QuickAction icon={<Code className="h-5 w-5" />} label="كود" color="text-purple-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-code")); }} />
+              <QuickAction icon={<FileSearch className="h-5 w-5" />} label="تحليل" color="text-amber-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-analyze")); }} />
+              <QuickAction icon={<Plus className="h-5 w-5" />} label="مهمة" color="text-rose-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-task")); }} />
+              <QuickAction icon={<Play className="h-5 w-5" />} label="وكيل" color="text-cyan-500" onClick={() => { safeStartNewChat(); }} />
             </div>
           </Card>
         </div>
