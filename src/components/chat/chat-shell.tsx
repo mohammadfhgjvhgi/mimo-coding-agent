@@ -64,11 +64,20 @@ async function streamChat(
     onDone: () => void
   }
 ) {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  } catch (e) {
+    // Network error — server unreachable (down, offline, CORS, etc.)
+    handlers.onError(
+      "تعذّر الوصول إلى الخادم / Server unreachable. تأكد من أن الخادم يعمل ثم أعد المحاولة."
+    )
+    return
+  }
 
   if (!res.ok) {
     const err = await res.text()

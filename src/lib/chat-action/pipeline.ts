@@ -313,7 +313,11 @@ export async function executePipeline(message: string, opts: { conversationId?: 
           result: { projectId: project.id, name: project.name },
         })
 
-        // Create tasks from suggested steps
+        // Create tasks from suggested steps.
+        // NOTE: creates BOTH db.task (agent-tracked, with conversationId) AND
+        // db.pTask (productivity-tracked, shown in Home Dashboard). Without the
+        // PTask write, tasks created here never appear in the Home "مهام اليوم"
+        // panel — which was bug #10.
         for (let i = 0; i < intent.suggestedSteps.length; i++) {
           const stepText = intent.suggestedSteps[i]
           const task = await db.task.create({
@@ -325,13 +329,25 @@ export async function executePipeline(message: string, opts: { conversationId?: 
               acceptanceCriteria: JSON.stringify([`${stepText} — مكتمل / done`]),
             },
           })
+          // Also create a PTask so it shows in Home Dashboard.
+          const ptask = await db.pTask.create({
+            data: {
+              title: stepText.slice(0, 200),
+              description: stepText,
+              status: "todo",
+              priority: i === 0 ? "high" : "medium",
+              projectId: project.id,
+              order: i,
+              tags: JSON.stringify(["chat-action"]),
+            },
+          })
           plan.taskIds.push(task.id)
           plan.steps.push({
             id: `step_task_${i}`,
             title: `مهمة: ${stepText}`,
             type: "create_task",
             status: "done",
-            result: { taskId: task.id, title: stepText },
+            result: { taskId: task.id, ptaskId: ptask.id, title: stepText },
           })
         }
 

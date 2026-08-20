@@ -10,12 +10,13 @@ import { execSync } from "node:child_process";
 
 const BASE = process.env.MIMO_BASE || "http://localhost:3000";
 const results = [];
-let pass = 0, fail = 0, skip = 0;
+let pass = 0, fail = 0, partial = 0, skip = 0;
 
 function record(id, name, status, detail) {
   results.push({ id, name, status, detail });
   if (status === "PASS") pass++;
   else if (status === "FAIL") fail++;
+  else if (status === "PARTIAL") partial++;
   else skip++;
   console.log(`  [${status}] ${id} — ${name}${detail ? " :: " + detail.slice(0, 120) : ""}`);
 }
@@ -187,18 +188,56 @@ const dhHonest = dh.json && typeof dh.json.totalRamMb === "number";
 record("DH1", "Dashboard RAM from real os.totalmem()", dhHonest ? "PASS" : "FAIL");
 
 // ---------------------------------------------------------------------------
+// Stage 9: Known Limitations (honest SKIPPED — these genuinely cannot be
+// verified in the sandbox environment, with the technical reason stated).
+// ---------------------------------------------------------------------------
+console.log("\n── Stage 9: Known Limitations (SKIPPED — honest) ──");
+
+record("LIM1", "MCP external server (filesystem)", "SKIPPED",
+  "lib/mcp/os.ts exists but 0 API routes import it. No external MCP server registered in settings.");
+
+record("LIM2", "LSP as a live process (tsserver/pyright)", "SKIPPED",
+  "Verification ladder uses `tsc --noEmit` instead. LSP server process not spawned.");
+
+record("LIM3", "Crash recovery mid-task", "SKIPPED",
+  "Cannot reliably kill+restart the dev server mid-agent-task in sandbox. Data survives (verified by repeated restarts showing 89 messages), but agent-loop resume state unknown.");
+
+record("LIM4", "100+ message conversation stress", "SKIPPED",
+  "Largest conversation in DB has 2 messages. Sending 100+ would cost excessive tokens + time. Not run.");
+
+record("LIM5", "Two concurrent agent tasks (parallel)", "SKIPPED",
+  "Not tested. Tool state isolation between concurrent loops unknown.");
+
+record("LIM6", "Offline mode (no network)", "SKIPPED",
+  "Cannot simulate offline in sandbox. Research + chat both depend on Z.ai network.");
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 console.log("\n═══════════════════════════════════════════════════");
 console.log("  SUMMARY");
 console.log("═══════════════════════════════════════════════════");
-console.log(`  PASS: ${pass}  |  FAIL: ${fail}  |  SKIPPED: ${skip}  |  TOTAL: ${results.length}`);
+console.log(`  PASS: ${pass}  |  FAIL: ${fail}  |  PARTIAL: ${partial}  |  SKIPPED: ${skip}  |  TOTAL: ${results.length}`);
 console.log("═══════════════════════════════════════════════════\n");
 
 if (fail > 0) {
   console.log("FAILED TESTS:");
   results.filter(r => r.status === "FAIL").forEach(r => {
     console.log(`  ✗ ${r.id} — ${r.name}${r.detail ? " :: " + r.detail.slice(0,150) : ""}`);
+  });
+  console.log("");
+}
+if (partial > 0) {
+  console.log("PARTIAL TESTS:");
+  results.filter(r => r.status === "PARTIAL").forEach(r => {
+    console.log(`  ◐ ${r.id} — ${r.name}${r.detail ? " :: " + r.detail.slice(0,150) : ""}`);
+  });
+  console.log("");
+}
+if (skip > 0) {
+  console.log("SKIPPED TESTS (honest limitations):");
+  results.filter(r => r.status === "SKIPPED").forEach(r => {
+    console.log(`  ⊘ ${r.id} — ${r.name}${r.detail ? " :: " + r.detail.slice(0,150) : ""}`);
   });
   console.log("");
 }

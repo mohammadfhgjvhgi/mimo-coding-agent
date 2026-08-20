@@ -1,1 +1,1 @@
-{"name":"real-project","version":"1.0.0","scripts":{"test":"node tests/calc.test.js"}}
+{"name":"real-project","version":"1.0.0","scripts":{"test":"node tests/run-all.js"}}

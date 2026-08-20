@@ -5,6 +5,7 @@ import { ArrowUp, Square, Brain, Paperclip, Loader2, Mic, MicOff, ImagePlus } fr
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useChatStore } from "@/store/chat-store"
 import {
   Tooltip,
   TooltipContent,
@@ -42,6 +43,26 @@ export function ChatInput({
   const imageInputRef = React.useRef<HTMLInputElement>(null)
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null)
   const audioChunksRef = React.useRef<Blob[]>([])
+
+  // Quick Action prefill: when Home Quick Action buttons set inputDraft in the
+  // store, consume it here (set as the input value + focus) then clear it.
+  const inputDraft = useChatStore((s) => s.inputDraft)
+  const setInputDraft = useChatStore((s) => s.setInputDraft)
+  React.useEffect(() => {
+    if (inputDraft) {
+      setValue(inputDraft)
+      setInputDraft(null)
+      // Focus the textarea + move cursor to end
+      requestAnimationFrame(() => {
+        const el = textareaRef.current
+        if (el) {
+          el.focus()
+          const len = el.value.length
+          el.setSelectionRange(len, len)
+        }
+      })
+    }
+  }, [inputDraft, setInputDraft])
 
   React.useEffect(() => {
     const el = textareaRef.current

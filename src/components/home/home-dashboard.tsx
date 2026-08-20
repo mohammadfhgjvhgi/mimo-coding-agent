@@ -34,7 +34,13 @@ export function HomeDashboard({ startNewChat }: { startNewChat?: () => void } = 
 
   const setMessages = useChatStore((s) => s.setMessages)
   const setCurrentConversationId = useChatStore((s) => s.setCurrentConversationId)
+  const setInputDraft = useChatStore((s) => s.setInputDraft)
   const safeStartNewChat = startNewChat ?? (() => {})
+  const setDraft = (prompt: string) => {
+    // Delay slightly so startNewChat's chat-view switch lands first,
+    // then ChatInput mounts and consumes the draft.
+    setTimeout(() => setInputDraft(prompt), 50)
+  }
 
   React.useEffect(() => {
     setGreeting(getGreeting())
@@ -53,18 +59,27 @@ export function HomeDashboard({ startNewChat }: { startNewChat?: () => void } = 
         ])
 
         if (mounted && taskRes.status === "fulfilled") {
-          setTasks((taskRes.value.tasks || []).slice(0, 5))
+          // Handle both shapes: API returns bare array `[...]`, not `{tasks: [...]}`
+          const td = taskRes.value
+          const arr = Array.isArray(td) ? td : (td.tasks || [])
+          setTasks(arr.slice(0, 5))
         }
         if (mounted && projRes.status === "fulfilled") {
-          setProjects((projRes.value.projects || []).filter((p: Project) => p.status === "active").slice(0, 5))
+          const pd = projRes.value
+          const arr = Array.isArray(pd) ? pd : (pd.projects || [])
+          setProjects(arr.filter((p: Project) => p.status === "active").slice(0, 5))
         }
         if (mounted && knRes.status === "fulfilled") {
-          setKnowledge((knRes.value.results || []).slice(0, 3).map((r: { id: string; source: string; content: string }) => ({
+          const kd = knRes.value
+          const arr = Array.isArray(kd) ? kd : (kd.results || [])
+          setKnowledge(arr.slice(0, 3).map((r: { id: string; source: string; content: string }) => ({
             id: r.id, source: r.source, snippet: (r.content || "").slice(0, 100),
           })))
         }
         if (mounted && convRes.status === "fulfilled") {
-          setConversations((convRes.value.conversations || []).slice(0, 5))
+          const cd = convRes.value
+          const arr = Array.isArray(cd) ? cd : (cd.conversations || [])
+          setConversations(arr.slice(0, 5))
         }
         if (mounted && sysRes.status === "fulfilled") {
           setSystemStats(sysRes.value)
@@ -184,10 +199,10 @@ export function HomeDashboard({ startNewChat }: { startNewChat?: () => void } = 
           <Card title="إجراءات سريعة" subtitle="Quick Actions" icon={<Zap className="h-4 w-4" />} className="sm:col-span-2">
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               <QuickAction icon={<MessageSquare className="h-5 w-5" />} label="محادثة" color="text-blue-500" onClick={() => { safeStartNewChat(); }} />
-              <QuickAction icon={<Search className="h-5 w-5" />} label="بحث" color="text-emerald-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-search")); }} />
-              <QuickAction icon={<Code className="h-5 w-5" />} label="كود" color="text-purple-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-code")); }} />
-              <QuickAction icon={<FileSearch className="h-5 w-5" />} label="تحليل" color="text-amber-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-analyze")); }} />
-              <QuickAction icon={<Plus className="h-5 w-5" />} label="مهمة" color="text-rose-500" onClick={() => { window.dispatchEvent(new CustomEvent("mimo-quick-task")); }} />
+              <QuickAction icon={<Search className="h-5 w-5" />} label="بحث" color="text-emerald-500" onClick={() => { safeStartNewChat(); setDraft("ابحث لي عن: "); }} />
+              <QuickAction icon={<Code className="h-5 w-5" />} label="كود" color="text-purple-500" onClick={() => { safeStartNewChat(); setDraft("اكتب كود: "); }} />
+              <QuickAction icon={<FileSearch className="h-5 w-5" />} label="تحليل" color="text-amber-500" onClick={() => { safeStartNewChat(); setDraft("حلّل: "); }} />
+              <QuickAction icon={<Plus className="h-5 w-5" />} label="مهمة" color="text-rose-500" onClick={() => { safeStartNewChat(); setDraft("أنشئ مهمة: "); }} />
               <QuickAction icon={<Play className="h-5 w-5" />} label="وكيل" color="text-cyan-500" onClick={() => { safeStartNewChat(); }} />
             </div>
           </Card>

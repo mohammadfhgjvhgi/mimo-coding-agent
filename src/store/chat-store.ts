@@ -37,6 +37,8 @@ interface ChatState {
   showThinking: boolean
   contextTokens: number
   contextBudget: number
+  // Quick Action prefill — set by Home Quick Action buttons, consumed + cleared by ChatInput on mount.
+  inputDraft: string | null
   selectedModel: string
   systemPrompt: string | null
   conversationFolder: string | null
@@ -67,6 +69,7 @@ interface ChatState {
   setSidebarMode: (m: "engineering" | "personal") => void
   setChatMode: (m: "engineering" | "assistant") => void
   setShowThinking: (v: boolean) => void
+  setInputDraft: (s: string | null) => void
   setContextTokens: (n: number) => void
   setSelectedModel: (m: string) => void
   setSystemPrompt: (p: string | null) => void
@@ -103,6 +106,7 @@ export const useChatStore = create<ChatState>((set) => ({
   sidebarMode: "engineering",
   chatMode: "engineering",
   showThinking: false,
+  inputDraft: null,
   contextTokens: 0,
   contextBudget: 28000,
   selectedModel: "default",
@@ -141,6 +145,7 @@ export const useChatStore = create<ChatState>((set) => ({
   setSidebarMode: (sidebarMode) => set({ sidebarMode }),
   setChatMode: (chatMode) => set({ chatMode }),
   setShowThinking: (showThinking) => set({ showThinking }),
+  setInputDraft: (inputDraft) => set({ inputDraft }),
   setContextTokens: (contextTokens) => set({ contextTokens }),
   setSelectedModel: (selectedModel) => set({ selectedModel }),
   setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
