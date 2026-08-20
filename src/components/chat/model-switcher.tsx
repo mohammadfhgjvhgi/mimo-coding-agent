@@ -83,6 +83,7 @@ export function ContextMeter() {
     <div className="flex items-center gap-2">
       <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
       <div className="flex items-center gap-1.5">
+        <span className="text-[0.65rem] text-muted-foreground">السياق</span>
         <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
           <div className={cn("h-full transition-all", color)} style={{ width: `${pct}%` }} />
         </div>

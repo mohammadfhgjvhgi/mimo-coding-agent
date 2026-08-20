@@ -299,35 +299,63 @@ function ConversationList({
 
       {/* Footer */}
       <div className="border-t border-sidebar-border px-3 py-2">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
               disabled={conversations.length === 0}
             >
-              <Trash2 className="h-3.5 w-3.5" /> مسح كل المحادثات
+              <MoreHorizontal className="h-3.5 w-3.5" /> المزيد
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>مسح كل المحادثات؟</AlertDialogTitle>
-              <AlertDialogDescription>
-                سيتم حذف جميع المحادثات والرسائل نهائياً. لا يمكن التراجع عن هذا الإجراء.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={onClearAll}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                حذف كل شيء
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  disabled={conversations.length === 0}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> مسح كل المحادثات
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>مسح كل المحادثات؟</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم حذف جميع المحادثات والرسائل نهائياً. لا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    للتأكيد، اكتب <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.65rem]">DELETE</code> أدناه:
+                  </p>
+                  <Input
+                    placeholder="DELETE"
+                    onChange={(e) => {
+                      const btn = e.target.parentElement?.querySelector("button[data-confirm]") as HTMLButtonElement | null
+                      if (btn) btn.disabled = e.target.value !== "DELETE"
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction
+                    data-confirm
+                    disabled
+                    onClick={onClearAll}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    حذف كل شيء
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="mt-1 flex items-center justify-between px-1 py-1">
           <span className="text-[0.7rem] text-muted-foreground">
