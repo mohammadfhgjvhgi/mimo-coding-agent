@@ -106,6 +106,35 @@ export const browserNavigateTool: ToolDef = {
           Date.now() - start
         )
       } catch (e2) {
+        // Third fallback: try z-ai web_search (works even when DNS fails)
+        try {
+          const ZAIModule = await import("z-ai-web-dev-sdk").catch(() => null)
+          if (ZAIModule) {
+            const ZAI = ZAIModule.default
+            const zai = await ZAI.create()
+            // Extract search query from URL — use the domain name as keyword
+            const urlObj = new URL(url)
+            const domain = urlObj.hostname.replace(/^www\./, "")
+            const results = await zai.functions.invoke("web_search", {
+              query: domain,
+              num: 5,
+            }) as Array<{ url: string; name: string; snippet: string; host_name: string }>
+            if (results && results.length > 0) {
+              const text = results.map((r, i) =>
+                `${i + 1}. ${r.name}\n   ${r.snippet}\n   ${r.url}`
+              ).join("\n\n")
+              return ok(
+                id,
+                "browser_navigate",
+                args,
+                `🌐 ${url} (fallback: web_search)\n⚠️ DNS فشل للموقع المطلوب — إليك نتائج بحث عن ${domain}:\n\n${text}`,
+                Date.now() - start
+              )
+            }
+          }
+        } catch (e3) {
+          // All 3 fallbacks failed
+        }
         return fail(
           id,
           "browser_navigate",
