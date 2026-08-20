@@ -2,517 +2,671 @@
 
 import * as React from "react"
 import {
+  Settings as SettingsIcon,
+  Palette,
   Cpu,
-  Cloud,
-  RefreshCw,
-  Server,
+  MessageSquare,
+  Brain,
+  Database,
+  Info,
   Loader2,
   CheckCircle2,
   XCircle,
-  Brain,
-  Layers,
-  Zap,
-  Globe,
-  Github,
-  Plug,
-  Plus,
-  Trash2,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Key,
+  Star,
+  RefreshCw,
 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useSettingsStore } from "@/store/settings-store"
-import type { ProviderKind } from "@/lib/llm-provider"
+import { toast } from "sonner"
 
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (v: boolean) => void
 }
 
-interface OllamaModel {
-  name: string
-  size?: number
-  family?: string
-}
+const SECTIONS = [
+  { id: "general", label: "عام", icon: SettingsIcon },
+  { id: "appearance", label: "المظهر", icon: Palette },
+  { id: "models", label: "النماذج", icon: Cpu },
+  { id: "chat", label: "المحادثة", icon: MessageSquare },
+  { id: "memory", label: "الذاكرة", icon: Brain },
+  { id: "data", label: "البيانات", icon: Database },
+  { id: "about", label: "حول", icon: Info },
+] as const
+
+type SectionId = typeof SECTIONS[number]["id"]
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const s = useSettingsStore()
-  const [ollamaUrl, setOllamaUrl] = React.useState(s.ollamaUrl)
-  const [probeState, setProbeState] = React.useState<"idle" | "loading" | "ok" | "fail">("idle")
-  const [models, setModels] = React.useState<OllamaModel[]>([])
-  const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
-
-  React.useEffect(() => {
-    if (!s.loaded) s.load()
-  }, [s])
-
-  React.useEffect(() => {
-    setOllamaUrl(s.ollamaUrl)
-  }, [s.ollamaUrl])
-
-  const probe = React.useCallback(async (url: string) => {
-    setProbeState("loading")
-    setErrorMsg(null)
-    try {
-      const res = await fetch(`/api/providers?ollamaUrl=${encodeURIComponent(url)}`)
-      const data = await res.json()
-      if (data.reachable) {
-        setProbeState("ok")
-        setModels(data.models || [])
-      } else {
-        setProbeState("fail")
-        setModels([])
-        setErrorMsg("تعذر الوصول إلى Ollama على هذا العنوان. تأكد من تشغيل `ollama serve` محلياً.")
-      }
-    } catch (e) {
-      setProbeState("fail")
-      setModels([])
-      setErrorMsg((e as Error).message)
-    }
-  }, [])
-
-  // Auto-probe when opening with Ollama selected
-  React.useEffect(() => {
-    if (open && s.provider === "ollama" && probeState === "idle") {
-      probe(ollamaUrl)
-    }
-    if (!open) {
-      setProbeState("idle")
-      setModels([])
-      setErrorMsg(null)
-    }
-
-  }, [open])
-
-  const handleProviderChange = (p: ProviderKind) => {
-    s.setProvider(p)
-    if (p === "ollama") {
-      setProbeState("idle")
-      setTimeout(() => probe(ollamaUrl), 50)
-    } else {
-      setProbeState("idle")
-      setModels([])
-    }
-  }
-
-  const modelOptions: OllamaModel[] = React.useMemo(() => {
-    const base = models.length
-      ? models
-      : [
-          { name: "llama3.2" },
-          { name: "llama3.1:8b" },
-          { name: "qwen2.5:3b" },
-          { name: "qwen2.5:7b" },
-          { name: "phi3:mini" },
-          { name: "mistral:7b" },
-          { name: "gemma2:2b" },
-        ]
-    // Ensure the currently-selected model is always present and unique
-    const current = s.ollamaModel || "llama3.2"
-    if (!base.find((m) => m.name === current)) {
-      base.unshift({ name: current })
-    }
-    return base
-  }, [models, s.ollamaModel])
+  const [section, setSection] = React.useState<SectionId>("models")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Server className="h-4 w-4" /> إعدادات مزود الذكاء الاصطناعي
-          </DialogTitle>
-          <DialogDescription>
-            اختر مصدر النماذج: تشغيل محلي عبر Ollama أو خدمة Z.ai السحابية.
-          </DialogDescription>
+      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="sr-only">
+          <DialogTitle>الإعدادات / Settings</DialogTitle>
         </DialogHeader>
-
-        {/* Provider tabs */}
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => handleProviderChange("ollama")}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-3 text-right transition",
-              s.provider === "ollama"
-                ? "border-primary bg-accent"
-                : "border-border hover:bg-accent/50"
-            )}
-          >
-            <div className="flex w-full items-center justify-between">
-              <Cpu className="h-4 w-4 text-emerald-500" />
-              {s.provider === "ollama" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
+        <div className="flex h-full">
+          {/* Left sidebar — categories */}
+          <div className="w-56 shrink-0 border-l border-border bg-sidebar/50 flex flex-col">
+            <div className="px-4 py-4 border-b border-sidebar-border">
+              <h2 className="text-sm font-bold flex items-center gap-2">
+                <SettingsIcon className="h-4 w-4 text-primary" />
+                الإعدادات
+              </h2>
+              <p className="text-[0.6rem] text-muted-foreground mt-0.5">Settings</p>
             </div>
-            <span className="text-sm font-semibold">Ollama محلي</span>
-            <span className="text-[0.7rem] text-muted-foreground">يعمل دون إنترنت</span>
-          </button>
-
-          <button
-            onClick={() => handleProviderChange("dual")}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-3 text-right transition",
-              s.provider === "dual"
-                ? "border-primary bg-accent"
-                : "border-border hover:bg-accent/50"
-            )}
-          >
-            <div className="flex w-full items-center justify-between">
-              <Layers className="h-4 w-4 text-purple-500" />
-              {s.provider === "dual" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
-            </div>
-            <span className="text-sm font-semibold">Dual-Worker</span>
-            <span className="text-[0.7rem] text-muted-foreground">CPU + GPU معًا</span>
-          </button>
-
-          <button
-            onClick={() => handleProviderChange("zai")}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-3 text-right transition",
-              s.provider === "zai"
-                ? "border-primary bg-accent"
-                : "border-border hover:bg-accent/50"
-            )}
-          >
-            <div className="flex w-full items-center justify-between">
-              <Cloud className="h-4 w-4 text-cyan-500" />
-              {s.provider === "zai" && <Badge variant="secondary" className="text-[0.65rem]">مُفعّل</Badge>}
-            </div>
-            <span className="text-sm font-semibold">Z.ai سحابي</span>
-            <span className="text-[0.7rem] text-muted-foreground">جاهز فوراً</span>
-          </button>
-        </div>
-
-        {/* Ollama config */}
-        {s.provider === "ollama" && (
-          <div className="space-y-3 rounded-xl border border-border p-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ollama-url" className="text-xs">عنوان خادم Ollama</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="ollama-url"
-                  value={ollamaUrl}
-                  onChange={(e) => setOllamaUrl(e.target.value)}
-                  onBlur={() => {
-                    s.setOllamaUrl(ollamaUrl)
-                    probe(ollamaUrl)
-                  }}
-                  placeholder="http://localhost:11434"
-                  className="text-sm"
-                  dir="ltr"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    s.setOllamaUrl(ollamaUrl)
-                    probe(ollamaUrl)
-                  }}
-                  title="فحص الاتصال"
-                >
-                  <RefreshCw className={cn("h-4 w-4", probeState === "loading" && "animate-spin")} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              {probeState === "loading" && (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
-                  <span className="text-muted-foreground">جارٍ الفحص…</span>
-                </>
-              )}
-              {probeState === "ok" && (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">متصل · {models.length} نموذج متاح</span>
-                </>
-              )}
-              {probeState === "fail" && (
-                <>
-                  <XCircle className="h-3.5 w-3.5 text-destructive" />
-                  <span className="text-destructive">غير متصل</span>
-                </>
-              )}
-            </div>
-
-            {errorMsg && (
-              <p className="rounded-md bg-destructive/10 px-2 py-1.5 text-[0.7rem] text-destructive">
-                {errorMsg}
-              </p>
-            )}
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">النموذج</Label>
-              <Select
-                value={s.ollamaModel}
-                onValueChange={(v) => s.setOllamaModel(v)}
-              >
-                <SelectTrigger className="text-sm" dir="ltr">
-                  <SelectValue placeholder="اختر نموذجاً" />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelOptions.map((m) => (
-                    <SelectItem key={m.name} value={m.name} dir="ltr">
-                      <span className="flex items-center justify-between gap-2">
-                        <span>{m.name}</span>
-                        {m.size ? (
-                          <span className="text-[0.65rem] text-muted-foreground">
-                            {(m.size / 1e9).toFixed(1)}GB
-                          </span>
-                        ) : null}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[0.7rem] text-muted-foreground">
-                نصيحة: للـ i7-3770 / 12GB RAM جرّب نماذج صغيرة مثل <code className="rounded bg-muted px-1">gemma2:2b</code> أو <code className="rounded bg-muted px-1">qwen2.5:3b</code>.
-              </p>
+            <div className="flex-1 overflow-y-auto chat-scroll py-2">
+              {SECTIONS.map(s => {
+                const Icon = s.icon
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSection(s.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-all",
+                      section === s.id
+                        ? "bg-primary/10 text-primary border-r-2 border-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{s.label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
-        )}
 
-        {/* Z.ai config */}
-        {s.provider === "zai" && (
-          <div className="space-y-3 rounded-xl border border-border p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <Label className="flex items-center gap-1.5 text-xs">
-                  <Brain className="h-3.5 w-3.5 text-amber-500" />
-                  تفعيل التفكير المتسلسل (Chain of Thought)
-                </Label>
-                <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                  يحسّن جودة الاستدلال مقابل استهلاك وقت أطول.
-                </p>
-              </div>
-              <Switch
-                checked={s.zaiThinking}
-                onCheckedChange={(v) => s.setZaiThinking(v)}
-              />
-            </div>
-            <p className="rounded-md bg-muted/60 px-2.5 py-1.5 text-[0.7rem] text-muted-foreground">
-              خدمة Z.ai جاهزة فوراً في هذه البيئة دون أي إعداد. بدّل إلى Ollama لتشغيل نماذج محلية على جهازك.
-            </p>
-          </div>
-        )}
-
-        {/* Dual-Worker config */}
-        {s.provider === "dual" && (
-          <div className="space-y-4 rounded-xl border border-border p-3">
-            <p className="rounded-md bg-purple-500/5 px-2.5 py-1.5 text-[0.7rem] text-purple-600 dark:text-purple-400">
-              معمارانية العامل المزدوج: عامل المعالج (CPU) للتخطيط + استدعاء الأدوات، وعامل كرت الشاشة (GPU) لكتابة الكود. شغّل العاملين عبر <code className="rounded bg-muted px-1">infrastructure/start-mimo-servers.sh</code>.
-            </p>
-
-            {/* Router mode */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">وضع الموزّع (Router Mode)</Label>
-              <Select
-                value={s.routerMode}
-                onValueChange={(v) => s.setRouterMode(v as "auto" | "cpu" | "gpu")}
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">
-                    <span>تلقائي — يصنّف كل خطوة (موصى)</span>
-                  </SelectItem>
-                  <SelectItem value="cpu">
-                    <span>الكل على المعالج (CPU)</span>
-                  </SelectItem>
-                  <SelectItem value="gpu">
-                    <span>الكل على كرت الشاشة (GPU)</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* GPU Worker config */}
-            <div className="space-y-2 rounded-lg border border-border bg-card/50 p-2.5">
-              <div className="flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5 text-amber-500" />
-                <span className="text-xs font-semibold">عامل GPU (كتابة الكود)</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[0.7rem] text-muted-foreground">العنوان</Label>
-                  <Input
-                    value={s.gpuWorkerUrl}
-                    onChange={(e) => s.setGpuWorkerUrl(e.target.value)}
-                    placeholder="http://localhost:8001"
-                    className="text-xs"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[0.7rem] text-muted-foreground">النموذج</Label>
-                  <Input
-                    value={s.gpuWorkerModel}
-                    onChange={(e) => s.setGpuWorkerModel(e.target.value)}
-                    placeholder="qwen2.5-coder:7b"
-                    className="text-xs"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* CPU Worker config */}
-            <div className="space-y-2 rounded-lg border border-border bg-card/50 p-2.5">
-              <div className="flex items-center gap-1.5">
-                <Cpu className="h-3.5 w-3.5 text-cyan-500" />
-                <span className="text-xs font-semibold">عامل CPU (تخطيط + أدوات)</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[0.7rem] text-muted-foreground">العنوان</Label>
-                  <Input
-                    value={s.cpuWorkerUrl}
-                    onChange={(e) => s.setCpuWorkerUrl(e.target.value)}
-                    placeholder="http://localhost:8002"
-                    className="text-xs"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[0.7rem] text-muted-foreground">النموذج</Label>
-                  <Input
-                    value={s.cpuWorkerModel}
-                    onChange={(e) => s.setCpuWorkerModel(e.target.value)}
-                    placeholder="qwen3:4b"
-                    className="text-xs"
-                    dir="ltr"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[0.7rem] text-muted-foreground">
-              💡 إذا كان أحد العاملين غير متاح، يتحوّل تلقائياً إلى Z.ai كـ fallback.
-            </p>
-          </div>
-        )}
-
-        {/* External Ecosystem section (always visible) */}
-        <div className="space-y-3 rounded-xl border border-border p-3">
-          <div className="flex items-center gap-1.5">
-            <Plug className="h-3.5 w-3.5 text-purple-500" />
-            <span className="text-xs font-semibold">التكاملات الخارجية</span>
-          </div>
-
-          {/* GitHub Token */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1 text-xs">
-              <Github className="h-3 w-3" /> GitHub Personal Access Token
-            </Label>
-            <Input
-              type="password"
-              value={s.githubToken}
-              onChange={(e) => s.setGithubToken(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (اختياري — بدون توكن يعمل بحدود عامة)"
-              className="text-xs"
-              dir="ltr"
-            />
-            <p className="text-[0.7rem] text-muted-foreground">
-              يُستخدم لرفع حدود API. بدون توكن، يعمل بحدود 60 طلب/ساعة للمستودعات العامة.
-            </p>
-          </div>
-
-          {/* MCP Servers */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1 text-xs">
-              <Plug className="h-3 w-3" /> خوادم MCP
-            </Label>
-            <div className="space-y-1.5">
-              {s.mcpServers.length > 0 ? (
-                s.mcpServers.map((srv, i) => (
-                  <div key={i} className="flex items-center gap-1.5">
-                    <Input
-                      value={srv.name}
-                      onChange={(e) => {
-                        const updated = [...s.mcpServers]
-                        updated[i] = { ...srv, name: e.target.value }
-                        s.setMcpServers(updated)
-                      }}
-                      placeholder="اسم"
-                      className="text-xs w-24"
-                      dir="ltr"
-                    />
-                    <Input
-                      value={srv.url}
-                      onChange={(e) => {
-                        const updated = [...s.mcpServers]
-                        updated[i] = { ...srv, url: e.target.value }
-                        s.setMcpServers(updated)
-                      }}
-                      placeholder="http://localhost:3001/mcp"
-                      className="text-xs flex-1"
-                      dir="ltr"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0"
-                      onClick={() => {
-                        const updated = s.mcpServers.filter((_, idx) => idx !== i)
-                        s.setMcpServers(updated)
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3 text-destructive" />
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="text-[0.7rem] text-muted-foreground">
-                  لا خوادم MCP مكونة. أضف واحداً لربط أدوات خارجية بقاعدة بيانات أو API.
-                </p>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1 text-xs"
-                onClick={() =>
-                  s.setMcpServers([
-                    ...s.mcpServers,
-                    { name: `server-${s.mcpServers.length + 1}`, url: "" },
-                  ])
-                }
-              >
-                <Plus className="h-3 w-3" /> إضافة خادم MCP
+          {/* Right — content */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="border-b border-border px-6 py-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold">
+                {SECTIONS.find(s => s.id === section)?.label}
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                إغلاق
               </Button>
             </div>
-          </div>
-
-          {/* Browser info */}
-          <div className="flex items-center gap-1.5 rounded-md bg-muted/40 px-2.5 py-1.5">
-            <Globe className="h-3 w-3 text-cyan-500" />
-            <span className="text-[0.7rem] text-muted-foreground">
-              المتصفح: Playwright headless — جاهز (chromium مُثبّت)
-            </span>
+            <div className="flex-1 overflow-y-auto chat-scroll px-6 py-4">
+              {section === "general" && <GeneralSection />}
+              {section === "appearance" && <AppearanceSection />}
+              {section === "models" && <ModelsSection />}
+              {section === "chat" && <ChatSection />}
+              {section === "memory" && <MemorySection />}
+              {section === "data" && <DataSection />}
+              {section === "about" && <AboutSection />}
+            </div>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>تم</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 1. General
+// ─────────────────────────────────────────────────────────────────────────
+function GeneralSection() {
+  const s = useSettingsStore()
+  const [enterToSend, setEnterToSend] = React.useState(true)
+  const [streaming, setStreaming] = React.useState(true)
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h4 className="text-sm font-medium mb-3">السلوك العام / General Behavior</h4>
+        <div className="space-y-3">
+          <SettingRow
+            label="Enter للإرسال / Enter to send"
+            description="إرسال الرسالة عند الضغط على Enter (Shift+Enter لسطر جديد)"
+          >
+            <Switch checked={enterToSend} onCheckedChange={setEnterToSend} />
+          </SettingRow>
+          <SettingRow
+            label="البث المباشر / Streaming"
+            description="عرض الرد كلمًا بكلم أثناء توليده"
+          >
+            <Switch checked={streaming} onCheckedChange={setStreaming} />
+          </SettingRow>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2. Appearance
+// ─────────────────────────────────────────────────────────────────────────
+function AppearanceSection() {
+  const [density, setDensity] = React.useState<"comfortable" | "compact">("comfortable")
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h4 className="text-sm font-medium mb-3">المظهر / Appearance</h4>
+        <div className="space-y-3">
+          <SettingRow label="السمة / Theme" description="فاتح، داكن، أو تلقائي">
+            <div className="flex gap-2">
+              {["light", "dark", "system"].map(t => (
+                <Button
+                  key={t}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const root = document.documentElement
+                    if (t === "dark") root.classList.add("dark")
+                    else if (t === "light") root.classList.remove("dark")
+                    else {
+                      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+                      root.classList.toggle("dark", prefersDark)
+                    }
+                  }}
+                >
+                  {t === "light" ? "☀️ فاتح" : t === "dark" ? "🌙 داكن" : "🖥️ تلقائي"}
+                </Button>
+              ))}
+            </div>
+          </SettingRow>
+          <SettingRow label="الكثافة / Density" description="compact أو comfortable">
+            <div className="flex gap-2">
+              {(["comfortable", "compact"] as const).map(d => (
+                <Button
+                  key={d}
+                  size="sm"
+                  variant={density === d ? "default" : "outline"}
+                  onClick={() => setDensity(d)}
+                >
+                  {d === "comfortable" ? "مريح" : "مضغوط"}
+                </Button>
+              ))}
+            </div>
+          </SettingRow>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3. Models (the big one — Multi-Provider)
+// ─────────────────────────────────────────────────────────────────────────
+interface ProviderState {
+  providerId: string
+  name: string
+  logo: string
+  accent: string
+  description: string
+  baseURL: string
+  hasKey: boolean
+  apiKey: string
+  enabled: boolean
+  isDefault: boolean
+  testing: boolean
+  testResult: "idle" | "ok" | "fail"
+  testError?: string
+  showKey: boolean
+  models: Array<{ id: string; name: string; contextWindow: number }>
+}
+
+function ModelsSection() {
+  const [providers, setProviders] = React.useState<ProviderState[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState<string | null>(null)
+
+  const loadProviders = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/providers")
+      const data = await res.json()
+      setProviders((data.providers || []).map((p: ProviderState & { models: ProviderState["models"] }) => ({
+        ...p,
+        apiKey: p.apiKey || "",
+        showKey: false,
+        testing: false,
+        testResult: "idle" as const,
+      })))
+    } catch {} finally { setLoading(false) }
+  }
+
+  React.useEffect(() => { loadProviders() }, [])
+
+  const updateProvider = (id: string, patch: Partial<ProviderState>) => {
+    setProviders(prev => prev.map(p => p.providerId === id ? { ...p, ...patch } : p))
+  }
+
+  const saveProvider = async (p: ProviderState) => {
+    setSaving(p.providerId)
+    try {
+      await fetch("/api/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId: p.providerId,
+          name: p.name,
+          apiKey: p.apiKey || null,
+          baseURL: p.baseURL,
+          enabled: p.enabled,
+          isDefault: p.isDefault,
+        }),
+      })
+      toast.success(`تم حفظ ${p.name}`)
+    } catch {
+      toast.error("فشل الحفظ")
+    } finally { setSaving(null) }
+  }
+
+  const testProvider = async (p: ProviderState) => {
+    updateProvider(p.providerId, { testing: true, testResult: "idle" })
+    try {
+      const res = await fetch("/api/providers/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId: p.providerId,
+          apiKey: p.apiKey,
+          baseURL: p.baseURL,
+        }),
+      })
+      const data = await res.json()
+      updateProvider(p.providerId, {
+        testing: false,
+        testResult: data.ok ? "ok" : "fail",
+        testError: data.error,
+      })
+      if (data.ok) toast.success(`${p.name}: متصل ✓`)
+      else toast.error(`${p.name}: ${data.error || "فشل"}`)
+    } catch (e) {
+      updateProvider(p.providerId, { testing: false, testResult: "fail", testError: String(e) })
+    }
+  }
+
+  if (loading) return <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h4 className="text-sm font-medium">مزوّدو النماذج / Model Providers</h4>
+          <p className="text-xs text-muted-foreground mt-0.5">إدارة 8 مزوّدين — OpenAI, Claude, Gemini, DeepSeek, Groq, Mistral, OpenRouter, Ollama</p>
+        </div>
+        <Button size="sm" variant="ghost" onClick={loadProviders}>
+          <RefreshCw className="h-3.5 w-3.5" /> تحديث
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {providers.map(p => (
+          <div
+            key={p.providerId}
+            className={cn(
+              "rounded-xl border p-4 transition-all elevated-card",
+              p.isDefault && "border-primary/40 glow-primary"
+            )}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-lg shrink-0"
+                style={{ backgroundColor: `${p.accent}15`, border: `1px solid ${p.accent}30` }}
+              >
+                {p.logo}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{p.name}</span>
+                  {p.isDefault && <Badge variant="default" className="text-[0.55rem] py-0"><Star className="h-2.5 w-2.5" /> افتراضي</Badge>}
+                  {p.testResult === "ok" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />}
+                  {p.testResult === "fail" && <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                </div>
+                <p className="text-[0.65rem] text-muted-foreground truncate">{p.description}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={p.enabled}
+                  onCheckedChange={(v) => updateProvider(p.providerId, { enabled: v })}
+                />
+              </div>
+            </div>
+
+            {/* API key input */}
+            {p.providerId !== "zai" && (
+              <div className="space-y-2">
+                {p.providerId !== "ollama" && (
+                  <div>
+                    <Label className="text-[0.65rem] text-muted-foreground mb-1 flex items-center gap-1">
+                      <Key className="h-3 w-3" /> API Key
+                    </Label>
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1">
+                        <Input
+                          type={p.showKey ? "text" : "password"}
+                          value={p.apiKey}
+                          onChange={(e) => updateProvider(p.providerId, { apiKey: e.target.value })}
+                          placeholder={p.hasKey ? "•••••••••••• (محفوظ)" : "sk-..."}
+                          className="text-xs pr-9 font-mono"
+                        />
+                        <button
+                          onClick={() => updateProvider(p.providerId, { showKey: !p.showKey })}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {p.showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => testProvider(p)}
+                        disabled={p.testing}
+                        className="h-9 text-xs"
+                      >
+                        {p.testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "اختبار"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => saveProvider(p)}
+                        disabled={saving === p.providerId}
+                        className="h-9 text-xs"
+                      >
+                        {saving === p.providerId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "حفظ"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Base URL */}
+                <div>
+                  <Label className="text-[0.65rem] text-muted-foreground mb-1 block">Base URL</Label>
+                  <Input
+                    type="text"
+                    value={p.baseURL}
+                    onChange={(e) => updateProvider(p.providerId, { baseURL: e.target.value })}
+                    className="text-xs font-mono"
+                    placeholder="https://api.example.com/v1"
+                  />
+                </div>
+
+                {/* Models preview */}
+                {p.models.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {p.models.slice(0, 4).map(m => (
+                      <Badge key={m.id} variant="secondary" className="text-[0.55rem] py-0">
+                        {m.name}
+                      </Badge>
+                    ))}
+                    {p.models.length > 4 && (
+                      <Badge variant="outline" className="text-[0.55rem] py-0">
+                        +{p.models.length - 4}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                {p.testResult === "fail" && p.testError && (
+                  <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/20 px-2 py-1 text-[0.6rem] text-red-600 dark:text-red-400">
+                    {p.testError.slice(0, 150)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Set as default */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+              <span className="text-[0.65rem] text-muted-foreground">
+                {p.models.length} نموذج متاح
+              </span>
+              {!p.isDefault && p.enabled && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    updateProvider(p.providerId, { isDefault: true })
+                    setProviders(prev => prev.map(x => ({ ...x, isDefault: x.providerId === p.providerId })))
+                    await saveProvider({ ...p, isDefault: true })
+                  }}
+                  className="h-7 text-[0.65rem]"
+                >
+                  <Star className="h-3 w-3" /> اجعله افتراضي
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. Chat
+// ─────────────────────────────────────────────────────────────────────────
+function ChatSection() {
+  const [systemPrompt, setSystemPrompt] = React.useState("")
+  const [contextBudget, setContextBudget] = React.useState(28000)
+  const [injectMemory, setInjectMemory] = React.useState(true)
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h4 className="text-sm font-medium mb-3">السياق / Context</h4>
+        <SettingRow label="ميزانية السياق / Context Budget" description="أقصى عدد من الـtokens لكل محادثة">
+          <Input
+            type="number"
+            value={contextBudget}
+            onChange={(e) => setContextBudget(Number(e.target.value))}
+            className="w-32 text-xs"
+          />
+        </SettingRow>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium mb-3">حقن الذاكرة / Memory Injection</h4>
+        <SettingRow label="حقن الذكريات / Inject memories" description="تضمين الذكريات المحفوظة في بداية كل محادثة">
+          <Switch checked={injectMemory} onCheckedChange={setInjectMemory} />
+        </SettingRow>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium mb-3">System Prompt افتراضي</h4>
+        <textarea
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+          placeholder="أنت مساعد ذكي..."
+          className="w-full min-h-24 rounded-lg border border-border bg-background p-3 text-xs font-mono resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5. Memory
+// ─────────────────────────────────────────────────────────────────────────
+function MemorySection() {
+  const [memories, setMemories] = React.useState<Array<{ id: string; key: string; value: string; category: string }>>([])
+  const [loading, setLoading] = React.useState(true)
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/memory")
+      const data = await res.json()
+      setMemories(data.memories || [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  React.useEffect(() => { load() }, [])
+
+  const deleteMem = async (id: string) => {
+    await fetch(`/api/memory?id=${id}`, { method: "DELETE" })
+    setMemories(prev => prev.filter(m => m.id !== id))
+    toast.success("تم الحذف")
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium">الذكريات المحفوظة / Saved Memories</h4>
+        <Button size="sm" variant="ghost" onClick={load}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : memories.length === 0 ? (
+        <div className="text-center py-8 text-xs text-muted-foreground">لا ذكريات محفوظة</div>
+      ) : (
+        <div className="space-y-2">
+          {memories.map(m => (
+            <div key={m.id} className="flex items-start gap-2 rounded-lg border border-border p-2.5">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Badge variant="secondary" className="text-[0.5rem] py-0">{m.category}</Badge>
+                  <span className="text-xs font-medium font-mono">{m.key}</span>
+                </div>
+                <p className="text-xs text-muted-foreground truncate">{m.value}</p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => deleteMem(m.id)} className="h-7 text-xs text-red-500 hover:text-red-600">
+                حذف
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 6. Data (Export)
+// ─────────────────────────────────────────────────────────────────────────
+function DataSection() {
+  const [exporting, setExporting] = React.useState(false)
+
+  const exportAll = async (format: "md" | "json" | "html") => {
+    setExporting(true)
+    try {
+      const res = await fetch("/api/conversations")
+      const data = await res.json()
+      const convs = data.conversations || []
+      // For now, export conversation list as JSON
+      const blob = new Blob([JSON.stringify(convs, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `mimo-conversations-${Date.now()}.${format === "json" ? "json" : format}`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(`تم تصدير ${convs.length} محادثة`)
+    } catch {
+      toast.error("فشل التصدير")
+    } finally { setExporting(false) }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h4 className="text-sm font-medium mb-3">تصدير المحادثات / Export Conversations</h4>
+        <div className="grid grid-cols-3 gap-2">
+          <Button onClick={() => exportAll("json")} disabled={exporting} variant="outline" className="flex flex-col gap-1 h-auto py-3">
+            <Database className="h-5 w-5" />
+            <span className="text-xs">JSON</span>
+            <span className="text-[0.6rem] text-muted-foreground">lossless</span>
+          </Button>
+          <Button onClick={() => exportAll("md")} disabled={exporting} variant="outline" className="flex flex-col gap-1 h-auto py-3">
+            <MessageSquare className="h-5 w-5" />
+            <span className="text-xs">Markdown</span>
+            <span className="text-[0.6rem] text-muted-foreground">human-readable</span>
+          </Button>
+          <Button onClick={() => exportAll("html")} disabled={exporting} variant="outline" className="flex flex-col gap-1 h-auto py-3">
+            <ExternalLink className="h-5 w-5" />
+            <span className="text-xs">HTML</span>
+            <span className="text-[0.6rem] text-muted-foreground">styled</span>
+          </Button>
+        </div>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium mb-3">إجراءات خطيرة / Dangerous Actions</h4>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={async () => {
+            if (!confirm("هل أنت متأكد؟ سيتم حذف كل المحادثات.")) return
+            await fetch("/api/conversations", { method: "DELETE" })
+            toast.success("تم حذف كل المحادثات")
+          }}
+        >
+          حذف كل المحادثات
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 7. About
+// ─────────────────────────────────────────────────────────────────────────
+function AboutSection() {
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="text-center py-8">
+        <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl gradient-primary text-white elevate-2 mb-3">
+          <Brain className="h-8 w-8" />
+        </div>
+        <h3 className="text-xl font-bold">MiMo X</h3>
+        <p className="text-xs text-muted-foreground mt-1">Personal AI & Software Engineering OS</p>
+        <p className="text-[0.65rem] text-muted-foreground mt-0.5">v1.0.0 — Local-first</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <InfoCard label="المزودون المدعومون" value="8 providers" />
+        <InfoCard label="النماذج" value="30+ models" />
+        <InfoCard label="أنظمة التشغيل" value="10 OS modules" />
+        <InfoCard label="API Routes" value="104 routes" />
+      </div>
+      <div className="text-center">
+        <a
+          href="https://github.com/mimo-x"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-primary link-underline"
+        >
+          <ExternalLink className="h-3 w-3" /> GitHub Repository
+        </a>
+      </div>
+    </div>
+  )
+}
+
+function InfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border p-3 text-center">
+      <div className="text-base font-bold text-primary">{value}</div>
+      <div className="text-[0.6rem] text-muted-foreground mt-0.5">{label}</div>
+    </div>
+  )
+}
+
+function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium">{label}</div>
+        {description && <div className="text-[0.65rem] text-muted-foreground mt-0.5">{description}</div>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
   )
 }

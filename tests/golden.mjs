@@ -263,7 +263,7 @@ console.log(`     EXISTS:  ${matrixExists}`);
 console.log(`     PARTIAL: ${matrixPartial}`);
 console.log(`     MISSING: ${matrixMissing}`);
 console.log(`     ─────────────`);
-console.log(`     TOTAL:   ${matrixTotal}  ${matrixTotal === 52 ? "✓ (matches required 52 — 45 original + 7 Wave 2)" : "✗ MISMATCH (expected 52)"}`);
+console.log(`     TOTAL:   ${matrixTotal}  ${matrixTotal === 60 ? "✓ (matches required 60 — 45 original + 7 Wave 2 + 8 Wave 3)" : "✗ MISMATCH (expected 60)"}`);
 console.log("");
 
 // Self-check: if totals don't add up, fail

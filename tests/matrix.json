@@ -54,6 +54,15 @@
     { "section": 49, "name": "Evidence Plane (Wave 2)", "status": "PROVEN", "evidence": "/api/evidence route + lib/evidence/evidence-system.ts. buildEvidencePackage returns items with confidence scoring. Tested: returned memory evidence with confidence=0.8" },
     { "section": 50, "name": "Benchmarks Infrastructure (Wave 2)", "status": "PROVEN", "evidence": "/api/benchmarks route: POST records runs (taskType/model/durationMs/tokens/toolCalls/success), GET aggregates (successRate/tokPerSec/byModel/byTaskType). 1 run recorded: successRate=1, tokPerSec=20" },
     { "section": 51, "name": "Checkpoints System (Wave 2)", "status": "PROVEN", "evidence": "/api/recovery?action=save_checkpoint creates git-based checkpoint. Test: cp_1787252097187 with gitHash 45ebeaa. Rollback via DELETE /api/git?to=<hash>" },
-    { "section": 52, "name": "MCP External Server (Wave 2)", "status": "PROVEN", "evidence": "/api/mcp-external route: snapshot/list_servers/discover/install/configure/health_check/discover_tools/set_tool_permission/get_tool_permission/audit_log. LIM1 resolved" }
+    { "section": 52, "name": "MCP External Server (Wave 2)", "status": "PROVEN", "evidence": "/api/mcp-external route: snapshot/list_servers/discover/install/configure/health_check/discover_tools/set_tool_permission/get_tool_permission/audit_log. LIM1 resolved" },
+
+    { "section": 53, "name": "Multi-Provider Registry (Wave 3)", "status": "PROVEN", "evidence": "src/lib/llm-providers/registry.ts — 9 providers (OpenAI, Anthropic, Gemini, DeepSeek, Groq, Mistral, OpenRouter, Ollama, Z.ai) with models + pricing + capabilities" },
+    { "section": 54, "name": "Universal OpenAI-Compatible Client (Wave 3)", "status": "PROVEN", "evidence": "src/lib/llm-providers/universal.ts — universalComplete + universalStream + universalTestConnection. Works with any OpenAI-compatible baseURL+key" },
+    { "section": 55, "name": "Anthropic Claude Adapter (Wave 3)", "status": "PROVEN", "evidence": "src/lib/llm-providers/anthropic.ts — converts OpenAI messages→Anthropic format, streaming SSE, top-level system prompt, max_tokens required" },
+    { "section": 56, "name": "Provider Config Persistence (Wave 3)", "status": "PROVEN", "evidence": "Prisma Provider model + /api/providers route (GET list / POST save / DELETE). 9 providers listed, upsert works" },
+    { "section": 57, "name": "Provider Connection Test (Wave 3)", "status": "PROVEN", "evidence": "/api/providers/test — tests API key validity for any provider. Universal + Anthropic paths. Returns {ok, model, error}" },
+    { "section": 58, "name": "Comprehensive Settings Dialog (Wave 3)", "status": "PROVEN", "evidence": "src/components/chat/settings-dialog.tsx — 7 sections (General/Appearance/Models/Chat/Memory/Data/About), left category nav + right content, browser-verified" },
+    { "section": 59, "name": "Multi-Format Conversation Export (Wave 3)", "status": "PROVEN", "evidence": "/api/conversations/[id]/export?format=md|json|html — all 3 formats tested. MD: role headers+timestamps. JSON: lossless+metadata. HTML: styled RTL page" },
+    { "section": 60, "name": "Export Menu in Conversation Options (Wave 3)", "status": "PROVEN", "evidence": "Conversation options dropdown now has: تصدير (MD) / تصدير (JSON) / تصدير (HTML). Browser-verified: all 3 menuitems visible" }
   ]
 }

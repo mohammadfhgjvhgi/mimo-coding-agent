@@ -24,6 +24,8 @@ import {
   Activity,
   Gauge,
   Zap,
+  Download,
+  FileJson,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -190,6 +192,15 @@ function ConversationItem({
                   <Pin className="ml-2 h-3.5 w-3.5" /> تثبيت
                 </>
               )}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.open(`/api/conversations/${conv.id}/export?format=md`, "_blank")}>
+              <Download className="ml-2 h-3.5 w-3.5" /> تصدير (MD)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.open(`/api/conversations/${conv.id}/export?format=json`, "_blank")}>
+              <FileJson className="ml-2 h-3.5 w-3.5" /> تصدير (JSON)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.open(`/api/conversations/${conv.id}/export?format=html`, "_blank")}>
+              <FileCode className="ml-2 h-3.5 w-3.5" /> تصدير (HTML)
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <AlertDialog>
