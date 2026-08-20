@@ -1052,3 +1052,195 @@ model LearningProgress {
 
   @@index([courseId])
 }
+
+// Personal Productivity OS — tasks, projects, goals, habits, reminders, notes.
+// PTask = Productivity Task (avoid conflict with existing Task model for the agent).
+model PTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "todo" | "in_progress" | "done" | "cancelled" | "blocked"
+  status      String   @default("todo")
+  // "low" | "medium" | "high" | "urgent"
+  priority    String   @default("medium")
+  // Optional project link
+  projectId   String?
+  // Optional goal link
+  goalId      String?
+  // Due date
+  dueDate     DateTime?
+  // Estimated + actual minutes
+  estimatedMin Int?
+  actualMin   Int      @default(0)
+  // Tags
+  tags        String   @default("[]")
+  // Subtasks (JSON: [{ title, done }])
+  subtasks    String   @default("[]")
+  // Order for kanban
+  order       Int      @default(0)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([projectId])
+  @@index([goalId])
+  @@index([dueDate])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  // "planning" | "active" | "on_hold" | "completed" | "cancelled"
+  status      String   @default("planning")
+  color       String   @default("#3b82f6")
+  // JSON: milestones [{ title, dueDate, done }]
+  milestones  String   @default("[]")
+  startDate   DateTime?
+  endDate     DateTime?
+  // Stats
+  totalTasks  Int      @default(0)
+  completedTasks Int   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "short_term" | "medium_term" | "long_term"
+  type        String   @default("medium_term")
+  // "not_started" | "in_progress" | "achieved" | "abandoned"
+  status      String   @default("not_started")
+  // Progress 0-100
+  progress    Float    @default(0)
+  targetDate  DateTime?
+  startDate   DateTime?
+  // JSON: key results [{ description, target, current, done }]
+  keyResults  String   @default("[]")
+  // Optional parent goal (for goal hierarchy)
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([parentId])
+}
+
+model Habit {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  // "daily" | "weekly" | "custom"
+  frequency   String   @default("daily")
+  // For weekly: days of week [1-7] (1=Mon). For custom: every N days.
+  frequencyDays String @default("[]")
+  // JSON: streak tracking { current, longest, lastCompleted, history[] }
+  streak      String   @default("{}")
+  // Target time of day (HH:MM)
+  targetTime  String?
+  // Color for UI
+  color       String   @default("#10b981")
+  // Whether the habit is active
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([frequency])
+}
+
+model HabitLog {
+  id          String   @id @default(cuid())
+  habitId     String
+  date        DateTime
+  // "completed" | "skipped" | "missed"
+  status      String   @default("completed")
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([habitId])
+  @@index([date])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "one_time" | "daily" | "weekly" | "monthly"
+  type        String   @default("one_time")
+  // For one_time: the datetime. For recurring: the next occurrence.
+  remindAt    DateTime
+  // For recurring: end date (null = forever)
+  endsAt      DateTime?
+  // Optional task link
+  taskId      String?
+  // "pending" | "sent" | "snoozed" | "dismissed"
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([remindAt])
+  @@index([taskId])
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @default("")
+  // "text" | "markdown" | "checklist" | "voice"
+  type        String   @default("markdown")
+  tags        String   @default("[]")
+  // Optional project/task link
+  projectId   String?
+  taskId      String?
+  // Pinned for quick access
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([projectId])
+  @@index([pinned])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  // "daily" | "weekly" | "monthly"
+  type        String
+  date        DateTime
+  // JSON: sections { accomplishments, challenges, learnings, nextActions, mood }
+  sections    String   @default("{}")
+  // Optional rating (1-5)
+  rating      Int?
+  // Markdown summary
+  summary     String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([date])
+}
+
+model DayPlan {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  // JSON: blocks [{ startTime, endTime, taskId?, title, type: "task"|"event"|"break"|"focus" }]
+  blocks      String   @default("[]")
+  // Stats
+  totalMinutes Int     @default(0)
+  focusMinutes Int     @default(0)
+  // Optional goals for the day
+  dailyGoals  String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
