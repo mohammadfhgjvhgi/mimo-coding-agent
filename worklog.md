@@ -1817,3 +1817,68 @@ Stage Summary:
 - All analyses persisted for audit + report assembly
 - Bilingual (Arabic + English) throughout, 0 LLM calls
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real CSV + real Python), pushed: yes
+
+---
+Task ID: 51
+Agent: ZAI Code (main)
+Task: Build Spreadsheet Intelligence (src/lib/spreadsheet/os.ts) — 8 operations: read, formula analyze/gen/debug, transform, pivot, chart, summarize.
+
+Work Log:
+- Added 2 new Prisma models:
+  • Workbook — name, source, sourcePath, sheets (JSON: Sheet[]), activeSheet, cellCount, checksum, conversationId + indexes
+  • Formula — workbookId, formula, range, category (sum/average/count/vlookup/if/concat/custom), result, status (ok/error/pending), error, useCount + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/spreadsheet/os.ts (~1430 lines) — 8 operations:
+  1. spreadsheetRead({name, source, sourcePath|content, sheetName}) — parse CSV/JSON → Workbook with sheets + cells in A1 notation + cell type inference
+  2. formulaAnalyze(formula) — parse formula, extract function + args + cell/range references + bilingual explanation
+  3. formulaGenerate({description, columnNames}) — NL → formula (sum/average/count/max/min/if/vlookup/concat patterns)
+  4. formulaDebug({workbookId, formula, sheetName}) — evaluate step-by-step: parse function → read ranges → evaluate → return finalResult + steps[]
+  5. dataTransform({workbookId, transforms}) — sort/filter/rename/removeColumns/addColumn (with formula eval per row)
+  6. pivotAnalysis({workbookId, rowField, colField, valueField, agg}) — pivot table with row/col totals + grand total; agg: sum/count/average/max/min
+  7. chartGenerate({workbookId, chartType, xColumn, yColumn, title}) — 4 types: bar/line/pie/scatter deterministic SVG
+  8. workbookSummarize(workbookId) — markdown report with per-sheet stats (min/max/mean/sum per numeric column) + sample row + column types
+  Plus: workbookList/Get, formulaList, spreadsheetSnapshot, formatSpreadsheetResult
+
+- Pure JS formula engine: 16 functions (SUM, AVERAGE, COUNT, COUNTA, MIN, MAX, PRODUCT, CONCAT, CONCATENATE, IF, VLOOKUP, ABS, ROUND, LEN, UPPER, LOWER)
+- A1 cell reference parser: (row, col) ↔ A1 notation, range expansion (A1:B10 → 30 individual cells)
+- Cell type inference: number/string/boolean/empty based on value
+- Formula category classification for search/filter
+
+- Created 3 API routes:
+  • POST /api/spreadsheet (actions: read/formula_analyze/formula_generate/formula_debug/transform/pivot/chart/summarize) + GET (list workbooks or formulas)
+  • GET /api/spreadsheet/[id] — get workbook
+  • GET /api/spreadsheet/snapshot — system snapshot
+
+- Fixed 3 typecheck errors: cell value type narrowing, undefined guards on transforms.rename/removeColumns
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • REAL smoke test (6-employee CSV):
+    - Read: 6 rows × 4 cols, 24 cells ✅
+    - Formula analyze SUM(A2:A7): function=SUM, args=[A2:A7], references=[A2:A7], bilingual explanation ✅
+    - Formula generate "sum the salaries": SUM formula generated ✅
+    - Formula debug SUM(C1:C6): steps show range read (6 cells, 6 numeric) → evaluate → 330000 ✅
+    - Formula debug AVERAGE(C1:C6): 55000 ✅
+    - Formula debug MAX(C1:C6): 70000 ✅
+    - Data transform (filter Engineering + sort by salary desc): 3 rows (Charlie 70000, Eve 62000, Alice 50000) ✅
+    - Pivot (dept × active, sum salary): Engineering=182000, Sales=93000, Marketing=55000, grand=330000 ✅
+    - Chart (bar): 1765 chars SVG ✅
+    - Summarize: 2 sheets, markdown with numeric stats (salary: min=45000, max=70000, mean=55000) ✅
+    - Snapshot: 1 workbook, 3 formulas all ok ✅
+  • Agent Browser: 0 page errors ✅
+- Committed + pushed to GitHub: 5693347 ✅
+
+Stage Summary:
+- 1 new library file (~1430 lines) + 3 API routes + 2 new Prisma models + db schema synced
+- Spreadsheet Intelligence = full spreadsheet analysis: read CSV → A1 cells → formula engine (16 functions) → debug step-by-step → transform → pivot → chart → summarize
+- Formula engine is pure JS (no Excel dependency) with A1 notation + range expansion
+- NL formula generation for common patterns (sum/average/count/max/min/if/vlookup/concat)
+- Pivot tables with 5 aggregation functions + row/col/grand totals
+- 4 deterministic SVG chart types
+- All formulas persisted for reuse + debugging
+- Bilingual (Arabic + English) throughout, 0 LLM calls
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real CSV + real formulas), pushed: yes
