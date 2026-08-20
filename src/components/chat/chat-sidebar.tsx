@@ -22,7 +22,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -257,7 +256,7 @@ function ConversationList({
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1 px-2 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll px-2">
         {loadingConversations ? (
           <div className="space-y-2 p-2">
             {[...Array(5)].map((_, i) => (
@@ -295,7 +294,7 @@ function ConversationList({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="border-t border-sidebar-border px-3 py-2">
@@ -562,15 +561,15 @@ export function ChatSidebar({
 
           {/* Personal mode content */}
           {sidebarTab === "memory" ? (
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
               <KnowledgePanel />
             </div>
           ) : sidebarTab === "symbols" ? (
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
               <ResearchPanel />
             </div>
           ) : (
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
               <AutomationPanel refreshSignal={goalsRefreshSignal} />
             </div>
           )}
@@ -581,23 +580,25 @@ export function ChatSidebar({
       {sidebarMode === "engineering" && (
       <>
       {sidebarTab === "conversations" ? (
-        <ConversationList
-          onNewChat={onNewChat}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onTogglePin={onTogglePin}
-          onRename={onRename}
-          onClearAll={onClearAll}
-        />
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ConversationList
+            onNewChat={onNewChat}
+            onSelect={onSelect}
+            onDelete={onDelete}
+            onTogglePin={onTogglePin}
+            onRename={onRename}
+            onClearAll={onClearAll}
+          />
+        </div>
       ) : sidebarTab === "explorer" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <WorkspaceExplorer
             activeFile={activeFile}
             refreshSignal={explorerRefreshSignal}
           />
         </div>
       ) : sidebarTab === "symbols" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <SymbolsPanel
             refreshSignal={symbolsRefreshSignal}
             onSelectFile={(p) => {
@@ -607,15 +608,15 @@ export function ChatSidebar({
           />
         </div>
       ) : sidebarTab === "memory" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <MemoryPanel refreshSignal={memoryRefreshSignal} />
         </div>
       ) : sidebarTab === "smart_tools" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <SmartToolsPanel />
         </div>
       ) : (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <GoalsPanel refreshSignal={goalsRefreshSignal} />
         </div>
       )}

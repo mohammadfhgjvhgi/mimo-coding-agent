@@ -183,6 +183,37 @@ export function ChatShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false)
   const [initialized, setInitialized] = React.useState(false)
 
+  // --- Resizable sidebar ---
+  const [sidebarWidth, setSidebarWidth] = React.useState(() => {
+    if (typeof window === "undefined") return 288
+    const saved = localStorage.getItem("mimo-sidebar-width")
+    return saved ? Math.max(200, Math.min(600, Number(saved))) : 288
+  })
+  const [isResizing, setIsResizing] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!isResizing) return
+    const onMove = (e: MouseEvent) => {
+      // RTL: sidebar is on the right, so width = window.innerWidth - clientX
+      const newWidth = window.innerWidth - e.clientX
+      setSidebarWidth(Math.max(200, Math.min(600, newWidth)))
+    }
+    const onUp = () => {
+      setIsResizing(false)
+      localStorage.setItem("mimo-sidebar-width", String(sidebarWidth))
+    }
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    return () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [isResizing, sidebarWidth])
+
   // Persist server-side settings whenever they change (best-effort)
   React.useEffect(() => {
     if (!settings.loaded) return
@@ -528,9 +559,20 @@ export function ChatShell() {
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
         {sidebarOpen && (
-          <div className="hidden md:block h-full w-72 shrink-0 border-l border-sidebar-border">
-            {sidebar}
-          </div>
+          <>
+            <div
+              className="hidden md:block h-full shrink-0 border-l border-sidebar-border transition-[width] duration-0"
+              style={{ width: `${sidebarWidth}px` }}
+            >
+              {sidebar}
+            </div>
+            {/* Drag handle for resizing */}
+            <div
+              onMouseDown={() => setIsResizing(true)}
+              className="hidden md:block w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-primary/20 active:bg-primary/40 transition-colors"
+              title="اسحب لتغيير الحجم / Drag to resize"
+            />
+          </>
         )}
 
         {/* Mobile sidebar (drawer) */}
