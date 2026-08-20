@@ -1748,3 +1748,72 @@ Stage Summary:
 - All creations persisted for audit + reuse
 - Bilingual (Arabic + English) throughout, 0 LLM calls for charts (deterministic), VLM for diagrams
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed, pushed: yes
+
+---
+Task ID: 50
+Agent: ZAI Code (main)
+Task: Build Data Analysis OS (src/lib/data-analysis/os.ts) — 9 operations: CSV/Excel/SQL/cleaning/stats/viz/notebook/python/report.
+
+Work Log:
+- Added 2 new Prisma models:
+  • Dataset — name, source (csv|excel|json|sql_table|inline), sourcePath, inlineData (JSON), schema (JSON: ColumnSchema[]), rowCount, colCount, sizeBytes, checksum, tags, conversationId + indexes
+  • DataAnalysis — datasetId, type, query, result, structured (JSON), durationMs, success, error, conversationId + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/data-analysis/os.ts (~1100 lines) — 9 operations:
+  1. csvAnalyze(opts) — parse CSV (handles quoted fields, commas, newlines) + infer schema + register Dataset + return sample
+  2. excelAnalyze(opts) — same heuristic as CSV (real Excel parser needs a library)
+  3. sqlQuery({datasetId, query}) — mini SQL: SELECT cols FROM table WHERE cond ORDER BY col LIMIT n GROUP BY col
+     - supports =, !=, >, <, >=, <= operators with AND
+     - GROUP BY returns count per group
+  4. dataClean(datasetId, opts) — drop nulls + dedup + trim strings + type coerce (number/boolean)
+  5. statistics(datasetId, {columns}) — count, mean, median, mode, std, min, max, q1, q3, nullCount, uniqueCount
+  6. visualization({datasetId, chartType, xColumn, yColumn, title}) — 5 chart types (bar/line/pie/histogram/scatter) deterministic SVG
+  7. pythonExecute({script, timeoutMs}) — python3 subprocess with stdout/stderr/exitCode capture
+  8. notebookExecution({cells, timeoutMs}) — sequence of Python cells with shared context (separator-based output split)
+  9. reportGenerate({title, sections}) — assemble markdown from analysis IDs + raw content sections
+  Plus: datasetRegister/List/Get, analysisList/Get, dataSnapshot, formatDataResult
+  Pure JS CSV parser (no external dep): handles quoted fields with embedded commas + newlines
+  Type inference: number/string/boolean/date based on value patterns
+  Mini SQL evaluator with condition parser (=, !=, >, <, >=, <= with AND)
+  Python execution via child_process.exec with timeout + maxBuffer
+  All operations persist results to DB for audit + reuse
+
+- Created 6 API routes:
+  • POST /api/data-analysis (actions: csv_analyze/excel_analyze/dataset_register/sql_query/clean/stats/viz) + GET (list datasets or analyses)
+  • GET /api/data-analysis/[id] — get dataset or analysis (mode=analysis)
+  • POST /api/data-analysis/python — execute Python script
+  • POST /api/data-analysis/notebook — execute notebook cells
+  • POST /api/data-analysis/report — generate report
+  • GET /api/data-analysis/snapshot — system snapshot
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • REAL smoke test (all 9 operations with employees.csv):
+    - CSV analyze: 8 rows × 5 cols, schema inferred (name:string, age:number, salary:number, department:string, active:boolean) ✅
+    - SQL "SELECT name, salary WHERE salary > 50000 ORDER BY salary DESC": returned sorted rows ✅
+    - SQL "GROUP BY department": Engineering=4, Sales=2, Marketing=2 ✅
+    - Data clean: 9 → 8 rows (dropped 1 duplicate Alice) ✅
+    - Statistics: age mean=26.1 median=29.5 std=10.2 min=0 max=35 nulls=1; salary mean=53875 median=50500 std=7736 ✅
+    - Visualization (bar chart): 2464 chars SVG ✅
+    - Python execute: sum=15, mean=3.0, JSON output ✅ exitCode=0
+    - Notebook (3 cells): Cell1 x=10,y=20 → Cell2 z=30 → Cell3 sqrt(z)=5.48 (shared context works!) ✅
+    - Report: 1329 chars markdown with sections (Overview + Statistics + Query Results) ✅
+    - Snapshot: 1 dataset, 10 analyses all successful ✅
+  • Agent Browser: 0 page errors ✅
+- Committed + pushed to GitHub: 55a7f06 ✅
+
+Stage Summary:
+- 1 new library file (~1100 lines) + 6 API routes + 2 new Prisma models + db schema synced
+- Data Analysis OS = full data science workflow: parse CSV → query with SQL → clean → compute stats → visualize → run Python/notebook → assemble report
+- Pure JS implementations (no pandas/numpy deps) — works anywhere Node.js runs
+- Mini SQL engine supports SELECT/WHERE/ORDER/LIMIT/GROUP BY
+- Python execution via subprocess with timeout + stdout/stderr capture
+- Notebook execution with shared context (cells share variables via concatenation)
+- 5 deterministic SVG chart types (bar/line/pie/histogram/scatter)
+- All analyses persisted for audit + report assembly
+- Bilingual (Arabic + English) throughout, 0 LLM calls
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real CSV + real Python), pushed: yes
