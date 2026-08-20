@@ -1882,3 +1882,92 @@ Stage Summary:
 - All formulas persisted for reuse + debugging
 - Bilingual (Arabic + English) throughout, 0 LLM calls
 - lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real CSV + real formulas), pushed: yes
+
+---
+Task ID: 52
+Agent: ZAI Code (main)
+Task: Build Academic / Study OS (src/lib/study/os.ts) — 16 operations: courses, lectures, flashcards (SM-2), quizzes, Q&A, exam, study plans, citations, papers, progress.
+
+Work Log:
+- Added 8 new Prisma models:
+  • Course — name, code (unique), description, instructor, semester, status, schedule, totalStudyHours + indexes
+  • LectureNote — courseId, title, lectureNumber, weekNumber, date, content, summary (JSON: text + keyPoints + terms), attachments, tags, sourcePdfPath + indexes
+  • Flashcard — courseId, lectureNoteId, type (basic/cloze/reverse), front, back, ease, interval, repetitions, nextReview, totalReviews, correctCount, tags + indexes
+  • Quiz — courseId, lectureNoteId, title, type (mc/tf/sa/mixed), questions (JSON), attempts, avgScore + indexes
+  • QuizAttempt — quizId, answers (JSON), score, totalQuestions, correctCount, durationMs + indexes
+  • StudyPlan — courseId, title, type (daily/weekly/exam_prep), targetDate, items (JSON: date + topic + durationMin + resources + done), totalMinutes, completedMinutes + indexes
+  • Citation — style (apa/mla/chicago/ieee/bibtex), text, authors, title, year, journal, volume, issue, pages, publisher, url, doi, bibtexKey, tags + indexes
+  • Paper — title, authors, year, abstract, pdfPath, summary, keyFindings (JSON), sections (JSON), references, citationIds, tags + indexes
+  • LearningProgress — courseId, progress, topicProgress (JSON), skills (JSON), currentStreak, longestStreak, lastStudyDate, totalStudyMinutes, totalFlashcardsReviewed, totalQuizzesTaken + indexes
+- Ran `bun run db:push` — schema synced.
+
+- Created src/lib/study/os.ts (~1880 lines) — 16 operations:
+  1. courseCreate(input) — create a course with schedule
+  2. lectureNoteCreate(input) — auto-extract summary (key points from bullet lines + terms from bold patterns)
+  3. pdfStudy({courseId, pdfPath, title}) — extract text from PDF (heuristic Tj operator) → create LectureNote
+  4. flashcardGenerate({lectureNoteId, courseId, count, type}) — heuristic: bold terms → Q&A, headings → "What is X?"
+  5. flashcardReview(flashcardId, quality 0-5) — SM-2 algorithm: ease/interval/repetitions/nextReview
+  6. quizGenerate({lectureNoteId, courseId, questionCount, type}) — MC from bold terms (with distractors) + TF from headings
+  7. quizAttempt({quizId, answers, durationMs}) — score + record + update quiz stats + learning progress
+  8. questionAnswer({question, courseId, lectureNoteId}) — keyword extraction + snippet retrieval over notes
+  9. examSimulate({courseId, questionCount, durationMin}) — aggregate quiz questions + shuffle + timed
+  10. studyPlanCreate(input) — create plan with items
+  11. studyPlanProgress({planId, itemIndex, done}) — mark item done + update completedMinutes + learning progress (streak)
+  12. citationCreate(input) — format in 5 styles (APA, MLA, Chicago, IEEE, BibTeX) with auto bibtexKey generation
+  13. bibliographyGenerate({citationIds, style}) — sorted alphabetically + optional style re-formatting
+  14. paperSummarize(input) — heuristic: extract abstract from PDF, find "we found/results show/demonstrates" sentences as key findings, 4-section extraction (abstract/methodology/results/conclusion)
+  15. paperCompare({paperIds}) — similarities (shared keywords), differences (unique keywords per paper), methods compared, years span, common authors
+  16. learningProgressGet/Update({courseId}) — get or create progress record + update progress/topicProgress/skills + streak tracking (consecutive days)
+  Plus: courseList/Get, lectureNoteList, flashcardList (with dueOnly filter), quizList/Get, studyPlanList, citationList, paperList, studySnapshot
+- SM-2 spaced repetition: quality 0-5 → ease adjustment + interval calculation + nextReview date
+- Citation formatting: 5 styles with proper field ordering + BibTeX key generation (AuthorYearkeyword)
+- Flashcard generation heuristics: bold terms (**term** definition) + heading-based Q&A
+- Quiz generation: MC with auto-distractors from other bold terms + TF from headings
+- Q&A: keyword extraction (stopwords filtered) + snippet retrieval with context window
+- Paper summarization: sentence-level heuristic for key findings + 4-section extraction
+- Cross-paper comparison: word frequency analysis for similarities + unique word detection for differences
+- Learning progress streak: tracks consecutive study days (86400000ms = 1 day check)
+- All operations persist to DB for audit + reuse
+- 0 LLM calls — deterministic heuristics only
+
+- Created 2 API routes:
+  • POST /api/study (18 actions: course_create/get, lecture_note_create, flashcard_generate/review, quiz_generate/get/attempt, question_answer, exam_simulate, study_plan_create/progress, citation_create, bibliography_generate, paper_summarize/compare, progress_get/update) + GET (7 modes: courses/notes/flashcards/quizzes/plans/citations/papers)
+  • GET /api/study/snapshot — system snapshot
+
+- Verification:
+  • bun run lint: 0 errors ✅
+  • npx tsc --noEmit --skipLibCheck: 0 errors ✅
+  • bun run db:push: schema synced ✅
+  • dev server: HTTP 200 ✅
+  • REAL smoke test (Neural Networks lecture note):
+    - Course: ✅ "Intro to AI" (CS101)
+    - Lecture note: ✅ "Neural Networks", 3 key points extracted + 3 terms (Neuron/Activation Function/Backpropagation)
+    - Flashcard generate: ✅ 4 cards (3 from bold terms + 1 from heading)
+    - SM-2 review: quality 4 → ease=2.50 interval=1d reps=1; quality 2 → ease=2.18 interval=1d reps=0 (reset) ✅
+    - Quiz generate: ✅ 2 questions (TF from headings)
+    - Quiz attempt: ✅ score=50% correct=1/2
+    - Q&A "what is a neuron": ✅ found answer in note with snippet
+    - Exam simulate: ✅ 2 questions, 30 min
+    - Study plan: ✅ 135 min total (60+30+45)
+    - Study plan progress: ✅ completed=60/135 min after marking item 0 done
+    - Citation APA: ✅ "Smith, J., Doe, A. (2024). Deep Learning Fundamentals. Journal of AI Research, 15(3), 123-145."
+    - Citation BibTeX: ✅ proper @article with key K.2023neural
+    - Bibliography: ✅ 2 entries, alphabetically sorted
+    - Paper summarize: ✅ 4 key findings (we propose/found/results show/demonstrates)
+    - Paper compare: ✅ years 2017-2018, 5 similarities (achieves/results/significant/improvements/tasks), 2 differences
+    - Learning progress: ✅ tracked, update to 45.5%
+    - Snapshot: ✅ 1 course, 1 note, 4 flashcards, 1 quiz, 1 attempt, 1 plan, 2 citations, 2 papers
+  • Agent Browser: 0 page errors ✅
+- Committed + pushed to GitHub: 8a74363 ✅
+
+Stage Summary:
+- 1 new library file (~1880 lines) + 2 API routes + 8 new Prisma models + db schema synced
+- Academic / Study OS = complete study assistant: courses → lectures → flashcards (SM-2) → quizzes → Q&A → exams → study plans → citations (5 styles) → papers (summarize + compare) → learning progress (streaks)
+- SM-2 spaced repetition algorithm (industry-standard, used by Anki)
+- 5 citation styles with auto BibTeX key generation
+- Heuristic flashcard/quiz generation from markdown notes (bold terms + headings)
+- Keyword-based Q&A over lecture notes with snippet retrieval
+- Cross-paper comparison with similarity/difference analysis
+- Streak tracking (consecutive study days) + topic progress + skills mastery
+- All operations persisted, bilingual (Arabic + English), 0 LLM calls
+- lint: 0, typecheck: 0, db: synced, dev: running, smoke: passed (real lecture note), pushed: yes
