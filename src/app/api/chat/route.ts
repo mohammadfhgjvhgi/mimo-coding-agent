@@ -130,6 +130,11 @@ export async function POST(req: NextRequest) {
 
         const collectedToolCalls: ToolCallRecord[] = [];
         let finalText = "";
+        // Track the ACTUAL worker that served the response (may differ from
+        // settings.provider — e.g. when Ollama is unreachable and the router
+        // falls back to Z.ai). We persist this on the assistant message so
+        // the UI shows the truth, not the configured default.
+        let actualWorker: string = settings.provider;
 
         try {
           const result = await runAgentLoop({
@@ -169,6 +174,8 @@ export async function POST(req: NextRequest) {
                 enqueue({ type: "context_compressed", stats });
               },
               onRouterDecision: (worker, reason) => {
+                // Record the actual worker that served this turn.
+                if (worker) actualWorker = worker;
                 enqueue({ type: "router_decision", worker, reason });
               },
               onError: (err) => {
@@ -179,14 +186,17 @@ export async function POST(req: NextRequest) {
 
           finalText = result.finalText || finalText;
 
-          // Persist the assistant turn (text + tool calls)
+          // Persist the assistant turn (text + tool calls).
+          // NOTE: model field = the ACTUAL worker that served this turn
+          // (actualWorker), not settings.provider — otherwise the UI would
+          // show "ollama" even when the router fell back to Z.ai.
           const textToSave = finalText.trim() || "(لا إجابة نصية)";
           await db.message.create({
             data: {
               conversationId: conversation!.id,
               role: "assistant",
               content: textToSave,
-              model: settings.provider,
+              model: actualWorker,
               toolCalls:
                 collectedToolCalls.length > 0
                   ? JSON.stringify(collectedToolCalls)
@@ -217,7 +227,7 @@ export async function POST(req: NextRequest) {
                   conversationId: conversation!.id,
                   role: "assistant",
                   content: finalText,
-                  model: settings.provider,
+                  model: actualWorker,
                   toolCalls:
                     collectedToolCalls.length > 0
                       ? JSON.stringify(collectedToolCalls)
