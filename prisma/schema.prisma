@@ -1318,3 +1318,61 @@ model WorkflowSchedule {
   @@index([nextRunAt])
   @@index([workflowId])
 }
+
+// Model OS — model registry, profiles, routing, fallback, benchmarks.
+model ModelProfile {
+  id            String   @id @default(cuid())
+  // Unique model identifier: "ollama:qwen3:4b" or "zai:glm-4.5v"
+  modelId       String   @unique
+  displayName   String
+  // "ollama" | "zai" | "openai" | "anthropic" | "local" | "custom"
+  provider      String
+  // Context window size in tokens
+  contextLimit  Int      @default(32768)
+  // Estimated RAM in MB (for local models)
+  ramEstimateMb Int      @default(0)
+  // Estimated VRAM in MB (for GPU models)
+  vramEstimateMb Int     @default(0)
+  // Measured tokens per second (updated by benchmarking)
+  measuredTps   Float    @default(0)
+  // Tool reliability score 0-1 (how often tool calls succeed)
+  toolReliability Float  @default(0)
+  // Task success rate 0-1 (how often the model completes tasks successfully)
+  taskSuccessRate Float  @default(0)
+  // Model roles: ["coding", "reasoning", "vision", "fast", "cheap", "embedding"]
+  roles         String   @default("[]")
+  // Model capabilities: ["streaming", "tools", "vision", "thinking", "json_mode"]
+  capabilities  String   @default("[]")
+  // Is the model currently available
+  active        Boolean  @default(true)
+  // Priority for routing (lower = preferred)
+  priority      Int      @default(50)
+  // Fallback chain: ["ollama:qwen3:1.7b", "zai:glm-4.5v"]
+  fallbackChain String   @default("[]")
+  // JSON: benchmark history [{ date, tps, successRate, durationMs }]
+  benchmarkHistory String @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([provider])
+  @@index([active])
+  @@index([priority])
+}
+
+model ModelBenchmark {
+  id            String   @id @default(cuid())
+  modelId       String
+  // "tps" | "tool_reliability" | "task_success" | "context_fill" | "latency"
+  benchmarkType String
+  // The result value
+  value        Float
+  // Duration of the benchmark
+  durationMs   Int      @default(0)
+  // JSON: test details { prompt, expectedOutput, actualOutput, passed }
+  details      String   @default("{}")
+  createdAt    DateTime @default(now())
+
+  @@index([modelId])
+  @@index([benchmarkType])
+  @@index([createdAt])
+}
