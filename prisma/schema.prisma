@@ -1244,3 +1244,77 @@ model DayPlan {
 
   @@index([date])
 }
+
+// Automation OS — workflow builder, triggers, scheduled tasks, webhooks.
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft")
+  steps       String   @default("[]")
+  triggers    String   @default("[]")
+  retryPolicy String   @default("{}")
+  notifications String @default("{}")
+  runCount    Int      @default(0)
+  successCount Int     @default(0)
+  failureCount Int     @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  workflowId  String
+  status      String   @default("pending")
+  trigger     String   @default("{}")
+  stepExecutions String @default("[]")
+  currentStep String?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  token       String   @unique @default(cuid())
+  workflowId  String
+  name        String
+  status      String   @default("active")
+  secret      String?
+  methods     String   @default("[\"POST\"]")
+  callCount   Int      @default(0)
+  lastCalledAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([token])
+  @@index([status])
+}
+
+// Automation OS — scheduled workflow triggers (separate from agent's ScheduledTask)
+model WorkflowSchedule {
+  id          String   @id @default(cuid())
+  workflowId  String?
+  name        String
+  schedule    String
+  status      String   @default("active")
+  payload     String   @default("{}")
+  nextRunAt   DateTime?
+  runCount    Int      @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([nextRunAt])
+  @@index([workflowId])
+}
