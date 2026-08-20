@@ -732,3 +732,63 @@ model ImageCreation {
   @@index([createdAt])
   @@index([conversationId])
 }
+
+// Data Analysis OS — CSV/Excel/SQL analysis, cleaning, stats, viz, Python execution.
+// Datasets are persisted + analyzed; every analysis is logged for audit.
+model Dataset {
+  id          String   @id @default(cuid())
+  name        String
+  // "csv" | "excel" | "json" | "sql_table" | "inline"
+  source      String
+  // File path for csv/excel/json; null for inline/sql_table
+  sourcePath  String?
+  // Inline data (for small datasets): JSON array of objects
+  inlineData  String?
+  // Column schema: JSON array of { name, type, nullable, unique }
+  schema      String   @default("[]")
+  // Row count
+  rowCount    Int      @default(0)
+  // Column count
+  colCount    Int      @default(0)
+  // Size in bytes
+  sizeBytes   Int      @default(0)
+  // SHA-256 of source content (for dedup + cache)
+  checksum    String?
+  // Tags for search/filter
+  tags        String   @default("[]")
+  // Optional conversation link
+  conversationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([source])
+  @@index([conversationId])
+  @@index([name])
+}
+
+// Data Analysis — every analysis logged.
+model DataAnalysis {
+  id          String   @id @default(cuid())
+  datasetId   String?
+  // "csv_analyze" | "excel_analyze" | "sql_query" | "clean" | "stats" | "viz" | "notebook" | "python_exec" | "report"
+  type        String
+  // The query/script/prompt used
+  query       String   @default("")
+  // The result (JSON or text)
+  result      String   @default("")
+  // JSON: structured result { rows?, stats?, columns?, ... }
+  structured  String   @default("{}")
+  // Duration + status
+  durationMs  Int      @default(0)
+  success     Boolean  @default(false)
+  error       String?
+  // Optional conversation link
+  conversationId String?
+  createdAt   DateTime @default(now())
+
+  @@index([datasetId])
+  @@index([type])
+  @@index([success])
+  @@index([createdAt])
+  @@index([conversationId])
+}
