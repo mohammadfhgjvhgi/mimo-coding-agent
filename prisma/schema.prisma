@@ -1376,3 +1376,31 @@ model ModelBenchmark {
   @@index([benchmarkType])
   @@index([createdAt])
 }
+
+// Security OS — audit log with hash-chained integrity.
+// Each entry's hash = SHA-256(prevHash + entry data) → tamper-evident chain.
+model AuditEntry {
+  id          String   @id @default(cuid())
+  // "allow" | "deny" | "ask" | "blocked" | "approved"
+  action      String
+  // "file_read" | "file_write" | "shell_exec" | "mcp_call" | "plugin_call" | "network" | "secret_access"
+  resource    String
+  // The path/command/tool being accessed
+  target      String
+  // "agent" | "user" | "system" | "plugin" | "mcp"
+  principal   String   @default("agent")
+  // SHA-256 of (prevHash + this entry's canonical data) — hash chain
+  hash        String
+  // Previous entry's hash (null for genesis)
+  prevHash    String?
+  // Whether the action was allowed
+  allowed     Boolean  @default(false)
+  // Optional reason for deny/ask
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([resource])
+  @@index([principal])
+  @@index([createdAt])
+}
