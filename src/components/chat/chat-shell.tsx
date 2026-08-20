@@ -11,6 +11,7 @@ import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
 import { TitleBar } from "./title-bar"
 import { SettingsDialog } from "./settings-dialog"
+import { HomeDashboard } from "@/components/home/home-dashboard"
 import type { Conversation, ChatMessage, Role } from "@/types/chat"
 import type { ProviderSettings } from "@/lib/llm-provider"
 
@@ -30,7 +31,7 @@ async function fetchConversation(id: string): Promise<Conversation> {
   return data.conversation as Conversation
 }
 
-async function deleteConversation(id: string) {
+async function deleteConversation(id: string): Promise<void> {
   await fetch(`/api/conversations/${id}`, { method: "DELETE" })
 }
 
@@ -52,154 +53,123 @@ async function streamChat(
   body: {
     message: string
     conversationId?: string
-    history: { role: Role; content: string }[]
-    settings: ProviderSettings
+    history?: { role: Role; content: string }[]
+    settings?: ProviderSettings
   },
   handlers: {
-    onDelta: (delta: string) => void
-    onMeta: (meta: { conversationId?: string; title?: string; provider?: string }) => void
-    onToolCall: (call: { id: string; name: string; args: Record<string, unknown> }) => void
-    onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
-    onContextCompressed?: (stats: string) => void
-    onRouterDecision?: (worker: string, reason: string) => void
-    onModeDetected?: (mode: string, reason: string) => void
-    onError: (err: string) => void
-    onDone: (info: { conversationId?: string }) => void
-  },
-  signal?: AbortSignal
+    onToken: (token: string) => void
+    onToolCall: (call: unknown) => void
+    onError: (error: string) => void
+    onDone: () => void
+  }
 ) {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal,
   })
 
   if (!res.ok) {
-    const errText = await res.text().catch(() => "فشل الطلب")
-    throw new Error(errText)
+    const err = await res.text()
+    handlers.onError(err)
+    return
   }
 
-  if (!res.body) throw new Error("لا يوجد جسم استجابة")
+  const reader = res.body?.getReader()
+  if (!reader) {
+    handlers.onError("No response body")
+    return
+  }
 
-  const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
-  let meta: { conversationId?: string; title?: string; provider?: string } = {}
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
 
-      let idx: number
-      while ((idx = buffer.indexOf("\n\n")) >= 0) {
-        const chunk = buffer.slice(0, idx).trim()
-        buffer = buffer.slice(idx + 2)
-        if (!chunk.startsWith("data:")) continue
-        const payload = chunk.slice(5).trim()
-        if (payload === "[DONE]") {
-          handlers.onDone(meta)
+    const lines = buffer.split("\n")
+    buffer = lines.pop() || ""
+
+    for (const line of lines) {
+      if (line.startsWith("data: ")) {
+        const jsonStr = line.slice(6).trim()
+        if (jsonStr === "[DONE]") {
+          handlers.onDone()
           return
         }
         try {
-          const json = JSON.parse(payload)
-          if (json.type === "meta") {
-            meta = {
-              conversationId: json.conversationId,
-              title: json.title,
-              provider: json.provider,
-            }
-            handlers.onMeta(meta)
-          } else if (json.type === "delta") {
-            handlers.onDelta(json.delta || "")
-          } else if (json.type === "tool_call") {
-            handlers.onToolCall(json.call)
-          } else if (json.type === "tool_result") {
-            handlers.onToolResult(json.result)
-          } else if (json.type === "context_compressed") {
-            handlers.onContextCompressed?.(json.stats)
-          } else if (json.type === "router_decision") {
-            handlers.onRouterDecision?.(json.worker, json.reason)
-          } else if (json.type === "mode_detected") {
-            handlers.onModeDetected?.(json.mode, json.reason)
-          } else if (json.type === "error") {
-            handlers.onError(json.error || "خطأ غير معروف")
-          } else if (json.type === "done") {
-            meta = { ...meta, conversationId: json.conversationId }
+          const chunk = JSON.parse(jsonStr)
+          if (chunk.delta) handlers.onToken(chunk.delta)
+          if (chunk.tool_call) handlers.onToolCall(chunk.tool_call)
+          if (chunk.error) handlers.onError(chunk.error)
+          if (chunk.done) {
+            handlers.onDone()
+            return
           }
         } catch {
-          /* ignore malformed chunk */
+          /* skip non-JSON */
         }
       }
     }
-  } finally {
-    reader.releaseLock()
   }
-  handlers.onDone(meta)
+  handlers.onDone()
 }
 
-// ---- Main shell -----------------------------------------------------------
+// ---- ChatShell -----------------------------------------------------------
 
 export function ChatShell() {
   const store = useChatStore()
   const {
     conversations,
+    upsertConversation,
+    setConversations,
+    removeConversation,
     currentConversationId,
+    setCurrentConversationId,
     messages,
+    setMessages,
+    addMessage,
     isStreaming,
+    setIsStreaming,
     streamingContent,
-    streamingToolCalls,
+    setStreamingContent,
     streamingError,
+    setStreamingError,
+    streamingToolCalls,
+    resetStreamingToolCalls,
+    showThinking,
+    setShowThinking,
     sidebarOpen,
     setSidebarOpen,
-    setConversations,
+    sidebarTab,
+    agentMode,
+    setAgentMode,
+    contextBudget,
+    loadingConversations,
     setLoadingConversations,
-    setCurrentConversationId,
-    setMessages,
-    setLoadingMessages,
-    setIsStreaming,
-    setStreamingContent,
-    appendStreamingContent,
-    addStreamingToolCall,
-    resetStreamingToolCalls,
-    setStreamingError,
-    setAbortController,
-    setActiveFile,
-    triggerExplorerRefresh,
-    triggerMemoryRefresh,
-    triggerGoalsRefresh,
-    triggerSymbolsRefresh,
-    setSidebarTab,
-    setCurrentWorker,
-    upsertConversation,
-    removeConversation,
-    addMessage,
   } = store
 
   const settings = useSettingsStore()
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false)
   const [initialized, setInitialized] = React.useState(false)
+  // 'home' = dashboard, 'chat' = messages
+  const [view, setView] = React.useState<"home" | "chat">("home")
 
   // --- Resizable sidebar ---
-  // Start with default 288 on both server + client to avoid hydration mismatch.
-  // Then read localStorage in useEffect (client-only) after mount.
   const [sidebarWidth, setSidebarWidth] = React.useState(288)
   const [isResizing, setIsResizing] = React.useState(false)
 
   React.useEffect(() => {
     const saved = localStorage.getItem("mimo-sidebar-width")
-    if (saved) {
-      setSidebarWidth(Math.max(200, Math.min(600, Number(saved))))
-    }
+    if (saved) setSidebarWidth(Math.max(200, Math.min(600, Number(saved))))
   }, [])
 
   React.useEffect(() => {
     if (!isResizing) return
     const onMove = (e: MouseEvent) => {
-      // RTL: sidebar is on the right, so width = window.innerWidth - clientX
       const newWidth = window.innerWidth - e.clientX
       setSidebarWidth(Math.max(200, Math.min(600, newWidth)))
     }
@@ -219,89 +189,46 @@ export function ChatShell() {
     }
   }, [isResizing, sidebarWidth])
 
-  // Persist server-side settings whenever they change (best-effort)
-  React.useEffect(() => {
-    if (!settings.loaded) return
-    fetch("/api/providers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings.snapshot()),
-    }).catch(() => {})
-  }, [settings.provider, settings.ollamaUrl, settings.ollamaModel, settings.zaiThinking, settings.loaded])
-
-  const thinking = settings.zaiThinking
-
-  const loadConversations = React.useCallback(async () => {
-    setLoadingConversations(true)
-    try {
-      const list = await fetchConversations()
-      setConversations(list)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoadingConversations(false)
-    }
-  }, [setConversations, setLoadingConversations])
-
+  // --- Init: load conversations ---
   React.useEffect(() => {
     if (initialized) return
     setInitialized(true)
-    settings.load()
-    loadConversations()
+    setLoadingConversations(true)
+    fetchConversations()
+      .then((convs) => {
+        setConversations(convs)
+        if (convs.length > 0) {
+          // Auto-select first conversation → switch to chat view
+          setCurrentConversationId(convs[0].id)
+          fetchConversation(convs[0].id)
+            .then((conv) => {
+              setMessages((conv.messages || []) as ChatMessage[])
+              setView("chat")
+            })
+            .catch(() => {})
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingConversations(false))
+  }, [initialized, setConversations, setLoadingConversations, setCurrentConversationId, setMessages])
 
-  }, [initialized])
+  // --- Auto-switch views ---
+  React.useEffect(() => {
+    if (currentConversationId || messages.length > 0) {
+      setView("chat")
+    }
+  }, [currentConversationId, messages.length])
 
-  const selectConversation = React.useCallback(
-    async (id: string) => {
-      setCurrentConversationId(id)
-      setMobileSidebarOpen(false)
-      setLoadingMessages(true)
-      try {
-        const conv = await fetchConversation(id)
-        setMessages((conv.messages || []) as ChatMessage[])
-      } catch (e) {
-        console.error(e)
-        setMessages([])
-      } finally {
-        setLoadingMessages(false)
-      }
-    },
-    [setCurrentConversationId, setLoadingMessages, setMessages]
-  )
-
-  const startNewChat = React.useCallback(() => {
-    setCurrentConversationId(null)
-    setMessages([])
-    setStreamingContent("")
-    resetStreamingToolCalls()
-    setIsStreaming(false)
-    setStreamingError(null)
-    setMobileSidebarOpen(false)
-  }, [
-    setCurrentConversationId,
-    setMessages,
-    setStreamingContent,
-    resetStreamingToolCalls,
-    setIsStreaming,
-    setStreamingError,
-  ])
-
-  const stopGeneration = React.useCallback(() => {
-    store.abortController?.abort()
-    setAbortController(null)
-    setIsStreaming(false)
-  }, [store.abortController, setAbortController, setIsStreaming])
-
+  // --- Send message ---
   const sendMessage = React.useCallback(
     async (text: string) => {
-      if (isStreaming) return
-      setStreamingError(null)
+      if (!text.trim() || isStreaming) return
 
-      const providerSettings = settings.snapshot()
+      // Switch to chat view immediately
+      setView("chat")
 
-      const tempId = `u_${Date.now()}`
       const userMsg: ChatMessage = {
-        id: tempId,
+        id: `user_${Date.now()}`,
         conversationId: currentConversationId || "",
         role: "user",
         content: text,
@@ -309,175 +236,122 @@ export function ChatShell() {
       }
       addMessage(userMsg)
 
-      const history: { role: Role; content: string }[] = [
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
-        { role: "user" as const, content: text },
-      ]
-
-      setStreamingContent("")
-      resetStreamingToolCalls()
-      setCurrentWorker(null)
       setIsStreaming(true)
-      const controller = new AbortController()
-      setAbortController(controller)
+      setStreamingContent("")
+      setStreamingError(null)
+      resetStreamingToolCalls()
 
-      try {
-        await streamChat(
-          {
-            message: text,
-            conversationId: currentConversationId || undefined,
-            history,
-            settings: providerSettings,
+      // Build history from current messages
+      const history = messages.map((m) => ({
+        role: m.role as Role,
+        content: m.content,
+      }))
+
+      const providerSettings = settings.snapshot()
+
+      await streamChat(
+        {
+          message: text,
+          conversationId: currentConversationId || undefined,
+          history,
+          settings: providerSettings,
+        },
+        {
+          onToken: (token) => {
+            setStreamingContent(useChatStore.getState().streamingContent + token)
           },
-          {
-            onDelta: (delta) => appendStreamingContent(delta),
-            onMeta: (meta) => {
-              if (
-                meta.conversationId &&
-                meta.conversationId !== currentConversationId
-              ) {
-                setCurrentConversationId(meta.conversationId)
-              }
-            },
-            onModeDetected: (mode: string, reason: string) => {
-              useChatStore.getState().setAgentMode(mode)
-              toast.info(`وضع تلقائي: ${reason}`, { duration: 3000 })
-            },
-            onToolCall: (call) => {
-              addStreamingToolCall({
-                id: call.id,
-                name: call.name,
-                args: call.args,
-                result: "",
-                status: "pending",
-                durationMs: 0,
-              })
-              // If the tool touches a file, highlight it in the explorer
-              const fileTools = ["read_file", "write_file", "edit_file"]
-              if (fileTools.includes(call.name)) {
-                const p = String(call.args?.path || "")
-                if (p) {
-                  setActiveFile(p)
-                  setSidebarTab("explorer")
-                  triggerExplorerRefresh()
-                }
-              }
-            },
-            onToolResult: (r) => {
-              // Replace the pending placeholder with the completed result
-              const current = useChatStore.getState().streamingToolCalls
-              const updated = current.map((c) =>
-                c.id === r.id ? r : c
-              )
-              useChatStore.setState({ streamingToolCalls: updated })
-              // Refresh explorer after file mutations or git checkpoints
-              const fsMutators = ["write_file", "edit_file", "git_checkpoint", "run_terminal_command"]
-              if (fsMutators.includes(r.name)) {
-                triggerExplorerRefresh()
-              }
-              // Refresh symbol index after file mutations
-              const codeMutators = ["write_file", "edit_file"]
-              if (codeMutators.includes(r.name)) {
-                triggerSymbolsRefresh()
-              }
-              // Refresh memory panel after save_memory
-              if (r.name === "save_memory") {
-                triggerMemoryRefresh()
-              }
-            },
-            onContextCompressed: (stats) => {
-              console.info("[Context OS]", stats)
-            },
-            onRouterDecision: (worker, reason) => {
-              setCurrentWorker(worker as "cpu" | "gpu" | "zai", reason)
-            },
-            onError: (err) => setStreamingError(err),
-            onDone: (info) => {
-              setIsStreaming(false)
-              setAbortController(null)
-              setCurrentWorker(null)
-              const finalContent = useChatStore.getState().streamingContent
-              const finalToolCalls = useChatStore.getState().streamingToolCalls
-              const assistantMsg: ChatMessage = {
-                id: `a_${Date.now()}`,
-                conversationId:
-                  info.conversationId || currentConversationId || "",
-                role: "assistant",
-                content: finalContent,
-                createdAt: new Date().toISOString(),
-                model: providerSettings.provider,
-                toolCalls: finalToolCalls.length > 0 ? finalToolCalls : null,
-              }
-              setMessages([...useChatStore.getState().messages, assistantMsg])
-              setStreamingContent("")
-              resetStreamingToolCalls()
-              loadConversations()
-            },
+          onToolCall: (call) => {
+            useChatStore.setState((s) => ({ streamingToolCalls: [...s.streamingToolCalls, call as never] }))
           },
-          controller.signal
-        )
-      } catch (e) {
-        if ((e as Error)?.name === "AbortError") {
-          const finalContent = useChatStore.getState().streamingContent
-          const finalToolCalls = useChatStore.getState().streamingToolCalls
-          if (finalContent.trim() || finalToolCalls.length > 0) {
-            const assistantMsg: ChatMessage = {
-              id: `a_${Date.now()}`,
-              conversationId: currentConversationId || "",
-              role: "assistant",
-              content: finalContent,
-              createdAt: new Date().toISOString(),
-              model: providerSettings.provider,
-              toolCalls: finalToolCalls.length > 0 ? finalToolCalls : null,
+          onError: (error) => {
+            setStreamingError(error)
+          },
+          onDone: async () => {
+            setIsStreaming(false)
+            setStreamingContent("")
+            resetStreamingToolCalls()
+
+            // Reload conversations list + current conversation
+            try {
+              const convs = await fetchConversations()
+              setConversations(convs)
+              const currentId = useChatStore.getState().currentConversationId
+              if (currentId) {
+                const conv = await fetchConversation(currentId)
+                setMessages((conv.messages || []) as ChatMessage[])
+              }
+            } catch {
+              /* ignore */
             }
-            setMessages([...useChatStore.getState().messages, assistantMsg])
-          }
-          setStreamingContent("")
-          resetStreamingToolCalls()
-        } else {
-          setStreamingError((e as Error).message || "فشل إرسال الرسالة")
+          },
         }
-        setIsStreaming(false)
-        setAbortController(null)
-      }
+      )
     },
     [
       isStreaming,
       messages,
       currentConversationId,
-      settings,
       addMessage,
-      setStreamingContent,
-      resetStreamingToolCalls,
       setIsStreaming,
-      setAbortController,
-      appendStreamingContent,
-      addStreamingToolCall,
-      setActiveFile,
-      triggerExplorerRefresh,
-      triggerMemoryRefresh,
-      triggerGoalsRefresh,
-      triggerSymbolsRefresh,
-      setSidebarTab,
-      setCurrentWorker,
-      setCurrentConversationId,
+      setStreamingContent,
       setStreamingError,
+      resetStreamingToolCalls,
+      showThinking,
+      settings,
+      setConversations,
       setMessages,
-      loadConversations,
     ]
   )
 
+  // --- Start new chat ---
+  const startNewChat = React.useCallback(() => {
+    setCurrentConversationId(null)
+    setMessages([])
+    setStreamingContent("")
+    resetStreamingToolCalls()
+    setIsStreaming(false)
+    setStreamingError(null)
+    setView("chat")
+  }, [setCurrentConversationId, setMessages, setStreamingContent, resetStreamingToolCalls, setIsStreaming, setStreamingError])
+
+  // --- Select conversation ---
+  const selectConversation = React.useCallback(
+    async (id: string) => {
+      setCurrentConversationId(id)
+      setMobileSidebarOpen(false)
+      setLoadingConversations(true)
+      setView("chat")
+      try {
+        const conv = await fetchConversation(id)
+        setMessages((conv.messages || []) as ChatMessage[])
+      } catch (e) {
+        console.error(e)
+        setMessages([])
+      } finally {
+        setLoadingConversations(false)
+      }
+    },
+    [setCurrentConversationId, setLoadingConversations, setMessages]
+  )
+
+  // setLoadingMessages uses setLoadingConversations
+
+  // --- Conversation actions ---
   const handleDelete = React.useCallback(
     async (id: string) => {
+      const prev = conversations.find((c) => c.id === id)
       removeConversation(id)
-      if (currentConversationId === id) startNewChat()
+      if (currentConversationId === id) {
+        startNewChat()
+      }
       try {
         await deleteConversation(id)
       } catch (e) {
         console.error(e)
+        if (prev) upsertConversation(prev)
       }
     },
-    [removeConversation, currentConversationId, startNewChat]
+    [conversations, removeConversation, currentConversationId, startNewChat, upsertConversation]
   )
 
   const handleTogglePin = React.useCallback(
@@ -588,93 +462,113 @@ export function ChatShell() {
           </SheetContent>
         </Sheet>
 
-        {/* Main panel */}
+        {/* Main panel — switches between Home Dashboard and Chat */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <ChatHeader
-            onToggleSidebar={toggleSidebar}
-            onNewChat={startNewChat}
-            onRename={(t) =>
-              currentConversationId && handleRename(currentConversationId, t)
-            }
-            thinking={thinking}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onRevert={() => {
-              triggerExplorerRefresh()
-              loadConversations()
-            }}
-          />
-
-          <ChatMessages
-            messages={messages}
-            streamingContent={streamingContent}
-            streamingToolCalls={streamingToolCalls}
-            isStreaming={isStreaming}
-            streamingRole="assistant"
-            conversationId={currentConversationId}
-            onPickSuggestion={(p) => sendMessage(p)}
-            onRegenerate={regenerate}
-            onBranch={async (messageId: string) => {
-              if (!currentConversationId) return
-              try {
-                const res = await fetch(`/api/conversations/${currentConversationId}/branch`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ fromMessageId: messageId }),
-                })
-                const data = await res.json()
-                if (data.conversation) {
-                  toast.success(`تم إنشاء فرع (${data.copiedMessages} رسالة)`)
+          {view === "home" ? (
+            <HomeDashboard />
+          ) : (
+            <>
+              <ChatHeader
+                onToggleSidebar={toggleSidebar}
+                onNewChat={startNewChat}
+                onRename={(t) =>
+                  currentConversationId && handleRename(currentConversationId, t)
+                }
+                thinking={showThinking}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onRevert={() => {
                   loadConversations()
-                  setCurrentConversationId(data.conversation.id)
-                }
-              } catch { toast.error("فشل التفريع") }
-            }}
-            onEdit={async (messageId: string, newContent: string) => {
-              try {
-                await fetch(`/api/messages/${messageId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ content: newContent }),
-                })
-                // Reload messages
-                if (currentConversationId) {
-                  const res = await fetch(`/api/conversations/${currentConversationId}`)
-                  const data = await res.json()
-                  setMessages((data.conversation.messages || []) as ChatMessage[])
-                }
-                toast.success("تم التعديل")
-              } catch { toast.error("فشل التعديل") }
-            }}
-          />
+                }}
+              />
 
-          {streamingError && (
-            <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                خطأ: {streamingError}
-              </div>
-            </div>
+              <ChatMessages
+                messages={messages}
+                streamingContent={streamingContent}
+                streamingToolCalls={streamingToolCalls}
+                isStreaming={isStreaming}
+                streamingRole="assistant"
+                conversationId={currentConversationId}
+                onPickSuggestion={(p) => sendMessage(p)}
+                onRegenerate={regenerate}
+                onBranch={async (messageId: string) => {
+                  if (!currentConversationId) return
+                  try {
+                    const res = await fetch(`/api/conversations/${currentConversationId}/branch`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ fromMessageId: messageId }),
+                    })
+                    const data = await res.json()
+                    if (data.conversation) {
+                      toast.success(`تم إنشاء فرع (${data.copiedMessages} رسالة)`)
+                      loadConversations()
+                      setCurrentConversationId(data.conversation.id)
+                    }
+                  } catch { toast.error("فشل التفريع") }
+                }}
+                onEdit={async (messageId: string, newContent: string) => {
+                  try {
+                    await fetch(`/api/messages/${messageId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ content: newContent }),
+                    })
+                    if (currentConversationId) {
+                      const res = await fetch(`/api/conversations/${currentConversationId}`)
+                      const data = await res.json()
+                      setMessages((data.conversation.messages || []) as ChatMessage[])
+                    }
+                    toast.success("تم التعديل")
+                  } catch { toast.error("فشل التعديل") }
+                }}
+              />
+
+              {streamingError && (
+                <div className="mx-auto mb-2 w-full max-w-3xl px-3 sm:px-4">
+                  <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    خطأ: {streamingError}
+                  </div>
+                </div>
+              )}
+
+              <ChatInput
+                onSend={sendMessage}
+                onStop={stopGeneration}
+                isStreaming={isStreaming}
+                thinking={showThinking}
+                onToggleThinking={(v) => {
+                  settings.setZaiThinking(v)
+                  useChatStore.getState().setShowThinking(v)
+                }}
+                showThinkingToggle={true}
+                placeholder={
+                  currentConversationId
+                    ? "راسل MiMo X…"
+                    : "أرسل رسالة لبدء محادثة جديدة…"
+                }
+              />
+            </>
           )}
-
-          <ChatInput
-            onSend={sendMessage}
-            onStop={stopGeneration}
-            isStreaming={isStreaming}
-            thinking={thinking}
-            onToggleThinking={(v) => {
-              settings.setZaiThinking(v)
-              useChatStore.getState().setShowThinking(v)
-            }}
-            showThinkingToggle={true}
-            placeholder={
-              currentConversationId
-                ? "راسل MiMo X…"
-                : "أرسل رسالة لبدء محادثة جديدة…"
-            }
-          />
         </div>
       </div>
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   )
+
+  // --- Helper: load conversations ---
+  function loadConversations() {
+    setLoadingConversations(true)
+    fetchConversations()
+      .then((convs) => setConversations(convs))
+      .catch(() => {})
+      .finally(() => setLoadingConversations(false))
+  }
+
+  // --- Helper: stop generation ---
+  function stopGeneration() {
+    setIsStreaming(false)
+    setStreamingContent("")
+    resetStreamingToolCalls()
+  }
 }
