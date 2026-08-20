@@ -44,6 +44,11 @@ export function ChatEmptyState({ onPick }: ChatEmptyStateProps) {
   const [knowledge, setKnowledge] = React.useState<KnowledgeItem[]>([])
   const [lastSession, setLastSession] = React.useState<LastSession | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [greeting, setGreeting] = React.useState("مرحباً / WELCOME") // fixed default for SSR
+
+  React.useEffect(() => {
+    setGreeting(getGreeting()) // set real greeting on client only
+  }, [])
 
   React.useEffect(() => {
     let mounted = true
@@ -100,7 +105,6 @@ export function ChatEmptyState({ onPick }: ChatEmptyStateProps) {
     return () => { mounted = false }
   }, [])
 
-  const greeting = getGreeting()
   const taskCount = tasks.length
   const projectCount = projects.length
 
