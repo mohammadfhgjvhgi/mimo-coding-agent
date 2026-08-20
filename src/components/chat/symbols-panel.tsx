@@ -15,7 +15,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -215,7 +214,7 @@ export function SymbolsPanel({
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mb-2" />
@@ -252,7 +251,7 @@ export function SymbolsPanel({
             })}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   )
 }

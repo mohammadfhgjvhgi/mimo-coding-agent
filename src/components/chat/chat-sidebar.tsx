@@ -18,10 +18,10 @@ import {
   Calendar,
   MessageCircle,
   BookOpen,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,9 +45,12 @@ import { useChatStore } from "@/store/chat-store"
 import { ThemeToggle } from "./theme-toggle"
 import { WorkspaceExplorer } from "./workspace-explorer"
 import { MemoryPanel } from "./memory-panel"
+import { KnowledgePanel } from "./knowledge-panel"
 import { GoalsPanel } from "./goals-panel"
+import { SmartToolsPanel } from "./smart-tools-panel"
 import { SymbolsPanel } from "./symbols-panel"
 import { AutomationPanel } from "./automation-panel"
+import { ResearchPanel } from "./research-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -253,7 +256,7 @@ function ConversationList({
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1 px-2 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll px-2">
         {loadingConversations ? (
           <div className="space-y-2 p-2">
             {[...Array(5)].map((_, i) => (
@@ -291,39 +294,67 @@ function ConversationList({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="border-t border-sidebar-border px-3 py-2">
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
               className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-foreground"
               disabled={conversations.length === 0}
             >
-              <Trash2 className="h-3.5 w-3.5" /> مسح كل المحادثات
+              <MoreHorizontal className="h-3.5 w-3.5" /> المزيد
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>مسح كل المحادثات؟</AlertDialogTitle>
-              <AlertDialogDescription>
-                سيتم حذف جميع المحادثات والرسائل نهائياً. لا يمكن التراجع عن هذا الإجراء.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={onClearAll}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                حذف كل شيء
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  disabled={conversations.length === 0}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> مسح كل المحادثات
+                </DropdownMenuItem>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>مسح كل المحادثات؟</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    سيتم حذف جميع المحادثات والرسائل نهائياً. لا يمكن التراجع عن هذا الإجراء.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-2 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    للتأكيد، اكتب <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.65rem]">DELETE</code> أدناه:
+                  </p>
+                  <Input
+                    placeholder="DELETE"
+                    onChange={(e) => {
+                      const btn = e.target.parentElement?.querySelector("button[data-confirm]") as HTMLButtonElement | null
+                      if (btn) btn.disabled = e.target.value !== "DELETE"
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                  <AlertDialogAction
+                    data-confirm
+                    disabled
+                    onClick={onClearAll}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    حذف كل شيء
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="mt-1 flex items-center justify-between px-1 py-1">
           <span className="text-[0.7rem] text-muted-foreground">
@@ -413,7 +444,7 @@ export function ChatSidebar({
 
       {/* Engineering tabs */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-1 grid grid-cols-5 rounded-lg bg-muted/60 p-0.5 text-xs">
+      <div className="mx-3 mb-1 grid grid-cols-6 rounded-lg bg-muted/60 p-0.5 text-xs">
         <button
           onClick={() => setSidebarTab("conversations")}
           className={cn(
@@ -469,17 +500,29 @@ export function ChatSidebar({
         >
           <Target className="h-3.5 w-3.5" />
         </button>
+        <button
+          onClick={() => setSidebarTab("smart_tools")}
+          className={cn(
+            "flex items-center justify-center gap-1 rounded-md py-1.5 font-medium transition",
+            sidebarTab === "smart_tools"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </button>
       </div>
       )}
 
       {/* Tab labels */}
       {sidebarMode === "engineering" && (
-      <div className="mx-3 mb-2 grid grid-cols-5 text-[0.55rem] text-muted-foreground">
+      <div className="mx-3 mb-2 grid grid-cols-6 text-[0.55rem] text-muted-foreground">
         <span className={cn("text-center", sidebarTab !== "conversations" && "opacity-50")}>محادثات</span>
         <span className={cn("text-center", sidebarTab !== "explorer" && "opacity-50")}>الملفات</span>
         <span className={cn("text-center", sidebarTab !== "symbols" && "opacity-50")}>الرموز</span>
         <span className={cn("text-center", sidebarTab !== "memory" && "opacity-50")}>الذاكرة</span>
         <span className={cn("text-center", sidebarTab !== "goals" && "opacity-50")}>الأهداف</span>
+        <span className={cn("text-center", sidebarTab !== "smart_tools" && "opacity-50")}>أدوات</span>
       </div>
       )}
 
@@ -508,15 +551,25 @@ export function ChatSidebar({
             >
               <Calendar className="h-3.5 w-3.5" /> أتمتة
             </button>
+            <button
+              onClick={() => setSidebarTab("symbols" as never)}
+              className="flex items-center justify-center gap-1 rounded-md py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            >
+              <FolderTree className="h-3.5 w-3.5" /> بحث
+            </button>
           </div>
 
           {/* Personal mode content */}
           {sidebarTab === "memory" ? (
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <MemoryPanel refreshSignal={memoryRefreshSignal} />
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+              <KnowledgePanel />
+            </div>
+          ) : sidebarTab === "symbols" ? (
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+              <ResearchPanel />
             </div>
           ) : (
-            <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
               <AutomationPanel refreshSignal={goalsRefreshSignal} />
             </div>
           )}
@@ -527,23 +580,25 @@ export function ChatSidebar({
       {sidebarMode === "engineering" && (
       <>
       {sidebarTab === "conversations" ? (
-        <ConversationList
-          onNewChat={onNewChat}
-          onSelect={onSelect}
-          onDelete={onDelete}
-          onTogglePin={onTogglePin}
-          onRename={onRename}
-          onClearAll={onClearAll}
-        />
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ConversationList
+            onNewChat={onNewChat}
+            onSelect={onSelect}
+            onDelete={onDelete}
+            onTogglePin={onTogglePin}
+            onRename={onRename}
+            onClearAll={onClearAll}
+          />
+        </div>
       ) : sidebarTab === "explorer" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <WorkspaceExplorer
             activeFile={activeFile}
             refreshSignal={explorerRefreshSignal}
           />
         </div>
       ) : sidebarTab === "symbols" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <SymbolsPanel
             refreshSignal={symbolsRefreshSignal}
             onSelectFile={(p) => {
@@ -553,11 +608,15 @@ export function ChatSidebar({
           />
         </div>
       ) : sidebarTab === "memory" ? (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <MemoryPanel refreshSignal={memoryRefreshSignal} />
         </div>
+      ) : sidebarTab === "smart_tools" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <SmartToolsPanel />
+        </div>
       ) : (
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <GoalsPanel refreshSignal={goalsRefreshSignal} />
         </div>
       )}

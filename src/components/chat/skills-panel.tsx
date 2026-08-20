@@ -4,7 +4,6 @@ import * as React from "react"
 import { Package, Search, RefreshCw, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -54,7 +53,7 @@ export function SkillsPanel({ refreshSignal }: { refreshSignal?: number }) {
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث في المهارات…" className="h-8 rounded-lg pr-8 text-xs" />
         </div>
       </div>
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {loading ? (
           <div className="flex items-center justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (
@@ -72,7 +71,7 @@ export function SkillsPanel({ refreshSignal }: { refreshSignal?: number }) {
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
       <div className="border-t border-sidebar-border px-3 py-1.5"><span className="text-[0.7rem] text-muted-foreground">{skills.length} مهارة مثبّتة</span></div>
     </div>
   )

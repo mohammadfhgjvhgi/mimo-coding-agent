@@ -11,27 +11,37 @@ datasource db {
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  title     String   @default("محادثة جديدة")
-  model     String   @default("default")
-  pinned    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String   @default("محادثة جديدة")
+  model         String   @default("default")
+  pinned        Boolean  @default(false)
+  folder        String?
+  tags          String   @default("[]")
+  systemPrompt  String?
+  modelSettings String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   messages Message[]
   tasks   Task[]
 
   @@index([updatedAt])
+  @@index([folder])
+  @@index([pinned])
 }
 
 model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  role           String
-  content        String
-  model          String?
-  toolCalls      String?
-  createdAt      DateTime @default(now())
+  id              String   @id @default(cuid())
+  conversationId  String
+  role            String
+  content         String
+  model           String?
+  toolCalls       String?
+  parentMessageId String?
+  tokens          Int      @default(0)
+  thinking        String?
+  isEdited        Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
@@ -118,12 +128,1193 @@ model SystemState {
 }
 
 model KnowledgeChunk {
-  id          String   @id @default(cuid())
-  source      String
-  content     String
-  embedding   String
-  chunkIndex  Int
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  collectionId  String?
+  source        String
+  sourceType    String   @default("text") // text|pdf|docx|md|code|url|note
+  content       String
+  embedding     String
+  chunkIndex    Int
+  tokens        Int      @default(0)
+  metadata      String?
+  createdAt     DateTime @default(now())
 
   @@index([source])
+  @@index([collectionId])
+  @@index([sourceType])
+}
+
+model KnowledgeCollection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  scope       String   @default("personal") // personal|project|shared
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([scope])
+}
+
+model ResearchJob {
+  id           String   @id @default(cuid())
+  query        String
+  status       String   @default("pending")
+  depth        String   @default("standard")
+  plan         String?
+  sources      String   @default("[]")
+  findings     String   @default("[]")
+  claims       String   @default("[]")
+  report       String?
+  citations    String?
+  tokenUsage   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// MCP OS — Model Context Protocol servers (plug-and-play integration layer).
+// Stores discovered tools, capability scopes, permissions, secrets, health, rate limits.
+model McpServer {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  // url | stdio | sse
+  transport     String   @default("url")
+  // For url/sse: the endpoint URL. For stdio: the command.
+  endpoint      String
+  // JSON: { args?: string[], env?: Record<string,string>, headers?: Record<string,string> }
+  config        String   @default("{}")
+  // "discovered" | "installed" | "enabled" | "disabled" | "error"
+  status        String   @default("discovered")
+  // JSON: array of discovered tools: [{ name, description, inputSchema }]
+  tools         String   @default("[]")
+  // JSON: capability scopes granted: ["read", "write", "network", "shell"]
+  scopes        String   @default("[]")
+  // JSON: per-tool permission overrides: { toolName: "allow"|"deny"|"ask" }
+  permissions   String   @default("{}")
+  // JSON: rate-limit policy: { rpm: number, burst: number, lastWindowStart: string, count: number }
+  rateLimit     String   @default("{}")
+  // Health-check metadata: { lastCheckAt, ok, latencyMs, error? }
+  health        String   @default("{}")
+  // Reference to secrets (stored separately, never inline): { apiKey: "secret:uuid" }
+  secretRefs    String   @default("{}")
+  description   String?
+  version       String?
+  installedAt   DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+// MCP OS — secrets storage. Values are encrypted at the application layer
+// using a simple AES-256-GCM cipher with a key derived from MCP_SECRET_KEY env
+// (or a per-workspace fallback key).
+model McpSecret {
+  id        String   @id @default(cuid())
+  // Logical name within a server's config: e.g. "apiKey", "dbPassword"
+  name      String
+  // Cipher text + IV + tag, JSON: { iv, tag, ciphertext }
+  value     String
+  serverId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serverId])
+  @@index([name])
+}
+
+// MCP OS — audit log of every tool call (success + failure + permission denial).
+// Used for observability, compliance, and post-mortem analysis.
+model McpAuditLog {
+  id         String   @id @default(cuid())
+  serverName String
+  toolName   String
+  // "call" | "permission_denied" | "rate_limited" | "discovery" | "health" | "install"
+  action     String
+  // "success" | "error" | "denied" | "skipped"
+  status     String
+  // Truncated arguments JSON (first 2000 chars)
+  args       String   @default("{}")
+  // Truncated result JSON (first 2000 chars)
+  result     String?
+  durationMs Int      @default(0)
+  // caller: "agent" | "user" | "system"
+  caller     String   @default("agent")
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([serverName])
+  @@index([toolName])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Plugins — plug-and-play extension system for MiMo X.
+// Plugins are JS/TS modules loaded at runtime that can register tools,
+// hooks, UI panels, and providers. They are isolated, versioned, and
+// permission-gated — inspired by VS Code extensions.
+model Plugin {
+  id              String   @id @default(cuid())
+  // Unique plugin slug: e.g. "com.mimo.calculator"
+  name            String   @unique
+  // Human-readable display name
+  displayName     String
+  description     String?
+  version         String
+  // Semantic version of the manifest schema (for forward-compat)
+  manifestVersion String   @default("1.0.0")
+  author          String?
+  homepage        String?
+  repository      String?
+  // Filesystem path to the plugin entry (relative to workspace or absolute)
+  entryPath       String
+  // "module" (ESM/CJS import) | "inline" (code in `inlineSource`)
+  entryType       String   @default("module")
+  inlineSource    String?
+  // JSON: manifest as declared by the plugin (capabilities, permissions, hooks, tools)
+  manifest        String   @default("{}")
+  // JSON: capabilities granted: ["tools", "hooks", "ui_panels", "providers", "commands"]
+  capabilities    String   @default("[]")
+  // JSON: permissions granted: ["filesystem:read", "shell:exec", "network:http", "db:rw"]
+  permissions     String   @default("[]")
+  // JSON: settings schema + current values: { schema: {}, values: {} }
+  settings        String   @default("{}")
+  // "registered" | "enabled" | "disabled" | "error" | "uninstalled"
+  status          String   @default("registered")
+  // SHA-256 of the entry file at registration time (for tamper detection)
+  checksum        String?
+  // JSON: isolation policy: { sandbox: boolean, maxHeapMb: number, timeoutMs: number }
+  isolation       String   @default("{}")
+  // JSON: version history: [{ version, installedAt, checksum }]
+  versionHistory  String   @default("[]")
+  // JSON: last activation result: { ok, error?, activatedAt }
+  activation      String   @default("{}")
+  registeredAt    DateTime @default(now())
+  installedAt     DateTime?
+  lastActivatedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([name])
+}
+
+// Plugin Logs — every plugin lifecycle event + tool call goes here.
+// Used for debugging, audit, and the plugin dev panel.
+model PluginLog {
+  id         String   @id @default(cuid())
+  pluginName String
+  // "register" | "enable" | "disable" | "activate" | "deactivate"
+  // | "tool_call" | "hook_run" | "settings_change" | "error" | "install"
+  action     String
+  // "info" | "warn" | "error" | "debug"
+  level      String   @default("info")
+  message    String
+  // JSON: structured context (toolName, args, durationMs, etc.)
+  context    String   @default("{}")
+  durationMs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([pluginName])
+  @@index([action])
+  @@index([level])
+  @@index([createdAt])
+}
+
+// Skills — reusable, declarative knowledge + capability bundles.
+// Each skill is a system-prompt fragment + tool allowlist + routing rules,
+// loaded lazily when the agent's task matches the skill's triggers.
+// Inspired by Claude Code's "/skills" + Aider's conventions.
+model Skill {
+  id            String   @id @default(cuid())
+  // Unique skill slug: e.g. "nextjs", "python", "plc-automation"
+  name          String   @unique
+  displayName   String
+  description   String
+  // Category for grouping: "web" | "systems" | "automation" | "research"
+  // | "writing" | "vcs" | "security" | "testing" | "debugging" | "general"
+  category      String
+  version       String   @default("1.0.0")
+  // JSON: semantic version requirements: { minCore, maxCore }
+  versionCompat String   @default("{}")
+  // JSON: array of trigger patterns (regex strings) matched against the user's message
+  triggers      String   @default("[]")
+  // JSON: array of tags for fuzzy search: ["react", "ssr", "app-router"]
+  tags          String   @default("[]")
+  // JSON: list of skill names this skill depends on
+  dependencies  String   @default("[]")
+  // The system-prompt fragment injected when the skill is activated
+  promptFragment String
+  // JSON: tool allowlist: ["write_file", "read_file", ...] (null = all tools)
+  toolAllowlist String?
+  // JSON: routing rules: { priority: number, autoActivate: boolean, maxTokens: number }
+  routing       String   @default("{}")
+  // JSON: memory cache: { lastUsedAt, useCount, successRate, lastContext }
+  memory        String   @default("{}")
+  // "active" | "disabled" | "deprecated"
+  status        String   @default("active")
+  // SHA-256 of promptFragment (for tamper detection + cache invalidation)
+  checksum      String?
+  // Lazy-loading: skill is NOT loaded into memory until matched
+  loadedAt      DateTime?
+  lastUsedAt    DateTime?
+  useCount      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([name])
+}
+
+// Skill Executions — every time a skill is activated/used, log it.
+// Used for routing improvement + skill memory (success rate, etc.).
+model SkillExecution {
+  id          String   @id @default(cuid())
+  skillName   String
+  // "activate" | "use" | "deactivate" | "validate" | "fail"
+  action      String
+  // The user message that triggered the skill (truncated 500 chars)
+  trigger     String?
+  // "success" | "error" | "skipped"
+  status      String
+  // JSON: context at activation: { toolsUsed, tokensSaved, durationMs }
+  context     String   @default("{}")
+  durationMs  Int      @default(0)
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([skillName])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Artifacts — Claude/Open-WebUI-style interactive, editable, versioned artifacts.
+// Each artifact is a piece of generated content (HTML/SVG/dashboard/diagram/report/code/viz)
+// attached to a conversation message, with full version history + diff + fork + share.
+model Artifact {
+  id            String   @id @default(cuid())
+  // Stable slug for URLs + sharing: e.g. "abc123xy"
+  slug          String   @unique @default(cuid())
+  title         String
+  description   String?
+  // "html" | "svg" | "dashboard" | "diagram" | "report" | "code" | "visualization" | "react" | "markdown"
+  type          String
+  // The current content (latest version's content is mirrored here for fast reads)
+  content       String
+  // Language for syntax highlighting (for code type): "typescript" | "python" | ...
+  language      String?
+  // SHA-256 of the current content (for tamper detection + cache invalidation)
+  checksum      String?
+  // Current version number (starts at 1, increments on each edit)
+  version       Int      @default(1)
+  // JSON: metadata { width, height, theme, dependencies[], standalone }
+  metadata      String   @default("{}")
+  // Conversation/message this artifact is attached to (nullable for orphan/shared artifacts)
+  conversationId String?
+  messageId     String?
+  // Author + visibility
+  authorId      String?
+  // "private" | "unlisted" | "public"
+  visibility    String   @default("private")
+  // Tags for search/filter
+  tags          String   @default("[]")
+  // If this artifact was forked from another, the parent id
+  forkedFromId  String?
+  // Stats
+  viewCount     Int      @default(0)
+  forkCount     Int      @default(0)
+  // Status: "active" | "archived" | "deleted"
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([type])
+  @@index([visibility])
+  @@index([status])
+  @@index([forkedFromId])
+  @@index([createdAt])
+}
+
+// Artifact Versions — every save creates a new version with full content snapshot.
+// Enables diff between versions + restore to any previous version.
+model ArtifactVersion {
+  id          String   @id @default(cuid())
+  artifactId  String
+  version     Int
+  content     String
+  checksum    String?
+  // JSON: edit summary { authorId, reason, editSource }
+  editSummary String   @default("{}")
+  // Size in bytes (for stats)
+  sizeBytes   Int      @default(0)
+  // Diff against previous version: JSON { additions, deletions, blocks }
+  diff        String?
+  createdAt   DateTime @default(now())
+
+  @@index([artifactId])
+  @@index([version])
+  @@unique([artifactId, version])
+}
+
+// Artifact Shares — short-lived or permanent share links with optional password + expiry.
+model ArtifactShare {
+  id          String   @id @default(cuid())
+  artifactId  String
+  // The share token in the URL: e.g. "s_abc123"
+  token       String   @unique @default(cuid())
+  // Optional password (bcrypt hash). null = no password.
+  password    String?
+  // Optional expiry. null = never expires.
+  expiresAt   DateTime?
+  // Max views allowed. 0 = unlimited.
+  maxViews    Int      @default(0)
+  viewCount   Int      @default(0)
+  // Whether to allow viewer to fork (else view-only)
+  allowFork   Boolean  @default(true)
+  // Who created this share link
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([artifactId])
+  @@index([token])
+}
+
+// File Intelligence — file indexing, search, metadata, dedup, versioning.
+// Tracks files in the workspace + uploaded files, with incremental indexing
+// + content hashing for duplicate detection + folder watching.
+model FileIndex {
+  id            String   @id @default(cuid())
+  // Absolute path (for workspace files) or upload id (for uploaded files)
+  path          String   @unique
+  // "workspace" | "upload" | "external"
+  source        String   @default("workspace")
+  // Original filename (basename)
+  filename      String
+  // Extension without dot: "ts", "tsx", "md", "pdf"
+  extension     String   @default("")
+  // MIME type guess: "text/typescript", "application/pdf", "image/png"
+  mimeType      String   @default("")
+  // File size in bytes
+  sizeBytes     Int      @default(0)
+  // SHA-256 hash of content (for dedup + tamper detection)
+  checksum      String?
+  // JSON: extracted metadata { title, author, pages, dimensions, duration, ... }
+  metadata      String   @default("{}")
+  // Extracted text content (for search + indexing). null = not extracted yet.
+  extractedText String?
+  // Whether the file has been OCR'd (for images/PDFs with images)
+  ocrDone       Boolean  @default(false)
+  // Indexing state: "pending" | "indexed" | "error" | "deleted"
+  indexStatus   String   @default("pending")
+  // Last time the file was scanned (for incremental indexing)
+  indexedAt     DateTime?
+  // File modification time (for detecting changes since last index)
+  fileModifiedAt DateTime?
+  // If this file is a duplicate, the original (canonical) file id
+  duplicateOfId String?
+  // Number of versions tracked
+  versionCount  Int      @default(0)
+  // Tags for search/filter
+  tags          String   @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([source])
+  @@index([extension])
+  @@index([mimeType])
+  @@index([indexStatus])
+  @@index([checksum])
+  @@index([duplicateOfId])
+  @@index([filename])
+}
+
+// File Versions — snapshot of a file at a point in time.
+// Created when content changes are detected (different checksum).
+model FileVersion {
+  id          String   @id @default(cuid())
+  fileId      String
+  version     Int
+  checksum    String
+  sizeBytes   Int
+  // Snapshot path (relative to .file-intel/versions/): "<fileId>/v<N>.bin"
+  snapshotPath String?
+  // JSON: edit summary { reason, authorId, trigger }
+  editSummary String   @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([fileId])
+  @@index([version])
+  @@unique([fileId, version])
+}
+
+// Folder Watchers — watched directories with optional glob patterns.
+// Polling-based (no chokidar dependency) — checks mtime on each scan.
+model FolderWatcher {
+  id          String   @id @default(cuid())
+  // Absolute or workspace-relative path
+  path        String   @unique
+  // Glob patterns to include: ["**/*.ts", "**/*.md"]. Empty = all.
+  includeGlobs String   @default("[]")
+  // Glob patterns to exclude: ["**/node_modules/**", "**/.git/**"]
+  excludeGlobs String   @default("[\"**/node_modules/**\",\"**/.git/**\",\"**/.next/**\"]")
+  // Whether the watcher is active
+  active      Boolean  @default(true)
+  // Polling interval in seconds
+  intervalSec Int      @default(60)
+  // Last scan timestamp
+  lastScanAt  DateTime?
+  // Stats from last scan
+  lastScanAdded    Int  @default(0)
+  lastScanModified Int  @default(0)
+  lastScanDeleted  Int  @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+}
+
+// Voice OS — speech-to-text, text-to-speech, voice conversations.
+// Backed by z-ai-web-dev-sdk ASR + TTS skills.
+model VoiceSession {
+  id          String   @id @default(cuid())
+  // "active" | "ended" | "paused"
+  status      String   @default("active")
+  // Linked conversation if part of a chat session
+  conversationId String?
+  // TTS settings
+  ttsVoice    String   @default("alloy")
+  ttsSpeed    Float    @default(1.0)
+  ttsFormat   String   @default("mp3")
+  // ASR settings
+  asrLanguage String   @default("ar")
+  // "push_to_talk" | "hands_free" | "voice_command"
+  mode        String   @default("push_to_talk")
+  // Stats
+  sttCount    Int      @default(0)
+  ttsCount    Int      @default(0)
+  totalAudioMs Int     @default(0)
+  // VAD (voice activity detection) settings
+  vadEnabled  Boolean  @default(true)
+  silenceThresholdMs Int @default(2000)
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([conversationId])
+}
+
+// Voice Commands — registered slash-command-style voice triggers.
+// e.g. "ابدأ محادثة جديدة" → new conversation, "افتح الإعدادات" → settings.
+model VoiceCommand {
+  id          String   @id @default(cuid())
+  // Pattern (regex or literal) matched against transcribed text
+  pattern     String   @unique
+  // Arabic + English display name
+  displayName String
+  description String?
+  // Action type: "new_chat" | "open_settings" | "switch_mode" | "custom"
+  action      String
+  // JSON: action params
+  params      String   @default("{}")
+  // Whether the command is active
+  active      Boolean  @default(true)
+  // Optional confirmation required before running
+  confirmRequired Boolean @default(false)
+  useCount    Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([action])
+}
+
+// Vision OS — image + screenshot + PDF analysis via VLM.
+// Tracks every analysis for audit + reuse. The crown jewel is the
+// screenshot→fix workflow: take screenshot → analyze → identify problem
+// → suggest code fix.
+model VisionAnalysis {
+  id          String   @id @default(cuid())
+  // "image" | "screenshot" | "pdf" | "ui" | "diagram" | "chart" | "screenshot_fix"
+  type        String
+  // Source: file path OR base64 (for uploaded)
+  sourcePath  String?
+  sourceBase64 String?
+  // The prompt sent to the VLM
+  prompt      String
+  // The VLM's response (analysis text)
+  response    String   @default("")
+  // Model used (e.g. "glm-4.5v")
+  model       String?
+  // Stats
+  durationMs  Int      @default(0)
+  tokensUsed Int      @default(0)
+  // JSON: structured result { problems?, suggestedFix?, codeFile?, codeChanges? }
+  structured  String   @default("{}")
+  // JSON: metadata { width, height, pages, mimeType }
+  metadata    String   @default("{}")
+  // Optional conversation/message link
+  conversationId String?
+  messageId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([conversationId])
+}
+
+// Vision Templates — saved prompts for common analyses.
+// e.g. "UI accessibility audit", "chart data extraction", "diagram to code"
+model VisionTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  // "image" | "screenshot" | "pdf" | "ui" | "diagram" | "chart" | "screenshot_fix"
+  type        String
+  // The user prompt template (with {{placeholders}})
+  promptTemplate String
+  // Optional system prompt
+  systemPrompt String?
+  active      Boolean  @default(true)
+  useCount    Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([type])
+}
+
+// Creative Tools — image generation + editing + diagram/chart generation.
+// Backed by z-ai-web-dev-sdk images.generations + images.edit + images.search.
+model ImageCreation {
+  id          String   @id @default(cuid())
+  // "image_gen" | "image_edit" | "image_search" | "diagram" | "flowchart" | "architecture" | "chart"
+  type        String
+  // The prompt (for gen) or source image path (for edit)
+  prompt      String
+  // Generated image path (in upload/creative/)
+  imagePath   String?
+  // Source image path (for edit operations)
+  sourcePath  String?
+  // "1024x1024" | "512x512" | "256x256" | custom
+  size        String   @default("1024x1024")
+  // Quality: "standard" | "hd"
+  quality     String   @default("standard")
+  // Style: "natural" | "vivid" | "artistic" | "minimal" | ...
+  style       String?
+  // Model used
+  model       String?
+  // Whether the generation succeeded
+  success     Boolean  @default(false)
+  durationMs  Int      @default(0)
+  // JSON: metadata { width, height, mimeType, seed, ... }
+  metadata    String   @default("{}")
+  // JSON: extra params used
+  params      String   @default("{}")
+  // Optional conversation/message link
+  conversationId String?
+  messageId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([success])
+  @@index([createdAt])
+  @@index([conversationId])
+}
+
+// Data Analysis OS — CSV/Excel/SQL analysis, cleaning, stats, viz, Python execution.
+// Datasets are persisted + analyzed; every analysis is logged for audit.
+model Dataset {
+  id          String   @id @default(cuid())
+  name        String
+  // "csv" | "excel" | "json" | "sql_table" | "inline"
+  source      String
+  // File path for csv/excel/json; null for inline/sql_table
+  sourcePath  String?
+  // Inline data (for small datasets): JSON array of objects
+  inlineData  String?
+  // Column schema: JSON array of { name, type, nullable, unique }
+  schema      String   @default("[]")
+  // Row count
+  rowCount    Int      @default(0)
+  // Column count
+  colCount    Int      @default(0)
+  // Size in bytes
+  sizeBytes   Int      @default(0)
+  // SHA-256 of source content (for dedup + cache)
+  checksum    String?
+  // Tags for search/filter
+  tags        String   @default("[]")
+  // Optional conversation link
+  conversationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([source])
+  @@index([conversationId])
+  @@index([name])
+}
+
+// Data Analysis — every analysis logged.
+model DataAnalysis {
+  id          String   @id @default(cuid())
+  datasetId   String?
+  // "csv_analyze" | "excel_analyze" | "sql_query" | "clean" | "stats" | "viz" | "notebook" | "python_exec" | "report"
+  type        String
+  // The query/script/prompt used
+  query       String   @default("")
+  // The result (JSON or text)
+  result      String   @default("")
+  // JSON: structured result { rows?, stats?, columns?, ... }
+  structured  String   @default("{}")
+  // Duration + status
+  durationMs  Int      @default(0)
+  success     Boolean  @default(false)
+  error       String?
+  // Optional conversation link
+  conversationId String?
+  createdAt   DateTime @default(now())
+
+  @@index([datasetId])
+  @@index([type])
+  @@index([success])
+  @@index([createdAt])
+  @@index([conversationId])
+}
+
+// Spreadsheet Intelligence — workbook/sheet/formula analysis.
+// Higher-level than Data Analysis: focuses on cells, formulas (A1 notation),
+// pivot tables, workbook summarization.
+model Workbook {
+  id          String   @id @default(cuid())
+  name        String
+  // "csv" | "xlsx" | "google_sheets" | "inline"
+  source      String
+  sourcePath  String?
+  // JSON: sheets array [{ name, rowCount, colCount, headers, cells }]
+  sheets      String   @default("[]")
+  // Active sheet name (default: first)
+  activeSheet String?
+  // Total cells across all sheets
+  cellCount   Int      @default(0)
+  // SHA-256 for dedup
+  checksum    String?
+  conversationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([source])
+  @@index([conversationId])
+}
+
+// Formula — saved formulas for reuse + debugging.
+model Formula {
+  id          String   @id @default(cuid())
+  workbookId  String?
+  // The formula text (without leading =)
+  formula     String
+  // A1 range the formula references
+  range       String?
+  // "sum" | "average" | "count" | "vlookup" | "if" | "concat" | "custom"
+  category    String   @default("custom")
+  // The computed result (after evaluation)
+  result      String?
+  // "ok" | "error" | "pending"
+  status      String   @default("pending")
+  // Error message if status=error
+  error       String?
+  useCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workbookId])
+  @@index([category])
+  @@index([status])
+}
+
+// Academic / Study OS — full study assistant.
+// Courses, lectures, flashcards, quizzes, study plans, citations, papers, progress.
+
+model Course {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?  @unique
+  description String?
+  instructor   String?
+  semester    String?
+  // "active" | "completed" | "dropped" | "planned"
+  status      String   @default("active")
+  startDate   DateTime?
+  endDate     DateTime?
+  // JSON: schedule [{ day, startTime, endTime, location }]
+  schedule    String   @default("[]")
+  // Study stats
+  totalStudyHours Float  @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([semester])
+}
+
+model LectureNote {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  // Week number / lecture number
+  lectureNumber Int?
+  weekNumber  Int?
+  date        DateTime?
+  // Markdown content of the notes
+  content     String   @default("")
+  // JSON: summary + key points + terms + references
+  summary     String   @default("{}")
+  // JSON: attachments [{ type, path, name }]
+  attachments String   @default("[]")
+  // Tags for search
+  tags        String   @default("[]")
+  // Optional source PDF path
+  sourcePdfPath String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([weekNumber])
+  @@index([date])
+}
+
+model Flashcard {
+  id          String   @id @default(cuid())
+  courseId    String?
+  lectureNoteId String?
+  // "basic" | "cloze" | "reverse"
+  type        String   @default("basic")
+  front       String
+  back        String
+  // Spaced repetition: ease factor + interval + next review
+  ease        Float    @default(2.5)
+  interval    Int      @default(1)
+  repetitions Int      @default(0)
+  nextReview  DateTime?
+  // Stats
+  totalReviews Int     @default(0)
+  correctCount Int      @default(0)
+  // Tags
+  tags        String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([lectureNoteId])
+  @@index([nextReview])
+  @@index([type])
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  courseId    String?
+  lectureNoteId String?
+  title       String
+  // "multiple_choice" | "true_false" | "short_answer" | "mixed"
+  type        String   @default("multiple_choice")
+  // JSON: questions [{ id, question, options[], correctIndex, explanation }]
+  questions   String   @default("[]")
+  // Stats
+  attempts    Int      @default(0)
+  avgScore    Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([lectureNoteId])
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String
+  // JSON: answers [{ questionId, selected, correct }]
+  answers     String   @default("[]")
+  score       Float    @default(0)
+  totalQuestions Int    @default(0)
+  correctCount Int     @default(0)
+  durationMs  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([quizId])
+}
+
+model StudyPlan {
+  id          String   @id @default(cuid())
+  courseId    String?
+  title       String
+  // "daily" | "weekly" | "exam_prep"
+  type        String   @default("weekly")
+  // Target date (e.g. exam date)
+  targetDate  DateTime?
+  // JSON: items [{ date, topic, durationMin, resources[], done }]
+  items       String   @default("[]")
+  // Stats
+  totalMinutes Int     @default(0)
+  completedMinutes Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([type])
+}
+
+model Citation {
+  id          String   @id @default(cuid())
+  // "apa" | "mla" | "chicago" | "ieee" | "bibtex"
+  style       String   @default("apa")
+  // The citation text (formatted)
+  text        String
+  // Structured fields
+  authors     String   @default("[]")
+  title       String?
+  year        Int?
+  journal     String?
+  volume      String?
+  issue       String?
+  pages       String?
+  publisher   String?
+  url         String?
+  doi         String?
+  // BibTeX key: Author2024keyword
+  bibtexKey   String?
+  // Tags
+  tags        String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([style])
+  @@index([year])
+  @@index([bibtexKey])
+}
+
+model Paper {
+  id          String   @id @default(cuid())
+  title       String
+  authors     String   @default("[]")
+  year        Int?
+  abstract    String?
+  // PDF path (optional)
+  pdfPath     String?
+  // Summary (auto-generated)
+  summary     String?
+  // JSON: key findings [{ finding, evidence, significance }]
+  keyFindings String   @default("[]")
+  // JSON: methods + results + conclusion sections
+  sections    String   @default("{}")
+  // JSON: citations to other papers
+  references  String   @default("[]")
+  // Citation IDs that cite this paper (for bibliography)
+  citationIds String   @default("[]")
+  // Tags
+  tags        String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([year])
+  @@index([title])
+}
+
+model LearningProgress {
+  id          String   @id @default(cuid())
+  courseId    String?
+  // Overall progress 0-100
+  progress    Float    @default(0)
+  // JSON: per-topic progress { topic: percent }
+  topicProgress String  @default("{}")
+  // JSON: per-skill mastery { skill: 0-1 }
+  skills      String   @default("{}")
+  // Streak tracking
+  currentStreak Int    @default(0)
+  longestStreak Int   @default(0)
+  lastStudyDate DateTime?
+  // Stats
+  totalStudyMinutes Int @default(0)
+  totalFlashcardsReviewed Int @default(0)
+  totalQuizzesTaken Int @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+// Personal Productivity OS — tasks, projects, goals, habits, reminders, notes.
+// PTask = Productivity Task (avoid conflict with existing Task model for the agent).
+model PTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "todo" | "in_progress" | "done" | "cancelled" | "blocked"
+  status      String   @default("todo")
+  // "low" | "medium" | "high" | "urgent"
+  priority    String   @default("medium")
+  // Optional project link
+  projectId   String?
+  // Optional goal link
+  goalId      String?
+  // Due date
+  dueDate     DateTime?
+  // Estimated + actual minutes
+  estimatedMin Int?
+  actualMin   Int      @default(0)
+  // Tags
+  tags        String   @default("[]")
+  // Subtasks (JSON: [{ title, done }])
+  subtasks    String   @default("[]")
+  // Order for kanban
+  order       Int      @default(0)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([projectId])
+  @@index([goalId])
+  @@index([dueDate])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  // "planning" | "active" | "on_hold" | "completed" | "cancelled"
+  status      String   @default("planning")
+  color       String   @default("#3b82f6")
+  // JSON: milestones [{ title, dueDate, done }]
+  milestones  String   @default("[]")
+  startDate   DateTime?
+  endDate     DateTime?
+  // Stats
+  totalTasks  Int      @default(0)
+  completedTasks Int   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "short_term" | "medium_term" | "long_term"
+  type        String   @default("medium_term")
+  // "not_started" | "in_progress" | "achieved" | "abandoned"
+  status      String   @default("not_started")
+  // Progress 0-100
+  progress    Float    @default(0)
+  targetDate  DateTime?
+  startDate   DateTime?
+  // JSON: key results [{ description, target, current, done }]
+  keyResults  String   @default("[]")
+  // Optional parent goal (for goal hierarchy)
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([parentId])
+}
+
+model Habit {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  // "daily" | "weekly" | "custom"
+  frequency   String   @default("daily")
+  // For weekly: days of week [1-7] (1=Mon). For custom: every N days.
+  frequencyDays String @default("[]")
+  // JSON: streak tracking { current, longest, lastCompleted, history[] }
+  streak      String   @default("{}")
+  // Target time of day (HH:MM)
+  targetTime  String?
+  // Color for UI
+  color       String   @default("#10b981")
+  // Whether the habit is active
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([frequency])
+}
+
+model HabitLog {
+  id          String   @id @default(cuid())
+  habitId     String
+  date        DateTime
+  // "completed" | "skipped" | "missed"
+  status      String   @default("completed")
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@unique([habitId, date])
+  @@index([habitId])
+  @@index([date])
+}
+
+model Reminder {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  // "one_time" | "daily" | "weekly" | "monthly"
+  type        String   @default("one_time")
+  // For one_time: the datetime. For recurring: the next occurrence.
+  remindAt    DateTime
+  // For recurring: end date (null = forever)
+  endsAt      DateTime?
+  // Optional task link
+  taskId      String?
+  // "pending" | "sent" | "snoozed" | "dismissed"
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([remindAt])
+  @@index([taskId])
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @default("")
+  // "text" | "markdown" | "checklist" | "voice"
+  type        String   @default("markdown")
+  tags        String   @default("[]")
+  // Optional project/task link
+  projectId   String?
+  taskId      String?
+  // Pinned for quick access
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([projectId])
+  @@index([pinned])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  // "daily" | "weekly" | "monthly"
+  type        String
+  date        DateTime
+  // JSON: sections { accomplishments, challenges, learnings, nextActions, mood }
+  sections    String   @default("{}")
+  // Optional rating (1-5)
+  rating      Int?
+  // Markdown summary
+  summary     String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([date])
+}
+
+model DayPlan {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  // JSON: blocks [{ startTime, endTime, taskId?, title, type: "task"|"event"|"break"|"focus" }]
+  blocks      String   @default("[]")
+  // Stats
+  totalMinutes Int     @default(0)
+  focusMinutes Int     @default(0)
+  // Optional goals for the day
+  dailyGoals  String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
+// Automation OS — workflow builder, triggers, scheduled tasks, webhooks.
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft")
+  steps       String   @default("[]")
+  triggers    String   @default("[]")
+  retryPolicy String   @default("{}")
+  notifications String @default("{}")
+  runCount    Int      @default(0)
+  successCount Int     @default(0)
+  failureCount Int     @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  workflowId  String
+  status      String   @default("pending")
+  trigger     String   @default("{}")
+  stepExecutions String @default("[]")
+  currentStep String?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  token       String   @unique @default(cuid())
+  workflowId  String
+  name        String
+  status      String   @default("active")
+  secret      String?
+  methods     String   @default("[\"POST\"]")
+  callCount   Int      @default(0)
+  lastCalledAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([token])
+  @@index([status])
+}
+
+// Automation OS — scheduled workflow triggers (separate from agent's ScheduledTask)
+model WorkflowSchedule {
+  id          String   @id @default(cuid())
+  workflowId  String?
+  name        String
+  schedule    String
+  status      String   @default("active")
+  payload     String   @default("{}")
+  nextRunAt   DateTime?
+  runCount    Int      @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([nextRunAt])
+  @@index([workflowId])
 }

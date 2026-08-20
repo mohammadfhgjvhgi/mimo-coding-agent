@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { toast } from "sonner"
 import { useChatStore } from "@/store/chat-store"
 import { useSettingsStore } from "@/store/settings-store"
 import { ChatSidebar } from "./chat-sidebar"
@@ -61,6 +62,7 @@ async function streamChat(
     onToolResult: (result: import("@/types/chat").ToolCallRecord) => void
     onContextCompressed?: (stats: string) => void
     onRouterDecision?: (worker: string, reason: string) => void
+    onModeDetected?: (mode: string, reason: string) => void
     onError: (err: string) => void
     onDone: (info: { conversationId?: string }) => void
   },
@@ -120,6 +122,8 @@ async function streamChat(
             handlers.onContextCompressed?.(json.stats)
           } else if (json.type === "router_decision") {
             handlers.onRouterDecision?.(json.worker, json.reason)
+          } else if (json.type === "mode_detected") {
+            handlers.onModeDetected?.(json.mode, json.reason)
           } else if (json.type === "error") {
             handlers.onError(json.error || "خطأ غير معروف")
           } else if (json.type === "done") {
@@ -179,6 +183,42 @@ export function ChatShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false)
   const [initialized, setInitialized] = React.useState(false)
 
+  // --- Resizable sidebar ---
+  // Start with default 288 on both server + client to avoid hydration mismatch.
+  // Then read localStorage in useEffect (client-only) after mount.
+  const [sidebarWidth, setSidebarWidth] = React.useState(288)
+  const [isResizing, setIsResizing] = React.useState(false)
+
+  React.useEffect(() => {
+    const saved = localStorage.getItem("mimo-sidebar-width")
+    if (saved) {
+      setSidebarWidth(Math.max(200, Math.min(600, Number(saved))))
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!isResizing) return
+    const onMove = (e: MouseEvent) => {
+      // RTL: sidebar is on the right, so width = window.innerWidth - clientX
+      const newWidth = window.innerWidth - e.clientX
+      setSidebarWidth(Math.max(200, Math.min(600, newWidth)))
+    }
+    const onUp = () => {
+      setIsResizing(false)
+      localStorage.setItem("mimo-sidebar-width", String(sidebarWidth))
+    }
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    return () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [isResizing, sidebarWidth])
+
   // Persist server-side settings whenever they change (best-effort)
   React.useEffect(() => {
     if (!settings.loaded) return
@@ -189,7 +229,7 @@ export function ChatShell() {
     }).catch(() => {})
   }, [settings.provider, settings.ollamaUrl, settings.ollamaModel, settings.zaiThinking, settings.loaded])
 
-  const thinking = settings.provider === "zai" ? settings.zaiThinking : false
+  const thinking = settings.zaiThinking
 
   const loadConversations = React.useCallback(async () => {
     setLoadingConversations(true)
@@ -298,6 +338,10 @@ export function ChatShell() {
               ) {
                 setCurrentConversationId(meta.conversationId)
               }
+            },
+            onModeDetected: (mode: string, reason: string) => {
+              useChatStore.getState().setAgentMode(mode)
+              toast.info(`وضع تلقائي: ${reason}`, { duration: 3000 })
             },
             onToolCall: (call) => {
               addStreamingToolCall({
@@ -520,9 +564,20 @@ export function ChatShell() {
       <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
         {sidebarOpen && (
-          <div className="hidden md:block h-full w-72 shrink-0 border-l border-sidebar-border">
-            {sidebar}
-          </div>
+          <>
+            <div
+              className="hidden md:block h-full shrink-0 border-l border-sidebar-border transition-[width] duration-0"
+              style={{ width: `${sidebarWidth}px` }}
+            >
+              {sidebar}
+            </div>
+            {/* Drag handle for resizing */}
+            <div
+              onMouseDown={() => setIsResizing(true)}
+              className="hidden md:block w-1.5 shrink-0 cursor-col-resize bg-transparent hover:bg-primary/20 active:bg-primary/40 transition-colors"
+              title="اسحب لتغيير الحجم / Drag to resize"
+            />
+          </>
         )}
 
         {/* Mobile sidebar (drawer) */}
@@ -557,6 +612,38 @@ export function ChatShell() {
             conversationId={currentConversationId}
             onPickSuggestion={(p) => sendMessage(p)}
             onRegenerate={regenerate}
+            onBranch={async (messageId: string) => {
+              if (!currentConversationId) return
+              try {
+                const res = await fetch(`/api/conversations/${currentConversationId}/branch`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ fromMessageId: messageId }),
+                })
+                const data = await res.json()
+                if (data.conversation) {
+                  toast.success(`تم إنشاء فرع (${data.copiedMessages} رسالة)`)
+                  loadConversations()
+                  setCurrentConversationId(data.conversation.id)
+                }
+              } catch { toast.error("فشل التفريع") }
+            }}
+            onEdit={async (messageId: string, newContent: string) => {
+              try {
+                await fetch(`/api/messages/${messageId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ content: newContent }),
+                })
+                // Reload messages
+                if (currentConversationId) {
+                  const res = await fetch(`/api/conversations/${currentConversationId}`)
+                  const data = await res.json()
+                  setMessages((data.conversation.messages || []) as ChatMessage[])
+                }
+                toast.success("تم التعديل")
+              } catch { toast.error("فشل التعديل") }
+            }}
           />
 
           {streamingError && (
@@ -572,7 +659,11 @@ export function ChatShell() {
             onStop={stopGeneration}
             isStreaming={isStreaming}
             thinking={thinking}
-            onToggleThinking={(v) => settings.setZaiThinking(v)}
+            onToggleThinking={(v) => {
+              settings.setZaiThinking(v)
+              useChatStore.getState().setShowThinking(v)
+            }}
+            showThinkingToggle={true}
             placeholder={
               currentConversationId
                 ? "راسل MiMo X…"

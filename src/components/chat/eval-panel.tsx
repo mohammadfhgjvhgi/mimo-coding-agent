@@ -3,7 +3,6 @@
 import * as React from "react"
 import { CheckCircle2, XCircle, RefreshCw, Loader2, Gauge } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -73,7 +72,7 @@ export function EvalPanel() {
           </div>
         </div>
       </div>
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         <div className="space-y-3 p-2">
           {Object.entries(categories).map(([cat, items]) => (
             <div key={cat}>
@@ -94,7 +93,7 @@ export function EvalPanel() {
             </div>
           ))}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }

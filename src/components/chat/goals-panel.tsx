@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -204,7 +203,7 @@ export function GoalsPanel({ refreshSignal }: { refreshSignal?: number }) {
       </div>
 
       {/* List */}
-      <ScrollArea className="flex-1 chat-scroll">
+      <div className="flex-1 min-h-0 overflow-y-scroll chat-scroll">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin mb-2" />
@@ -240,7 +239,7 @@ export function GoalsPanel({ refreshSignal }: { refreshSignal?: number }) {
             )}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Footer */}
       <div className="border-t border-sidebar-border px-3 py-1.5">

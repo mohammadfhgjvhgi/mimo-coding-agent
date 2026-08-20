@@ -28,11 +28,19 @@ interface ChatState {
   memoryRefreshSignal: number
   goalsRefreshSignal: number
   symbolsRefreshSignal: number
-  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols"
+  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
   sidebarMode: "engineering" | "personal"
   chatMode: "engineering" | "assistant"
+  // Chat features
+  showThinking: boolean
+  contextTokens: number
+  contextBudget: number
+  selectedModel: string
+  systemPrompt: string | null
+  conversationFolder: string | null
+  agentMode: string // "agent" | "plan" | "ask" | "debug" | "review" | "research" | "architect" | "refactor" | "security" | "performance"
 
   // Actions
   setConversations: (c: Conversation[]) => void
@@ -54,10 +62,16 @@ interface ChatState {
   triggerMemoryRefresh: () => void
   triggerGoalsRefresh: () => void
   triggerSymbolsRefresh: () => void
-  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols") => void
+  setSidebarTab: (t: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "smart_tools") => void
   setCurrentWorker: (w: "cpu" | "gpu" | "zai" | null, reason?: string | null) => void
   setSidebarMode: (m: "engineering" | "personal") => void
   setChatMode: (m: "engineering" | "assistant") => void
+  setShowThinking: (v: boolean) => void
+  setContextTokens: (n: number) => void
+  setSelectedModel: (m: string) => void
+  setSystemPrompt: (p: string | null) => void
+  setConversationFolder: (f: string | null) => void
+  setAgentMode: (m: string) => void
 
   // Helpers
   upsertConversation: (c: Conversation) => void
@@ -88,6 +102,13 @@ export const useChatStore = create<ChatState>((set) => ({
   workerReason: null,
   sidebarMode: "engineering",
   chatMode: "engineering",
+  showThinking: false,
+  contextTokens: 0,
+  contextBudget: 28000,
+  selectedModel: "default",
+  systemPrompt: null,
+  conversationFolder: null,
+  agentMode: "agent",
 
   setConversations: (conversations) => set({ conversations }),
   setCurrentConversationId: (currentConversationId) => set({ currentConversationId }),
@@ -119,6 +140,12 @@ export const useChatStore = create<ChatState>((set) => ({
     set({ currentWorker, workerReason: reason }),
   setSidebarMode: (sidebarMode) => set({ sidebarMode }),
   setChatMode: (chatMode) => set({ chatMode }),
+  setShowThinking: (showThinking) => set({ showThinking }),
+  setContextTokens: (contextTokens) => set({ contextTokens }),
+  setSelectedModel: (selectedModel) => set({ selectedModel }),
+  setSystemPrompt: (systemPrompt) => set({ systemPrompt }),
+  setConversationFolder: (conversationFolder) => set({ conversationFolder }),
+  setAgentMode: (agentMode) => set({ agentMode }),
 
   upsertConversation: (c) =>
     set((s) => {
