@@ -174,11 +174,22 @@ export async function chatMoveToFolder(conversationId: string, folder: string | 
 // 3. Chat Tags — add/remove/list
 // ---------------------------------------------------------------------------
 
-export async function chatTags(conversationId: string): Promise<ConversationResult<string[]>> {
+export async function chatTags(conversationId?: string): Promise<ConversationResult<string[]>> {
   try {
-    const conv = await db.conversation.findUnique({ where: { id: conversationId }, select: { tags: true } })
-    if (!conv) return { ok: false, error: "not_found", message: `❌ المحادثة غير موجودة` }
-    return { ok: true, data: safeParse<string[]>(conv.tags, []) }
+    // If conversationId provided → return tags for that conversation
+    if (conversationId) {
+      const conv = await db.conversation.findUnique({ where: { id: conversationId }, select: { tags: true } })
+      if (!conv) return { ok: false, error: "not_found", message: `❌ المحادثة غير موجودة` }
+      return { ok: true, data: safeParse<string[]>(conv.tags, []) }
+    }
+    // No conversationId → aggregate all unique tags across all conversations
+    const convs = await db.conversation.findMany({ select: { tags: true } })
+    const allTags = new Set<string>()
+    for (const c of convs) {
+      const tags = safeParse<string[]>(c.tags, [])
+      for (const t of tags) allTags.add(t)
+    }
+    return { ok: true, data: Array.from(allTags) }
   } catch (e) {
     return { ok: false, error: "tags_failed", message: `❌ فشل العلامات: ${e instanceof Error ? e.message : String(e)}` }
   }

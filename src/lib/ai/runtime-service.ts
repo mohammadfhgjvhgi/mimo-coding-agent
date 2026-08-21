@@ -45,6 +45,15 @@ async function runCommand(
 }
 
 function projectDir(projectId: string): string {
+  // If projectId is an absolute path that exists, use it directly.
+  // Otherwise, resolve relative to WORKSPACE_ROOT/projects/.
+  if (path.isAbsolute(projectId)) {
+    return projectId
+  }
+  // Special case: if the projectId is the workspace root itself
+  if (projectId === "." || projectId === "root") {
+    return path.resolve(WORKSPACE_ROOT)
+  }
   return path.resolve(WORKSPACE_ROOT, "projects", projectId)
 }
 

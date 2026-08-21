@@ -407,7 +407,22 @@ export async function voiceTts(input: TtsInput): Promise<VoiceResult<TtsResult>>
     if (!zai) {
       return { ok: false, error: "no_sdk", message: "❌ z-ai-web-dev-sdk غير متاح / SDK not available" }
     }
-    const voice = input.voice ?? "tongtong"
+    // Z.ai supported voices (verified working). Map OpenAI-style names → Z.ai equivalents.
+    const SUPPORTED_VOICES = ["tongtong", "xiaochen", "yatian", "guiu"] as const
+    const VOICE_MAP: Record<string, string> = {
+      alloy: "tongtong",
+      echo: "tongtong",
+      nova: "xiaochen",
+      shimmer: "yatian",
+      onyx: "guiu",
+      female: "tongtong",
+      male: "guiu",
+    }
+    let voice = input.voice ?? "tongtong"
+    // Map OpenAI-style voice names to Z.ai equivalents
+    if (VOICE_MAP[voice]) voice = VOICE_MAP[voice]
+    // Fallback: if voice not supported, use tongtong (safest)
+    if (!SUPPORTED_VOICES.includes(voice as never)) voice = "tongtong"
     const speed = input.speed ?? 1.0
     const format = input.format ?? "wav"
 
