@@ -22,6 +22,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -57,9 +58,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-none sm:!max-w-5xl w-[95vw] h-[90vh] !p-0 !gap-0 overflow-hidden flex">
+      <DialogContent aria-describedby="" className="!max-w-none sm:!max-w-5xl w-[95vw] h-[90vh] !p-0 !gap-0 overflow-hidden flex">
         <DialogHeader className="sr-only">
           <DialogTitle>الإعدادات / Settings</DialogTitle>
+          <DialogDescription>إعدادات MiMo X — مزودين النماذج، المظهر، المحادثة، الذاكرة، والبيانات</DialogDescription>
         </DialogHeader>
         {/* Left sidebar — categories */}
         <div className="w-52 shrink-0 border-l border-border bg-sidebar/50 flex flex-col h-full">

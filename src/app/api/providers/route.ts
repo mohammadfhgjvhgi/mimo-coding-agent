@@ -16,6 +16,7 @@ export async function GET() {
       const dbEntry = dbMap.get(reg.id)
       return {
         ...reg,
+        providerId: reg.id, // expose id as providerId for the UI
         apiKey: dbEntry?.apiKey || null,
         baseURL: dbEntry?.baseURL || reg.baseURL,
         enabled: dbEntry?.enabled ?? false,
