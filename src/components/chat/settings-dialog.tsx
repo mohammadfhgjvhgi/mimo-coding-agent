@@ -57,61 +57,59 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="!max-w-none sm:!max-w-5xl w-[95vw] h-[90vh] !p-0 !gap-0 overflow-hidden flex">
         <DialogHeader className="sr-only">
           <DialogTitle>الإعدادات / Settings</DialogTitle>
         </DialogHeader>
-        <div className="flex h-full">
-          {/* Left sidebar — categories */}
-          <div className="w-56 shrink-0 border-l border-border bg-sidebar/50 flex flex-col">
-            <div className="px-4 py-4 border-b border-sidebar-border">
-              <h2 className="text-sm font-bold flex items-center gap-2">
-                <SettingsIcon className="h-4 w-4 text-primary" />
-                الإعدادات
-              </h2>
-              <p className="text-[0.6rem] text-muted-foreground mt-0.5">Settings</p>
-            </div>
-            <div className="flex-1 overflow-y-auto chat-scroll py-2">
-              {SECTIONS.map(s => {
-                const Icon = s.icon
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSection(s.id)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-4 py-2 text-sm transition-all",
-                      section === s.id
-                        ? "bg-primary/10 text-primary border-r-2 border-primary font-medium"
-                        : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span>{s.label}</span>
-                  </button>
-                )
-              })}
-            </div>
+        {/* Left sidebar — categories */}
+        <div className="w-52 shrink-0 border-l border-border bg-sidebar/50 flex flex-col h-full">
+          <div className="px-4 py-4 border-b border-sidebar-border shrink-0">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4 text-primary" />
+              الإعدادات
+            </h2>
+            <p className="text-[0.6rem] text-muted-foreground mt-0.5">Settings</p>
           </div>
+          <div className="flex-1 overflow-y-auto chat-scroll py-2 min-h-0">
+            {SECTIONS.map(s => {
+              const Icon = s.icon
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSection(s.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all text-right",
+                    section === s.id
+                      ? "bg-primary/10 text-primary border-r-2 border-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span>{s.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-          {/* Right — content */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="border-b border-border px-6 py-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold">
-                {SECTIONS.find(s => s.id === section)?.label}
-              </h3>
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                إغلاق
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto chat-scroll px-6 py-4">
-              {section === "general" && <GeneralSection />}
-              {section === "appearance" && <AppearanceSection />}
-              {section === "models" && <ModelsSection />}
-              {section === "chat" && <ChatSection />}
-              {section === "memory" && <MemorySection />}
-              {section === "data" && <DataSection />}
-              {section === "about" && <AboutSection />}
-            </div>
+        {/* Right — content */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="border-b border-border px-6 py-3 flex items-center justify-between shrink-0">
+            <h3 className="text-base font-semibold">
+              {SECTIONS.find(s => s.id === section)?.label}
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              إغلاق
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto chat-scroll px-6 py-4 min-h-0">
+            {section === "general" && <GeneralSection />}
+            {section === "appearance" && <AppearanceSection />}
+            {section === "models" && <ModelsSection />}
+            {section === "chat" && <ChatSection />}
+            {section === "memory" && <MemorySection />}
+            {section === "data" && <DataSection />}
+            {section === "about" && <AboutSection />}
           </div>
         </div>
       </DialogContent>
