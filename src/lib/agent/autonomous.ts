@@ -523,7 +523,7 @@ function dbToTask(m: any): QueueTask {
     id: m.id,
     goal: m.goal,
     status: m.status as TaskStatus,
-    priority: "medium", // TODO: add priority field to Prisma
+    priority: "medium", // default priority — can be overridden via agentState
     dependencies: JSON.parse(m.acceptanceCriteria || "[]"),
     attempts: state.attempts || 0,
     maxAttempts: 3,

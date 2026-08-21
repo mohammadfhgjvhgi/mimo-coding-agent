@@ -327,8 +327,7 @@ function generateCode(message: string): string {
 // Auto-generated from request: ${message.slice(0, 100)}
 
 export function ${camelCase(extractTitle(message, "generated"))}() {
-  // TODO: Implement based on your requirements
-  console.log("Hello from generated code!");
+  // Implementation stub — replace with actual logic
   return { status: "ok", message: "Generated successfully" };
 }`
 }
