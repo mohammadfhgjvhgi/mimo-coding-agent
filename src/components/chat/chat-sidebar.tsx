@@ -83,6 +83,7 @@ import { BackupRecoveryPanel } from "./backup-recovery-panel"
 import { ModelIntelligencePanel } from "./model-intelligence-panel"
 import { ResourceIntelligencePanel } from "./resource-intelligence-panel"
 import { UXActionsPanel } from "./ux-actions-panel"
+import { ConversationToPanel } from "./conversation-to-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -548,6 +549,7 @@ export function ChatSidebar({
         <TabButton icon={<Brain className="h-4 w-4" />} label="نماذج" active={sidebarTab === "model_intel"} onClick={() => setSidebarTab("model_intel")} title="ذكاء النماذج / Model Intelligence" />
         <TabButton icon={<Gauge className="h-4 w-4" />} label="موارد" active={sidebarTab === "resource_intel"} onClick={() => setSidebarTab("resource_intel")} title="ذكاء الموارد / Resource Intelligence" />
         <TabButton icon={<ZapIcon className="h-4 w-4" />} label="UX" active={sidebarTab === "ux_actions"} onClick={() => setSidebarTab("ux_actions")} title="UX متقدم / Advanced UX" />
+        <TabButton icon={<Sparkles className="h-4 w-4" />} label="تحويل" active={sidebarTab === "conversation_to"} onClick={() => setSidebarTab("conversation_to")} title="محادثة ← كل شيء / Conversation-to-Everything" />
       </div>
       )}
 
@@ -676,6 +678,10 @@ export function ChatSidebar({
       ) : sidebarTab === "ux_actions" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <UXActionsPanel />
+        </div>
+      ) : sidebarTab === "conversation_to" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ConversationToPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

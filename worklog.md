@@ -2922,3 +2922,58 @@ Stage Summary:
 - 0 lint errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
 - Selection Toolbar component ready (floating context menu)
+
+---
+Task ID: CONV-TO-FINAL
+Agent: ZAI Code (main)
+Task: Build Conversation-to-Everything OS (section 35) — 10 features, fully wired to UI
+
+Work Log:
+- Created src/lib/conversation-to/os.ts (~380 lines, 10 operations + everything):
+  1. chatToTask (465) — extract action items (verbs + "should/need to/must") → create Tasks
+  2. chatToProject (466) — extract milestones (phase/stage/step) → create Project
+  3. chatToResearch (467) — extract questions (lines ending with ?) + URLs
+  4. chatToKnowledge (468) — extract facts/decisions → save to SharedKnowledge
+  5. chatToAutomation (469) — extract scheduled actions (every/daily/weekly/when) → create ScheduledTask
+  6. chatToAgentRun (470) — map action items to agent roles → execution plan
+  7. chatToArtifact (471) — extract code blocks → save as SharedArtifacts
+  8. chatToCode (472) — extract code blocks → list files with language + lines
+  9. chatToChecklist (473) — extract action items + bullet points → checklist
+  10. chatToDecision (474) — extract decisions ("decided/approved/chose") → save to Memory
+  Plus: chatToEverything() — runs all 10 in parallel
+- Created src/app/api/conversation-to/route.ts — POST (11 actions)
+- Created src/components/chat/conversation-to-panel.tsx (~310 lines, 3 tabs):
+  • Tab 1 (Convert All): conversation selector + "حوّل المحادثة إلى كل شيء" button + 10 result cards
+  • Tab 2 (Individual): 10 individual conversion buttons with inline results
+  • Tab 3 (Results): shows where each conversion type is saved (Task OS, Knowledge OS, etc.)
+- Added "تحويل" tab to chat-sidebar + "conversation_to" to store type
+- Fixed: conversations API returns {conversations: [...]} not [...], Sparkles icon duplicate
+
+Verification:
+- bun run lint: 0 errors ✅
+- to_everything: project ✅, researchQueries=1 ✅, knowledgeItems=4 ✅, agentPlan=1 ✅, artifacts=2 ✅, codeFiles=2 ✅, checklistItems=5 ✅
+- to_research: extracted "Hello! Can you write a Python function..." ✅
+- to_checklist: 5 items (Check palindrome, Remove non-alphanumeric, Convert to lowercase, Compare reverse, Return True) ✅
+- to_agent: 1 step (reviewer role) ✅
+- Agent Browser:
+  • "تحويل" tab visible in sidebar ✅
+  • Conversation selector populated ✅
+  • "حوّل المحادثة إلى كل شيء" button → 10 result cards displayed ✅
+  • Results: project ✅, research=1, knowledge=4, agent=1, artifacts=2, code=2, checklist=5 ✅
+
+Stage Summary:
+- All 10 Conversation-to-Everything features (section 35) FULLY wired to UI:
+  465. Chat → Task → to_task (extract action items → Tasks)
+  466. Chat → Project → to_project (extract milestones → Project)
+  467. Chat → Research → to_research (extract questions + URLs)
+  468. Chat → Knowledge → to_knowledge (extract facts → SharedKnowledge)
+  469. Chat → Automation → to_automation (extract schedules → ScheduledTask)
+  470. Chat → Agent Run → to_agent (map to roles → execution plan)
+  471. Chat → Artifact → to_artifact (extract code → SharedArtifact)
+  472. Chat → Code → to_code (extract code blocks → file list)
+  473. Chat → Checklist → to_checklist (extract items → checklist)
+  474. Chat → Decision → to_decision (extract decisions → Memory)
+  + chatToEverything() — one-click "Convert All" runs all 10 in parallel
+- "المحادثة ليست المكان الذي تنتهي فيه الأعمال؛ هي نقطة انطلاق الأعمال." ✅
+- 0 lint errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware
