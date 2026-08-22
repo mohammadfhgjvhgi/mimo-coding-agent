@@ -2860,3 +2860,65 @@ Stage Summary:
 - Live auto-refresh every 5s
 - 0 lint errors, 0 runtime errors
 - Bilingual UI, RTL-aware
+
+---
+Task ID: UX-ACTIONS-FINAL
+Agent: ZAI Code (main)
+Task: Build Advanced UX OS (section 34) — 11 features, fully wired to UI
+
+Work Log:
+- Created src/lib/ux-actions/os.ts (~320 lines, 11 operations):
+  1. quickAIActions (454) — 10 ready-made commands with shortcuts (Ctrl+Shift+E/S/T/R/V/X/D/K/N/Q)
+  2. inlineAI (455) — generates inline suggestion for editor based on cursor position
+  3. selectionActions (456) — lists 8 available actions for selected text (detects code/Arabic/length)
+  4. explainSelection (457) — generates prompt to explain text (detects code vs prose)
+  5. refactorSelection (458) — generates prompt to refactor code
+  6. translateSelection (459) — generates prompt to translate (auto-detects Arabic/English)
+  7. summarizeSelection (460) — generates prompt to summarize (requires >100 chars)
+  8. askAboutSelection (461) — generates prompt for question about text
+  9. convertToTask (462) — creates a Task in DB from selection
+  10. convertToNote (463) — saves as Memory with category "note"
+  11. convertToKnowledge (464) — saves to SharedKnowledge table
+- Created src/app/api/ux-actions/route.ts — POST (10 actions) + GET (quick actions list)
+- Created src/components/chat/selection-toolbar.tsx (~200 lines) — floating toolbar:
+  • Appears at selection position with 8 action buttons
+  • Explain/Refactor/Translate/Summarize/Ask/To Task/To Note/To Knowledge
+  • Ask mode with question input
+  • Selected text preview + character count + copy button
+- Created src/components/chat/ux-actions-panel.tsx (~400 lines, 3 tabs):
+  • Tab 1 (Quick Actions): 10 commands grouped by category (analysis/writing/code/convert)
+  • Tab 2 (Selection Actions): textarea + "افحص الإجراءات المتاحة" + 8 action buttons with availability badges + prompt result display
+  • Tab 3 (Inline AI): textarea + "ولّد اقتراح" + suggestion display
+- Added "UX" tab to chat-sidebar + "ux_actions" to store type
+- Fixed: loading state was comparing boolean with string "check" (was always disabled)
+
+Verification:
+- bun run lint: 0 errors ✅
+- GET /api/ux-actions: 10 quick actions with shortcuts ✅
+- POST selection_actions: 8 actions (explain/refactor/translate available, summarize not available for short text) ✅
+- POST explain: generates prompt for code explanation ✅
+- POST to_note: saved to DB ✅
+- POST to_knowledge: saved to SharedKnowledge ✅
+- Agent Browser:
+  • "UX" tab visible in sidebar ✅
+  • Quick Actions tab: 10 commands with categories + shortcuts ✅
+  • Selection Actions tab: 8 actions with availability badges (6 available, 2 not) ✅
+  • Inline AI tab: suggestion generation ✅
+  • Selection Toolbar component ready for integration
+
+Stage Summary:
+- All 11 Advanced UX features (section 34) FULLY wired to UI:
+  454. Quick AI Actions → Quick Actions tab (10 commands)
+  455. Inline AI → Inline AI tab (suggestion generation)
+  456. Selection Actions → Selection tab (8 actions with availability check)
+  457. Explain Selection → action button (generates prompt)
+  458. Refactor Selection → action button (generates prompt)
+  459. Translate Selection → action button (auto-detects language)
+  460. Summarize Selection → action button (requires >100 chars)
+  461. Ask About Selection → action button + question input
+  462. Convert to Task → action button (creates Task in DB)
+  463. Convert to Note → action button (saves as Memory)
+  464. Convert to Knowledge → action button (saves to SharedKnowledge)
+- 0 lint errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware
+- Selection Toolbar component ready (floating context menu)
