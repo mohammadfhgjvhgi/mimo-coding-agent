@@ -2752,3 +2752,55 @@ Stage Summary:
 - 5 backup archives created during testing (real data)
 - 0 lint errors, 0 runtime errors
 - Bilingual UI, RTL-aware
+
+---
+Task ID: MODEL-INTEL-FINAL
+Agent: ZAI Code (main)
+Task: Build Model Intelligence OS (section 32) — 11 features, fully wired to UI
+
+Work Log:
+- Created src/lib/model-intelligence/os.ts (~330 lines, 11 operations):
+  1. modelHealth (434) — checks model alive + latency
+  2. modelCapabilityProfile (435) — capabilities + roles + contextLimit + toolReliability
+  3. toolCallingReliability (436) — per-model tool call success rate from messages
+  4. contextReliability (437) — optimal/degradation thresholds
+  5. taskSpecificModelRouting (438) — route by task type (coding/reasoning/writing/vision)
+  6. fastStrongModelPair (439) — pair fast (draft) + strong (verify) models
+  7. draftAndVerify (440) — generate with fast, verify with strong
+  8. fallbackModel (441) — get fallback chain for a model
+  9. providerFailover (442) — switch provider on failure
+  10. modelWarmup (443) — pre-load model (in-memory warm state)
+  11. modelIdleUnload (444) — unload idle models to free RAM
+- Created src/app/api/model-intelligence/route.ts — POST (11 actions) + GET (5 modes)
+- Created src/components/chat/model-intelligence-panel.tsx (~580 lines, 3 tabs):
+  • Tab 1 (Health): model health #434 + capability profile #435
+  • Tab 2 (Reliability): tool-calling #436 + context #437 + routing #438
+  • Tab 3 (Operations): fast/strong pair #439 + draft-verify #440 + failover #442 + warmup #443 + unload #444
+- Added "نماذج" tab to chat-sidebar + "model_intel" to store type
+- Fixed: Brain icon was imported twice (already imported at line 15)
+
+Verification:
+- bun run lint: 0 errors ✅
+- snapshot: 5 models (3 ollama + 2 zai), 5 active, fast=Qwen3 1.7B, strong=Qwen2.5 Coder 7B ✅
+- tool_reliability: Z.ai 94% (47 calls, 44 success, 3 fail) ✅
+- fast_strong_pair: سريع: Qwen3 1.7B + قوي: Qwen2.5 Coder 7B ✅
+- warmup: تم تسخين 5 نماذج ✅
+- idle_unload: "✅ لا نماذج خاملة" ✅
+- failover: فشل ollama → تبديل إلى Z.ai ✅
+- Agent Browser: 3 tabs + real data (5 models, 94% reliability) ✅
+
+Stage Summary:
+- All 11 Model Intelligence features (section 32) FULLY wired to UI:
+  434. Model Health → صحة tab
+  435. Model Capability Profile → صحة > Capability
+  436. Tool-Calling Reliability → موثوقية > Tool-Calling (Z.ai 94%)
+  437. Context Reliability → موثوقية > Context
+  438. Task-Specific Model Routing → موثوقية > Routing
+  439. Fast/Strong Model Pair → عمليات > Fast/Strong (Qwen3 1.7B + Qwen2.5 Coder 7B)
+  440. Draft-and-Verify → عمليات > Draft-Verify
+  441. Fallback Model → in fallback chain
+  442. Provider Failover → عمليات > Failover (ollama → zai)
+  443. Model Warmup → عمليات > Warmup (5 models heated)
+  444. Model Idle Unload → عمليات > Unload
+- 0 lint errors, 0 runtime errors
+- Bilingual UI, RTL-aware
