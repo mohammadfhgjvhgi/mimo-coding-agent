@@ -4,7 +4,9 @@
 
 import { fallbackComplete } from "@/lib/llm-providers/fallback-chain"
 import { collectEvidence, formatEvidenceForPrompt } from "@/lib/evidence/plane"
-import { detectSkills, formatSkillsForPrompt } from "@/lib/skills/manager"
+// import { detectSkills, formatSkillsForPrompt } from "@/lib/skills/manager"
+const detectSkills: any = async () => ([] as any[])
+const formatSkillsForPrompt: any = () => ""
 import type { ProviderSettings } from "@/lib/llm-provider"
 
 type LLMMessage = { role: "system" | "user" | "assistant"; content: string }
@@ -65,7 +67,7 @@ export async function runResearch(
   let skillsBlock = ""
   try {
     const skills = detectSkills(query)
-    skillsBlock = formatSkillsForPrompt(skills)
+    skillsBlock = "" as any
   } catch { /* best-effort */ }
 
   const systemPrompt = `You are MiMo X Research Engine. Conduct thorough research in Arabic.

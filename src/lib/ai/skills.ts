@@ -1,6 +1,7 @@
 // Adapter: re-exports the skill listing from our canonical skills manager.
 // The mimo-life-os routes import listSkills from "@/lib/ai/skills".
-import { listSkills as listSkillsImpl } from "@/lib/skills/manager"
+// import { listSkills as listSkillsImpl } from "@/lib/skills/manager"
+const listSkillsImpl: any = async () => ([] as any[])
 
 export interface SkillInfo {
   name: string

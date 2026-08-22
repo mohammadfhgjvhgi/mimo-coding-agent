@@ -79,10 +79,10 @@ export async function POST(req: NextRequest) {
     } catch { /* best-effort */ }
 
     // Inject ecosystem settings (GitHub token + MCP servers) before running
-    const { setGithubToken } = await import("@/lib/ecosystem/github-tool");
-    const { setMcpServers } = await import("@/lib/ecosystem/mcp-tool");
-    setGithubToken(settings.githubToken || null);
-    setMcpServers(settings.mcpServers || []);
+    // const { setGithubToken } = await import("@/lib/ecosystem/github-tool");
+    // const { setMcpServers } = await import("@/lib/ecosystem/mcp-tool");
+    // setGithubToken(settings.githubToken || null);
+    // setMcpServers removed;
 
     // Build the agent's message list
     // Chat Intelligence: use ContextAssembler for automatic context selection

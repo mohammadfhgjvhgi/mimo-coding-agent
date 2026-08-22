@@ -12,7 +12,6 @@ import { ChatMessages } from "./chat-messages"
 import { ChatInput } from "./chat-input"
 import { TitleBar } from "./title-bar"
 import { SettingsDialog } from "./settings-dialog"
-import { HomeDashboard } from "@/components/home/home-dashboard"
 import type { Conversation, ChatMessage, Role } from "@/types/chat"
 import type { ProviderSettings } from "@/lib/llm-provider"
 
@@ -493,7 +492,7 @@ export function ChatShell() {
               >
                 <PanelRight className="h-4 w-4" />
               </button>
-              <HomeDashboard startNewChat={startNewChat} />
+              
             </div>
           ) : (
             <>

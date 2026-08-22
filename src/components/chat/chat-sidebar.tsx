@@ -75,23 +75,6 @@ import { ResearchPanel } from "./research-panel"
 import { CodeEditorPanel } from "./code-editor-panel"
 import { GitPanel } from "./git-panel"
 import { ContextInspectorPanel } from "./context-inspector-panel"
-import { SecurityPanel } from "./security-panel"
-import { ReliabilityPanel } from "./reliability-panel"
-import { AutonomousSEPanel } from "./autonomous-se-panel"
-import { SelfImprovementPanel } from "./self-improvement-panel"
-import { ObservabilityPanel } from "./observability-panel"
-import { DevExperiencePanel } from "./dev-experience-panel"
-import { CollaborationPanel } from "./collaboration-panel"
-import { AdminPanel } from "./admin-panel"
-import { BackupRecoveryPanel } from "./backup-recovery-panel"
-import { ModelIntelligencePanel } from "./model-intelligence-panel"
-import { ResourceIntelligencePanel } from "./resource-intelligence-panel"
-import { UXActionsPanel } from "./ux-actions-panel"
-import { ConversationToPanel } from "./conversation-to-panel"
-import { PersonalIntelligencePanel } from "./personal-intelligence-panel"
-import { VisionDashboard } from "./vision-dashboard"
-import { DayInLifePanel } from "./day-in-life-panel"
-import { EnginesPanel } from "./engines-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -626,73 +609,9 @@ export function ChatSidebar({
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <ContextInspectorPanel />
         </div>
-      ) : sidebarTab === "security" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <SecurityPanel />
-        </div>
-      ) : sidebarTab === "reliability" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <ReliabilityPanel />
-        </div>
-      ) : sidebarTab === "autonomous_se" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <AutonomousSEPanel />
-        </div>
-      ) : sidebarTab === "self_improvement" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <SelfImprovementPanel />
-        </div>
-      ) : sidebarTab === "observability" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <ObservabilityPanel />
-        </div>
-      ) : sidebarTab === "dev_experience" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <DevExperiencePanel />
-        </div>
-      ) : sidebarTab === "collaboration" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <CollaborationPanel />
-        </div>
-      ) : sidebarTab === "admin" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <AdminPanel />
-        </div>
-      ) : sidebarTab === "backup_recovery" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <BackupRecoveryPanel />
-        </div>
-      ) : sidebarTab === "model_intel" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <ModelIntelligencePanel />
-        </div>
-      ) : sidebarTab === "resource_intel" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <ResourceIntelligencePanel />
-        </div>
-      ) : sidebarTab === "ux_actions" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <UXActionsPanel />
-        </div>
-      ) : sidebarTab === "conversation_to" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <ConversationToPanel />
-        </div>
-      ) : sidebarTab === "personal_intel" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <PersonalIntelligencePanel />
-        </div>
       ) : sidebarTab === "vision" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <VisionDashboard />
-        </div>
-      ) : sidebarTab === "day_in_life" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <DayInLifePanel />
-        </div>
-      ) : sidebarTab === "engines" ? (
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-          <EnginesPanel />
+          <div className="text-xs text-muted-foreground p-4">تمت إزالة هذه اللوحة</div>
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

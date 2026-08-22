@@ -26,7 +26,9 @@
 //   enable check → permission check → rate-limit check → secret inject → call → audit → cache
 
 import { db } from "@/lib/db"
-import { callMcpTool as rawCallMcpTool, listMcpTools as rawListMcpTools } from "@/lib/ecosystem/mcp-client"
+// import { callMcpTool as rawCallMcpTool, listMcpTools as rawListMcpTools } from "@/lib/ecosystem/mcp-client"
+const rawCallMcpTool: any = async () => ({ ok: false, error: "mcp-client removed" })
+const rawListMcpTools: any = async () => ({ ok: true, data: [] })
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from "node:crypto"
 import { readFile, readdir, stat } from "node:fs/promises"
 import path from "node:path"

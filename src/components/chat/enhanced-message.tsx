@@ -10,7 +10,6 @@ import { ToolCallBlock } from "./tool-call-block"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { User, Sparkles } from "lucide-react"
 import type { ChatMessage, ToolCallRecord } from "@/types/chat"
-import { TtsButton } from "./tts-button"
 
 interface EnhancedMessageProps {
   message: ChatMessage
@@ -178,9 +177,6 @@ export function EnhancedMessage({
                 </Button>
               )}
               {!isUser && (
-                <TtsButton text={message.content} />
-              )}
-              {!isUser && onContinue && message.content.endsWith("…") && (
                 <Button variant="ghost" size="sm" onClick={onContinue} className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60">
                   متابعة
                 </Button>

@@ -43,9 +43,9 @@ async function buildInitialConversation(
   // Skills: detect relevant skills from the goal text
   let skillsBlock = ""
   try {
-    const { detectSkills, formatSkillsForPrompt } = await import("@/lib/skills/manager")
-    const skills = detectSkills(goal)
-    skillsBlock = formatSkillsForPrompt(skills)
+    // const { detectSkills, formatSkillsForPrompt } = await import("@/lib/skills/manager")
+    const skills = [] as any
+    skillsBlock = "" as any;
   } catch { /* best-effort */ }
 
   const systemPrompt = basePrompt + memoryBlock + evidenceBlock + skillsBlock

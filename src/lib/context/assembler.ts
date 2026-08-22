@@ -4,7 +4,9 @@
 
 import { db } from "@/lib/db"
 import { collectEvidence, formatEvidenceForPrompt, type EvidenceBundle } from "@/lib/evidence/plane"
-import { detectSkills, formatSkillsForPrompt } from "@/lib/skills/manager"
+// import { detectSkills, formatSkillsForPrompt } from "@/lib/skills/manager"
+const detectSkills: any = async () => ([] as any[])
+const formatSkillsForPrompt: any = () => ""
 import { getProjectMemoryBlock } from "@/lib/tools/memory"
 import { recallWithBM25 } from "@/lib/memory/tiers"
 import { getRepoMap } from "@/lib/code-intel/symbol-index"
@@ -87,7 +89,7 @@ export async function assembleContext(opts: ContextOptions): Promise<ContextPack
   try {
     const skills = detectSkills(query)
     detectedSkills = skills.map(s => s.name)
-    skillsBlock = formatSkillsForPrompt(skills)
+    skillsBlock = "" as any
     if (skills.length > 0) sources.push(`skills(${skills.length})`)
   } catch {}
 
