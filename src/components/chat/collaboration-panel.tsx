@@ -453,6 +453,25 @@ function ArtifactsList({ onChange }: { onChange: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────
 
 function ProjectsTab({ onChange }: { onChange: () => void }) {
+  const [subtab, setSubtab] = React.useState("projects")
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border/60 bg-muted/20 px-2 py-1.5">
+        <div className="flex flex-wrap gap-1">
+          <SubTabButton active={subtab === "projects"} onClick={() => setSubtab("projects")} icon={<Code2 className="h-3 w-3" />} label="مشاريع (406)" />
+          <SubTabButton active={subtab === "knowledge"} onClick={() => setSubtab("knowledge")} icon={<Brain className="h-3 w-3" />} label="معرفة (407)" />
+          <SubTabButton active={subtab === "agents"} onClick={() => setSubtab("agents")} icon={<Activity className="h-3 w-3" />} label="وكلاء (408)" />
+        </div>
+      </div>
+      {subtab === "projects" && <ProjectsList onChange={onChange} />}
+      {subtab === "knowledge" && <KnowledgeList onChange={onChange} />}
+      {subtab === "agents" && <AgentsList onChange={onChange} />}
+    </div>
+  )
+}
+
+function ProjectsList({ onChange }: { onChange: () => void }) {
   const [items, setItems] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
 
@@ -473,8 +492,9 @@ function ProjectsTab({ onChange }: { onChange: () => void }) {
   const handleCreate = async () => {
     const name = prompt("اسم المشروع:")
     if (!name) return
+    const description = prompt("الوصف (اختياري):") ?? ""
     try {
-      await apiCall("project_create", { name })
+      await apiCall("project_create", { name, description, ownerRole: "owner", isPublic: true })
       toast.success("تم إنشاء المشروع")
       load()
       onChange()
@@ -484,8 +504,8 @@ function ProjectsTab({ onChange }: { onChange: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border/60 bg-muted/20 px-3 py-2 flex items-center justify-between">
+    <>
+      <div className="border-b border-border/60 bg-muted/10 px-3 py-2 flex items-center justify-between">
         <span className="text-xs font-semibold">المشاريع المشتركة (406)</span>
         <Button onClick={handleCreate} size="sm" className="h-7 gap-1 text-xs">
           <Plus className="h-3 w-3" /> جديد
@@ -520,7 +540,188 @@ function ProjectsTab({ onChange }: { onChange: () => void }) {
           )}
         </div>
       </ScrollArea>
-    </div>
+    </>
+  )
+}
+
+function KnowledgeList({ onChange }: { onChange: () => void }) {
+  const [items, setItems] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [expanded, setExpanded] = React.useState<string | null>(null)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await apiGet("knowledge")
+      setItems(data ?? [])
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => { load() }, [load])
+
+  const handleCreate = async () => {
+    const title = prompt("عنوان المعرفة:")
+    if (!title) return
+    const content = prompt("المحتوى:")
+    if (!content) return
+    try {
+      await apiCall("knowledge_create", { title, content, source: "user", tags: [], visibility: "public" })
+      toast.success("تم إنشاء المعرفة")
+      load()
+      onChange()
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  return (
+    <>
+      <div className="border-b border-border/60 bg-muted/10 px-3 py-2 flex items-center justify-between">
+        <span className="text-xs font-semibold">المعرفة المشتركة (407)</span>
+        <Button onClick={handleCreate} size="sm" className="h-7 gap-1 text-xs">
+          <Plus className="h-3 w-3" /> جديد
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-2 space-y-1.5">
+          {loading ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
+              جارٍ التحميل…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              <Brain className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              لا معرفة مشتركة
+            </div>
+          ) : (
+            items.map(item => (
+              <div key={item.id} className="rounded-md border border-border/60 bg-card/50 p-2">
+                <button onClick={() => setExpanded(expanded === item.id ? null : item.id)} className="w-full text-right">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    {(item.builtin || item.createdBy === "builtin") && <Badge variant="outline" className="text-[0.55rem] py-0 text-blue-500 border-blue-500/30">مدمج</Badge>}
+                    {item.visibility === "public" && <Badge variant="outline" className="text-[0.55rem] py-0 text-emerald-500 border-emerald-500/30">عام</Badge>}
+                    {!(item.builtin || item.createdBy === "builtin") && (
+                      <Button variant="ghost" size="icon" className="h-5 w-5 ml-auto text-muted-foreground hover:text-red-500" onClick={(e) => { e.stopPropagation(); if (confirm("حذف المعرفة؟")) { apiCall("knowledge_delete", { id: item.id }).then(() => { load(); onChange() }) } }}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium mb-1">{item.title}</p>
+                  {item.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5">
+                      {item.tags.map((t: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[0.5rem] py-0 text-muted-foreground">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </button>
+                {expanded === item.id && (
+                  <pre className="mt-2 pt-2 border-t border-border/40 text-[0.65rem] whitespace-pre-wrap font-mono text-muted-foreground max-h-48 overflow-y-auto">{item.content}</pre>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </>
+  )
+}
+
+function AgentsList({ onChange }: { onChange: () => void }) {
+  const [items, setItems] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [expanded, setExpanded] = React.useState<string | null>(null)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await apiGet("agents")
+      setItems(data ?? [])
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => { load() }, [load])
+
+  const handleCreate = async () => {
+    const name = prompt("اسم الوكيل:")
+    if (!name) return
+    const description = prompt("الوصف:") ?? ""
+    const agentType = prompt("النوع (reviewer/fixer/generator/writer):", "reviewer") ?? "reviewer"
+    try {
+      await apiCall("agent_create", { name, description, agentType, config: {}, tags: [], isPublic: true })
+      toast.success("تم إنشاء الوكيل")
+      load()
+      onChange()
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  return (
+    <>
+      <div className="border-b border-border/60 bg-muted/10 px-3 py-2 flex items-center justify-between">
+        <span className="text-xs font-semibold">الوكلاء المشتركون (408)</span>
+        <Button onClick={handleCreate} size="sm" className="h-7 gap-1 text-xs">
+          <Plus className="h-3 w-3" /> جديد
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-2 space-y-1.5">
+          {loading ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              <RefreshCw className="h-4 w-4 animate-spin mx-auto mb-2" />
+              جارٍ التحميل…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center text-xs text-muted-foreground py-8">
+              <Activity className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              لا وكلاء مشتركون
+            </div>
+          ) : (
+            items.map(item => (
+              <div key={item.id} className="rounded-md border border-border/60 bg-card/50 p-2">
+                <button onClick={() => setExpanded(expanded === item.id ? null : item.id)} className="w-full text-right">
+                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                    <Badge variant="outline" className="text-[0.55rem] py-0">{item.agentType}</Badge>
+                    {(item.builtin || item.createdBy === "builtin") && <Badge variant="outline" className="text-[0.55rem] py-0 text-blue-500 border-blue-500/30">مدمج</Badge>}
+                    {item.isPublic && <Badge variant="outline" className="text-[0.55rem] py-0 text-emerald-500 border-emerald-500/30">عام</Badge>}
+                    {!(item.builtin || item.createdBy === "builtin") && (
+                      <Button variant="ghost" size="icon" className="h-5 w-5 ml-auto text-muted-foreground hover:text-red-500" onClick={(e) => { e.stopPropagation(); if (confirm("حذف الوكيل؟")) { apiCall("agent_delete", { id: item.id }).then(() => { load(); onChange() }) } }}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium mb-1">{item.name}</p>
+                  <p className="text-[0.7rem] text-muted-foreground">{item.description}</p>
+                  {item.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5 mt-1">
+                      {item.tags.map((t: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[0.5rem] py-0 text-muted-foreground">{t}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </button>
+                {expanded === item.id && item.config && (
+                  <div className="mt-2 pt-2 border-t border-border/40 text-[0.65rem]">
+                    <p className="font-semibold text-muted-foreground mb-1">الإعدادات:</p>
+                    <pre className="font-mono text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">{JSON.stringify(item.config, null, 2)}</pre>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </>
   )
 }
 

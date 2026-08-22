@@ -5,6 +5,7 @@ import {
   listSharedKnowledge, createSharedKnowledge, deleteSharedKnowledge,
   listSharedAgents, createSharedAgent, deleteSharedAgent,
   listPromptLibrary, createPrompt, applyPrompt, deletePrompt,
+  listSkillLibrary, createSkill, deleteSkill,
   listSharedArtifacts, createSharedArtifact, deleteSharedArtifact,
   listReviewRequests, createReviewRequest, resolveReviewRequest, deleteReviewRequest,
   listTeamPermissions, grantPermission, revokePermission,

@@ -2566,3 +2566,67 @@ Stage Summary:
 - 0 lint errors, 0 runtime errors
 - All data persisted to DB (9 Prisma models)
 - Local-first: ready for future sync/collab but works fully as single-user now
+
+---
+Task ID: COLLAB-UPGRADE
+Agent: ZAI Code (main)
+Task: Upgrade Collaboration OS (section 29) to "best possible" — add seed data + fix gaps + wire all 9 features
+
+Work Log:
+- Audited existing code:
+  • lib (727→840 lines) + API (110 lines) + panel (809→1000+ lines) existed
+  • 9 Prisma models existed
+  • BUT: ProjectsTab only covered Shared Projects (406) — missing Knowledge (407) + Agents (408)
+  • BUT: No builtin seed data for Knowledge, Agents, or Artifacts
+  • BUT: listSkillLibrary was NOT imported in API route → skills API returned 500
+  • BUT: Seed code tried to set `builtin: true` on models that don't have that field
+
+- Fixed 5 issues:
+  1. Added BUILTIN_KNOWLEDGE seed (4 entries: TypeScript Best Practices, React 19 Performance, Git Commit Convention, Prisma Schema Patterns)
+  2. Added BUILTIN_AGENTS seed (4 agents: Code Reviewer, Bug Fixer, Test Generator, Documentation Writer)
+  3. Added BUILTIN_ARTIFACTS seed (3 artifacts: Project Architecture Diagram, API Response Template, README Skeleton)
+  4. Removed `builtin: true` from create() calls for models without that field (Knowledge, Agents, Artifacts)
+  5. Added `listSkillLibrary, createSkill, deleteSkill` to API route imports (was missing → 500 error)
+
+- Upgraded ProjectsTab:
+  • Was: single list showing only Shared Projects (406)
+  • Now: 3 subtabs — مشاريع (406) + معرفة (407) + وكلاء (408)
+  • KnowledgeList: expandable cards with content preview + tags + create/delete
+  • AgentsList: expandable cards with config JSON + agentType + tags + create/delete
+
+- Updated panel to check `(item.builtin || item.createdBy === "builtin")` for models without `builtin` field
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- snapshot: sharedKnowledge=4, sharedAgents=4, prompts=6, skills=4, sharedArtifacts=3, projectRoles=5 ✅
+- knowledge API: 4 builtin entries with tags ✅
+- agents API: 4 builtin agents with config + agentType ✅
+- artifacts API: 3 builtin artifacts (mermaid, html, markdown) ✅
+- skills API: 4 builtin skills (test-runner, git-checkpoint, code-search, file-reader) ✅
+- Agent Browser:
+  • "تعاون" tab → 4 tabs (المكتبة/مشاريع/مراجعات/صلاحيات) ✅
+  • المكتبة > Prompts (409): 6 builtin prompts ✅
+  • المكتبة > Skills (410): 4 builtin skills ✅
+  • المكتبة > Artifacts (411): 3 builtin artifacts ✅
+  • مشاريع > مشاريع (406): create/delete projects ✅
+  • مشاريع > معرفة (407): 4 builtin knowledge entries with expandable content ✅
+  • مشاريع > وكلاء (408): 4 builtin agents with expandable config ✅
+  • مراجعات (412): review requests ✅
+  • صلاحيات > الأدوار (414): 5 builtin roles ✅
+  • صلاحيات > الصلاحيات (413): grant/revoke ✅
+
+Stage Summary:
+- All 9 Collaboration features (section 29) FULLY wired to UI with REAL seed data:
+  406. Shared Projects → مشاريع > مشاريع (create/delete)
+  407. Shared Knowledge → مشاريع > معرفة (4 builtin: TypeScript, React, Git, Prisma)
+  408. Shared Agents → مشاريع > وكلاء (4 builtin: Reviewer, Fixer, Generator, Writer)
+  409. Prompt Library → المكتبة > Prompts (6 builtin: Code Review, Bug Fix, Docs, Tests, Refactor, Summarize)
+  410. Skill Library → المكتبة > Skills (4 builtin: test-runner, git-checkpoint, code-search, file-reader)
+  411. Shared Artifacts → المكتبة > Artifacts (3 builtin: Architecture Diagram, API Template, README Skeleton)
+  412. Review Requests → مراجعات (create/resolve/delete)
+  413. Team Permissions → صلاحيات > الصلاحيات (grant/revoke)
+  414. Project Roles → صلاحيات > الأدوار (5 builtin: owner, maintainer, contributor, reviewer, viewer)
+- Total: 22 builtin items across 6 categories (4 knowledge + 4 agents + 6 prompts + 4 skills + 3 artifacts + 5 roles)
+- 0 lint errors, 0 runtime errors
+- All data persisted to DB (9 Prisma models)
+- Bilingual UI (Arabic + English), RTL-aware

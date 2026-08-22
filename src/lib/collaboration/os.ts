@@ -94,8 +94,52 @@ export async function deleteSharedProject(id: string): Promise<CollabResult<{ de
 // 2. Shared Knowledge (407)
 // ---------------------------------------------------------------------------
 
+const BUILTIN_KNOWLEDGE: Array<{ title: string; content: string; source: string; tags: string[] }> = [
+  {
+    title: "TypeScript Best Practices",
+    content: "1. Use strict mode always\n2. Avoid 'any' — use 'unknown' instead\n3. Prefer interfaces over type aliases for objects\n4. Use readonly for immutable properties\n5. Leverage discriminated unions for state\n6. Use satisfies operator for type checking\n7. Enable noUncheckedIndexedAccess",
+    source: "builtin",
+    tags: ["typescript", "best-practices", "typing"],
+  },
+  {
+    title: "React 19 Performance Guide",
+    content: "1. Use React.memo for expensive components\n2. useMemo for expensive computations\n3. useCallback for stable function references\n4. Avoid inline objects/arrays in props\n5. Use lazy() for code splitting\n6. Profile with React DevTools\n7. Consider useTransition for non-urgent updates",
+    source: "builtin",
+    tags: ["react", "performance", "optimization"],
+  },
+  {
+    title: "Git Commit Convention",
+    content: "Format: type(scope): description\n\nTypes:\n- feat: new feature\n- fix: bug fix\n- docs: documentation\n- style: formatting\n- refactor: code restructuring\n- test: adding tests\n- chore: build/tooling\n\nScopes: api, ui, db, lib, config\n\nExample: feat(api): add user authentication endpoint",
+    source: "builtin",
+    tags: ["git", "convention", "commit"],
+  },
+  {
+    title: "Prisma Schema Patterns",
+    content: "1. Use @id @default(cuid()) for primary keys\n2. Add @@index for frequently queried fields\n3. Use enums for fixed value sets\n4. Separate read/write models for complex domains\n5. Use @@map for snake_case table names\n6. Add onDelete: Cascade for owned relations\n7. Use JSON fields sparingly — prefer relations",
+    source: "builtin",
+    tags: ["prisma", "database", "schema"],
+  },
+]
+
 export async function listSharedKnowledge(): Promise<CollabResult<any[]>> {
   try {
+    // Seed builtin knowledge on first access
+    const existingCount = await db.collabSharedKnowledge.count()
+    if (existingCount === 0) {
+      for (const k of BUILTIN_KNOWLEDGE) {
+        await db.collabSharedKnowledge.create({
+          data: {
+            title: k.title,
+            content: k.content,
+            source: k.source,
+            tags: JSON.stringify(k.tags),
+            visibility: "public",
+            accessList: JSON.stringify([]),
+            createdBy: "builtin",
+          },
+        })
+      }
+    }
     const items = await db.collabSharedKnowledge.findMany({ orderBy: { updatedAt: "desc" } })
     return {
       ok: true,
@@ -142,8 +186,56 @@ export async function deleteSharedKnowledge(id: string): Promise<CollabResult<{ 
 // 3. Shared Agents (408)
 // ---------------------------------------------------------------------------
 
+const BUILTIN_AGENTS: Array<{ name: string; description: string; config: Record<string, unknown>; agentType: string; tags: string[] }> = [
+  {
+    name: "Code Reviewer",
+    description: "Reviews code changes for bugs, security issues, and best practices",
+    config: { model: "default", systemPrompt: "You are a code reviewer. Analyze code for bugs, security, and best practices.", tools: ["file_read", "code_search"] },
+    agentType: "reviewer",
+    tags: ["review", "quality", "security"],
+  },
+  {
+    name: "Bug Fixer",
+    description: "Analyzes bugs and proposes fixes with test coverage",
+    config: { model: "default", systemPrompt: "You are a bug fixer. Analyze the error and propose a minimal fix.", tools: ["file_read", "file_write", "run_terminal_command"] },
+    agentType: "fixer",
+    tags: ["debug", "fix", "testing"],
+  },
+  {
+    name: "Test Generator",
+    description: "Generates comprehensive test suites for code",
+    config: { model: "default", systemPrompt: "You are a test generator. Write comprehensive tests covering edge cases.", tools: ["file_read", "file_write", "code_search"] },
+    agentType: "generator",
+    tags: ["test", "vitest", "coverage"],
+  },
+  {
+    name: "Documentation Writer",
+    description: "Generates documentation from code analysis",
+    config: { model: "default", systemPrompt: "You are a documentation writer. Generate clear, comprehensive docs.", tools: ["file_read", "file_write"] },
+    agentType: "writer",
+    tags: ["docs", "readme", "api"],
+  },
+]
+
 export async function listSharedAgents(): Promise<CollabResult<any[]>> {
   try {
+    // Seed builtin agents on first access
+    const existingCount = await db.collabSharedAgent.count()
+    if (existingCount === 0) {
+      for (const a of BUILTIN_AGENTS) {
+        await db.collabSharedAgent.create({
+          data: {
+            name: a.name,
+            description: a.description,
+            config: JSON.stringify(a.config),
+            agentType: a.agentType,
+            tags: JSON.stringify(a.tags),
+            isPublic: true,
+            createdBy: "builtin",
+          },
+        })
+      }
+    }
     const agents = await db.collabSharedAgent.findMany({ orderBy: { updatedAt: "desc" } })
     return {
       ok: true,
@@ -244,7 +336,6 @@ export async function listPromptLibrary(): Promise<CollabResult<any[]>> {
             category: p.category,
             tags: JSON.stringify(p.tags),
             visibility: "public",
-            builtin: true,
           },
         })
       }
@@ -357,7 +448,6 @@ export async function listSkillLibrary(): Promise<CollabResult<any[]>> {
             definition: JSON.stringify(s.definition),
             tags: JSON.stringify(s.tags),
             visibility: "public",
-            builtin: true,
           },
         })
       }
@@ -413,8 +503,49 @@ export async function deleteSkill(id: string): Promise<CollabResult<{ deleted: b
 // 6. Shared Artifacts (411)
 // ---------------------------------------------------------------------------
 
+const BUILTIN_ARTIFACTS: Array<{ title: string; artifactType: string; content: string; metadata: Record<string, unknown>; tags: string[] }> = [
+  {
+    title: "Project Architecture Diagram",
+    artifactType: "mermaid",
+    content: "graph TD\n  A[User] --> B[Next.js Frontend]\n  B --> C[API Routes]\n  C --> D[Prisma ORM]\n  D --> E[(SQLite DB)]\n  C --> F[LLM Provider]\n  C --> G[Tool Registry]",
+    metadata: { description: "Default project architecture" },
+    tags: ["architecture", "diagram", "mermaid"],
+  },
+  {
+    title: "API Response Template",
+    artifactType: "html",
+    content: '<!DOCTYPE html>\n<html>\n<head><title>API Result</title></head>\n<body>\n  <h1>{{title}}</h1>\n  <pre>{{data}}</pre>\n</body>\n</html>',
+    metadata: { description: "HTML template for API responses" },
+    tags: ["api", "html", "template"],
+  },
+  {
+    title: "README Skeleton",
+    artifactType: "markdown",
+    content: "# Project Name\n\n## Description\nBrief description here.\n\n## Installation\n```bash\nbun install\n```\n\n## Usage\n```bash\nbun run dev\n```\n\n## API\nDescribe endpoints here.\n\n## License\nMIT",
+    metadata: { description: "README template" },
+    tags: ["readme", "markdown", "docs"],
+  },
+]
+
 export async function listSharedArtifacts(): Promise<CollabResult<any[]>> {
   try {
+    // Seed builtin artifacts on first access
+    const existingCount = await db.collabSharedArtifact.count()
+    if (existingCount === 0) {
+      for (const a of BUILTIN_ARTIFACTS) {
+        await db.collabSharedArtifact.create({
+          data: {
+            title: a.title,
+            artifactType: a.artifactType,
+            content: a.content,
+            metadata: JSON.stringify(a.metadata),
+            tags: JSON.stringify(a.tags),
+            visibility: "public",
+            createdBy: "builtin",
+          },
+        })
+      }
+    }
     const artifacts = await db.collabSharedArtifact.findMany({ orderBy: { updatedAt: "desc" } })
     return {
       ok: true,
@@ -611,7 +742,6 @@ export async function listProjectRoles(projectId?: string): Promise<CollabResult
             roleName: role.roleName,
             permissions: JSON.stringify(role.permissions),
             description: role.description,
-            builtin: true,
           },
         })
       }
