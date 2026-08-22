@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Brain, Copy, RefreshCw, GitBranch, Pencil, Check, X, ChevronDown } from "lucide-react"
+import { Brain, Copy, RefreshCw, GitBranch, Pencil, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -10,10 +10,12 @@ import { ToolCallBlock } from "./tool-call-block"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { User, Sparkles } from "lucide-react"
 import type { ChatMessage, ToolCallRecord } from "@/types/chat"
+import { TtsButton } from "./tts-button"
 
 interface EnhancedMessageProps {
   message: ChatMessage
   isStreaming?: boolean
+  streamingContent?: string
   streamingToolCalls?: ToolCallRecord[]
   showThinking?: boolean
   onRegenerate?: () => void
@@ -25,6 +27,7 @@ interface EnhancedMessageProps {
 export function EnhancedMessage({
   message,
   isStreaming,
+  streamingContent,
   streamingToolCalls,
   showThinking,
   onRegenerate,
@@ -57,7 +60,6 @@ export function EnhancedMessage({
   return (
     <div className="group w-full animate-fade-up px-3 py-5 sm:px-4 md:px-6">
       <div className="mx-auto flex w-full max-w-3xl gap-3 sm:gap-4">
-        {/* Avatar */}
         <Avatar className={cn(
           "mt-0.5 h-8 w-8 shrink-0 rounded-xl border border-border/60 transition-all duration-200",
           isUser ? "shadow-sm" : "shadow-md elevate-1"
@@ -73,7 +75,6 @@ export function EnhancedMessage({
         </Avatar>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Header: name + model + tokens */}
           <div className="mb-1.5 flex items-center gap-2">
             <span className="text-sm font-semibold tracking-tight">{isUser ? "أنت" : "MiMo X"}</span>
             {message.model && message.model !== "default" && !isStreaming && (
@@ -94,7 +95,6 @@ export function EnhancedMessage({
             )}
           </div>
 
-          {/* Thinking display */}
           {showThinking && message.thinking && !isStreaming && (
             <div className="mb-2 overflow-hidden rounded-lg border border-purple-500/30 bg-purple-500/5 p-2.5">
               <p className="mb-1 flex items-center gap-1.5 text-[0.65rem] font-semibold text-purple-600 dark:text-purple-400">
@@ -104,7 +104,6 @@ export function EnhancedMessage({
             </div>
           )}
 
-          {/* Tool calls */}
           {toolCalls.length > 0 && (
             <div className="mb-2 space-y-0">
               {toolCalls.map((c, i) => (
@@ -113,7 +112,6 @@ export function EnhancedMessage({
             </div>
           )}
 
-          {/* Content */}
           {editing ? (
             <div className="space-y-2">
               <Textarea
@@ -179,6 +177,10 @@ export function EnhancedMessage({
                   <RefreshCw className="h-3 w-3" /> إعادة
                 </Button>
               )}
+              {/* TTS button */}
+              {!isUser && (
+                <TtsButton text={message.content} />
+              )}
               {!isUser && onContinue && message.content.endsWith("…") && (
                 <Button variant="ghost" size="sm" onClick={onContinue} className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60">
                   متابعة
@@ -191,3 +193,8 @@ export function EnhancedMessage({
     </div>
   )
 }
+
+// Thinking toggle state
+let showThinking = false
+export function toggleThinking() { showThinking = !showThinking }
+export function getShowThinking() { return showThinking }
