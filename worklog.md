@@ -2804,3 +2804,59 @@ Stage Summary:
   444. Model Idle Unload → عمليات > Unload
 - 0 lint errors, 0 runtime errors
 - Bilingual UI, RTL-aware
+
+---
+Task ID: RESOURCE-INTEL-FINAL
+Agent: ZAI Code (main)
+Task: Build Resource Intelligence OS (section 33) — 9 features, fully wired to UI
+
+Work Log:
+- Created src/lib/resource-intelligence/os.ts (~420 lines, 9 operations):
+  1. adaptiveThreads (445) — adjusts concurrency based on CPU cores + load + RAM
+  2. adaptiveContext (446) — shrinks context window based on available RAM
+  3. ramPressureDetection (447) — GREEN/YELLOW/ORANGE/RED based on RAM usage
+  4. vramPressureDetection (448) — uses nvidia-smi if available, else unknown
+  5. processManager (449) — lists processes with RAM + CPU usage
+  6. idleProcessKiller (450) — kills idle background tasks
+  7. backgroundWorkThrottling (451) — none/light/medium/heavy/pause based on pressure
+  8. indexingScheduler (452) — schedule/list/runDue/cancel indexing jobs
+  9. memoryPressureModes (453) — GREEN/YELLOW/ORANGE/RED mode with recommendations + autoActions
+  Plus: resourceIntelligenceSnapshot() — aggregates all
+- Created src/app/api/resource-intelligence/route.ts — POST (11 actions) + GET (3 modes)
+- Created src/components/chat/resource-intelligence-panel.tsx (~520 lines, 3 tabs):
+  • Tab 1 (Pressure): Memory Pressure Mode #453 + RAM #447 + VRAM #448 with colored cards
+  • Tab 2 (Adaptive): Threads #445 + Context #446 + Throttling #451
+  • Tab 3 (Processes): Process Manager #449 + Idle Killer #450 + Indexing Scheduler #452
+  • Live auto-refresh every 5s for system metrics
+  • Mode indicator (GREEN/YELLOW/ORANGE/RED) in header
+- Added "موارد" tab to chat-sidebar + "resource_intel" to store type
+- Fixed: Gauge icon was imported twice (already at line 25)
+
+Verification:
+- bun run lint: 0 errors ✅
+- snapshot: mode=GREEN, RAM 46%, 2 cores, load 0.24, 2 threads, context 32768 ✅
+- ram_pressure: GREEN, 46% (1841/4042MB), "✅ آمن" ✅
+- adaptive_threads: 2/2 threads, load 12%, "load منخفض → استخدام كل الخيوط" ✅
+- adaptive_context: 32768 (full), RAM free 2308MB, "سياق كامل — RAM كافٍ" ✅
+- vram_pressure: "لا GPU مكتشف — VRAM غير متاح" ✅
+- pressure_modes: GREEN, "النظام يعمل بكفاقة" ✅
+- process_manager: 1 process (MiMo X, 1473MB, 12%) ✅
+- bg_throttle: none, "✅ لا تخفيف" ✅
+- indexing_schedule: "تمت جدولة فهرسة incremental بعد 30s" ✅
+- idle_killer: "✅ لا عمليات خاملة" ✅
+- Agent Browser: 3 tabs + GREEN mode + live auto-refresh ✅
+
+Stage Summary:
+- All 9 Resource Intelligence features (section 33) FULLY wired to UI:
+  445. Adaptive Threads → تكيّف > Threads (2/2 cores)
+  446. Adaptive Context → تكيّف > Context (32K full)
+  447. RAM Pressure Detection → ضغط > RAM (GREEN, 46%)
+  448. VRAM Pressure Detection → ضغط > VRAM (unknown — no GPU)
+  449. Process Manager → عمليات > Processes (1 proc, 1473MB)
+  450. Idle Process Killer → عمليات > Kill Idle
+  451. Background Work Throttling → تكيّف > Throttle (none)
+  452. Indexing Scheduler → عمليات > Indexing (schedule + runDue)
+  453. Memory Pressure Modes → ضغط > Mode (GREEN with recommendations)
+- Live auto-refresh every 5s
+- 0 lint errors, 0 runtime errors
+- Bilingual UI, RTL-aware

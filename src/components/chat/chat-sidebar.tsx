@@ -80,6 +80,7 @@ import { CollaborationPanel } from "./collaboration-panel"
 import { AdminPanel } from "./admin-panel"
 import { BackupRecoveryPanel } from "./backup-recovery-panel"
 import { ModelIntelligencePanel } from "./model-intelligence-panel"
+import { ResourceIntelligencePanel } from "./resource-intelligence-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -543,6 +544,7 @@ export function ChatSidebar({
         <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin")} title="الإدارة والتشغيل / Admin & Ops" />
         <TabButton icon={<Archive className="h-4 w-4" />} label="نسخ" active={sidebarTab === "backup_recovery"} onClick={() => setSidebarTab("backup_recovery")} title="نسخ احتياطي / Backup & Recovery" />
         <TabButton icon={<Brain className="h-4 w-4" />} label="نماذج" active={sidebarTab === "model_intel"} onClick={() => setSidebarTab("model_intel")} title="ذكاء النماذج / Model Intelligence" />
+        <TabButton icon={<Gauge className="h-4 w-4" />} label="موارد" active={sidebarTab === "resource_intel"} onClick={() => setSidebarTab("resource_intel")} title="ذكاء الموارد / Resource Intelligence" />
       </div>
       )}
 
@@ -663,6 +665,10 @@ export function ChatSidebar({
       ) : sidebarTab === "model_intel" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <ModelIntelligencePanel />
+        </div>
+      ) : sidebarTab === "resource_intel" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ResourceIntelligencePanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
