@@ -2196,3 +2196,105 @@ Stage Summary:
   • ReliabilityLoopEvent: argsHash for identical-call detection
 - 0 lint errors, 0 new type errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: AUTSE-FINAL
+Agent: ZAI Code (main)
+Task: Build Autonomous Software Engineering OS (section 25) — 20 features, fully wired to UI, persisted to DB
+
+Work Log:
+- Audited existing code:
+  • src/lib/code-intel/graphs/repo-scanner.ts existed with 10 functions (scanFiles, indexSymbols, buildImportGraph, buildCallGraph, buildDependencyGraph, detectHotspots, analyzeChangeImpact, buildRepoMap, scanRepository) — reused
+  • No AutonomousBacklogItem / AutonomousHealthScan Prisma models
+  • No /api/autonomous-se endpoint
+  • No UI panel
+
+- Added 2 new Prisma models (prisma/schema.prisma):
+  • AutonomousBacklogItem — type, severity, targetPath, description, status (pending/in_progress/done/superseded/cooldown/skipped), priority 0-100, dependencies (JSON DAG), supersededBy, cooldownUntil, fingerprint (unique dedup), occurrences, estimatedMin, metadata
+  • AutonomousHealthScan — totalFiles, totalLines, totalSymbols, deadCodeCount, duplicateCount, cycleCount, missingTestCount, securityDebtCount, techDebtCount, hotspotCount, healthScore 0-100, details JSON, trigger
+  • Ran `bun run db:push` — schema synced ✅
+
+- Created src/lib/autonomous-se/os.ts (~750 lines, 20 operations + helpers):
+  SCANS (10):
+  1. repositoryHealthScan() — runs all 10 detectors + computes healthScore + persists snapshot
+  2. architectureScan() — detects layers from directory structure + cross-layer deps
+  3. deadCodeDetection() — finds symbols defined but never called (via call graph)
+  4. duplicateLogicDetection() — finds files with same size + ext (potential dups)
+  5. couplingAnalysis() — inbound + outbound coupling score per file
+  6. importCycleDetection() — DFS-based cycle detection in import graph
+  7. missingTestDetection() — finds code files without sibling .test/.spec files
+  8. securityDebtScan() — 10 patterns (eval, exec, innerHTML, hardcoded passwords/secrets)
+  9. technicalDebtScan() — TODO/FIXME/HACK/XXX/@deprecated/any/eslint-disable
+  10. hotspotDetection() — delegates to repo-scanner (git churn)
+
+  BACKLOG (6):
+  11. backlogGenerate() — runs all detectors + creates BacklogItems with fingerprint dedup
+  12. backlogDeduplicate() — merges items with same type+targetPath, supersede duplicates
+  13. backlogPrioritize() — re-scores priority based on severity + occurrences + type + effort
+  14. backlogCooldown() — moves low-priority items to cooldown status with expiry
+  15. taskSupersede() — marks old task as superseded by new one
+  16. taskDAG() — builds nodes + edges + readyToExecute list
+
+  EXECUTION (4):
+  17. sequentialExecute() — runs tasks one-by-one in order
+  18. parallelDeterministicWork() — runs independent tasks (no deps) with Promise.all
+  19. continuousHealthLoop() — runs scan + generate + dedup + prioritize in one call
+  20. autonomousMaintenance() — cooldown + dedup + parallel execute in one call
+
+  Plus: autonomousSnapshot(), listBacklog(), listHealthScans()
+
+- Created src/app/api/autonomous-se/route.ts — POST (20 actions) + GET (3 modes: backlog/scans/snapshot)
+- Created src/components/chat/autonomous-se-panel.tsx (~700 lines):
+  • 4 tabs: الفحص / المهام / DAG / صيانة
+  • Tab 1 (Scan): 10 detectors with one-click "run all" + individual run buttons + result counts
+  • Tab 2 (Backlog): filter by status/type, generate/dedup/prioritize buttons, expandable cards with cooldown + supersede actions
+  • Tab 3 (DAG): nodes/edges/ready stats + sequential + parallel execute buttons
+  • Tab 4 (Maintenance): Continuous Health Loop + Autonomous Maintenance with result display
+  • Stats bar: total/pending/done/cooldown/superseded/healthScore
+- Added "ذاتية" tab to chat-sidebar.tsx (with Workflow icon)
+- Added "autonomous_se" to sidebarTab type in chat-store.ts
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- bun run db:push: schema synced ✅
+- Snapshot API: 412 total items (67 dead_code + 50 dup + 100 missing_test + 75 security + 100 tech_debt + 20 hotspot) ✅
+- Dead Code API: detected "eslintConfig", "geistSans", etc. ✅
+- Tech Debt API: detected TODO/FIXME/any/eslint-disable (9117 bytes, 8.6s) ✅
+- Backlog Generate: created 412 items in DB ✅
+- Autonomous Maintenance: 5 auto-fixed + 169 cooldown + 33 deduped + 205 remaining pending ✅
+- Agent Browser:
+  • "ذاتية" tab visible in sidebar ✅
+  • Click → AutonomousSEPanel renders with 4 tabs + stats ✅
+  • Stats show real DB data: 412 total, 0 done, 0 cooldown initially ✅
+  • Scan tab: 10 detector buttons with feature numbers (#351-#360) ✅
+  • "شغّل الكل" button: runs all 10 scans → created 412 backlog items ✅
+  • Backlog tab: shows real items (file paths, types, priorities, estimated minutes) ✅
+  • DAG tab: 412 nodes + 412 ready-to-execute ✅
+  • Maintenance tab: "شغّل صيانة" → 5 auto-fixed + 169 cooldown + 33 merged + 205 pending ✅
+
+Stage Summary:
+- All 20 Autonomous SE features (section 25) FULLY wired to UI:
+  351. Repository Health Scan → Scan tab > #351 (one-click)
+  352. Architecture Scan → Scan tab > #352
+  353. Dead Code Detection → Scan tab > #353 (found 67 dead symbols)
+  354. Duplicate Logic Detection → Scan tab > #354 (50 potential dups)
+  355. Coupling Analysis → Scan tab > #355
+  356. Import Cycle Detection → Scan tab > #356
+  357. Missing Test Detection → Scan tab > #357 (100 missing tests)
+  358. Security Debt Scan → Scan tab > #358 (75 issues incl. 2 critical)
+  359. Technical Debt Scan → Scan tab > #359 (100 TODO/FIXME)
+  360. Hotspot Detection → Scan tab > #360 (20 git hotspots)
+  361. Backlog Generate → Backlog tab > توليد button
+  362. Backlog Deduplicate → Backlog tab > دمج button (33 merged)
+  363. Backlog Prioritization → Backlog tab > رتّب button
+  364. Backlog Cooldown → per-item cooldown button (169 cooled down)
+  365. Task Supersession → per-item ألغِ button
+  366. Task DAG → DAG tab (412 nodes visualized)
+  367. Sequential Execution → DAG tab > تسلسلي button
+  368. Parallel Deterministic Work → DAG tab > متوازي button (5 auto-fixed)
+  369. Continuous Health Loop → Maintenance tab > شغّل دورة فحص
+  370. Autonomous Maintenance → Maintenance tab > شغّل صيانة
+- Reuses existing repo-scanner (no reinventing the wheel)
+- All data PERSISTED to DB (AutonomousBacklogItem + AutonomousHealthScan)
+- 0 lint errors, 0 new type errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware

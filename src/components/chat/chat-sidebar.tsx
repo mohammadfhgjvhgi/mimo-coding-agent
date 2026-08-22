@@ -26,6 +26,7 @@ import {
   Zap,
   Shield,
   ShieldAlert,
+  Workflow,
   Download,
   FileJson,
 } from "lucide-react"
@@ -65,6 +66,7 @@ import { GitPanel } from "./git-panel"
 import { ContextInspectorPanel } from "./context-inspector-panel"
 import { SecurityPanel } from "./security-panel"
 import { ReliabilityPanel } from "./reliability-panel"
+import { AutonomousSEPanel } from "./autonomous-se-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -520,6 +522,7 @@ export function ChatSidebar({
         <TabButton icon={<Activity className="h-4 w-4" />} label="سياق" active={sidebarTab === "context"} onClick={() => setSidebarTab("context")} title="مفتش السياق / Context Inspector" />
         <TabButton icon={<Shield className="h-4 w-4" />} label="أمان" active={sidebarTab === "security"} onClick={() => setSidebarTab("security")} title="نظام الأمان / Security OS" />
         <TabButton icon={<ShieldAlert className="h-4 w-4" />} label="موثوقية" active={sidebarTab === "reliability"} onClick={() => setSidebarTab("reliability")} title="الموثوقية / Reliability OS" />
+        <TabButton icon={<Workflow className="h-4 w-4" />} label="ذاتية" active={sidebarTab === "autonomous_se"} onClick={() => setSidebarTab("autonomous_se")} title="هندسة ذاتية / Autonomous SE" />
       </div>
       )}
 
@@ -608,6 +611,10 @@ export function ChatSidebar({
       ) : sidebarTab === "reliability" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <ReliabilityPanel />
+        </div>
+      ) : sidebarTab === "autonomous_se" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <AutonomousSEPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

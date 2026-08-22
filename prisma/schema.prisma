@@ -1515,3 +1515,73 @@ model ReliabilityLoopEvent {
   @@index([createdAt])
 }
 
+
+// Autonomous Software Engineering — Backlog items generated from health scans.
+// Each item: type (dead_code/duplicate/coupling/cycle/missing_test/security_debt/tech_debt/hotspot),
+// severity, file path, description, status (pending/in_progress/done/superseded/cooldown),
+// priority score, dependencies (DAG), supersededBy.
+model AutonomousBacklogItem {
+  id              String   @id @default(cuid())
+  // "dead_code" | "duplicate_logic" | "coupling" | "import_cycle" | "missing_test"
+  // | "security_debt" | "tech_debt" | "hotspot" | "architecture" | "health"
+  type            String
+  severity        String   @default("medium") // "low" | "medium" | "high" | "critical"
+  // The file or symbol this item refers to
+  targetPath      String
+  // Human-readable description (bilingual)
+  description     String
+  // "pending" | "in_progress" | "done" | "superseded" | "cooldown" | "skipped"
+  status          String   @default("pending")
+  // Priority 0-100 (higher = more urgent)
+  priority        Int      @default(50)
+  // JSON array of backlog item IDs that must be done first (DAG deps)
+  dependencies    String   @default("[]")
+  // If this item was superseded by another, that item's ID
+  supersededBy    String?
+  // Cooldown: don't re-raise until this date
+  cooldownUntil   DateTime?
+  // Fingerprint for dedup (hash of type+targetPath+description)
+  fingerprint     String   @unique
+  // How many times this issue has been detected (dedup counter)
+  occurrences     Int      @default(1)
+  // Optional estimated effort in minutes
+  estimatedMin    Int?
+  // Optional metadata JSON (line numbers, symbol names, etc.)
+  metadata        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([priority])
+  @@index([targetPath])
+  @@index([createdAt])
+}
+
+// Autonomous Software Engineering — Health scan snapshots.
+// Each scan records: total files, total lines, dead code %, duplicate %,
+// coupling score, cycle count, missing test %, tech debt items, hotspots.
+model AutonomousHealthScan {
+  id              String   @id @default(cuid())
+  // Snapshot of metrics
+  totalFiles      Int      @default(0)
+  totalLines      Int      @default(0)
+  totalSymbols    Int      @default(0)
+  deadCodeCount   Int      @default(0)
+  duplicateCount  Int      @default(0)
+  cycleCount      Int      @default(0)
+  missingTestCount Int     @default(0)
+  securityDebtCount Int    @default(0)
+  techDebtCount   Int      @default(0)
+  hotspotCount    Int      @default(0)
+  // Overall health score 0-100
+  healthScore     Int      @default(100)
+  // JSON: breakdown by file/severity
+  details         String?
+  // "manual" | "scheduled" | "continuous"
+  trigger         String   @default("manual")
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([trigger])
+}
