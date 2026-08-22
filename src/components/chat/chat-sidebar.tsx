@@ -35,6 +35,7 @@ import {
   Zap as ZapIcon,
   Fingerprint,
   Crown,
+  Sunrise,
   Users,
   Download,
   FileJson,
@@ -88,6 +89,7 @@ import { UXActionsPanel } from "./ux-actions-panel"
 import { ConversationToPanel } from "./conversation-to-panel"
 import { PersonalIntelligencePanel } from "./personal-intelligence-panel"
 import { VisionDashboard } from "./vision-dashboard"
+import { DayInLifePanel } from "./day-in-life-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -556,6 +558,7 @@ export function ChatSidebar({
         <TabButton icon={<Sparkles className="h-4 w-4" />} label="تحويل" active={sidebarTab === "conversation_to"} onClick={() => setSidebarTab("conversation_to")} title="محادثة ← كل شيء / Conversation-to-Everything" />
         <TabButton icon={<Fingerprint className="h-4 w-4" />} label="شخصي" active={sidebarTab === "personal_intel"} onClick={() => setSidebarTab("personal_intel")} title="ذكاء شخصي / Personal Intelligence" />
         <TabButton icon={<Crown className="h-4 w-4" />} label="رؤية" active={sidebarTab === "vision"} onClick={() => setSidebarTab("vision")} title="الرؤية الكاملة / Vision Dashboard" />
+        <TabButton icon={<Sunrise className="h-4 w-4" />} label="يوم" active={sidebarTab === "day_in_life"} onClick={() => setSidebarTab("day_in_life")} title="يوم في حياة MiMo X" />
       </div>
       )}
 
@@ -696,6 +699,10 @@ export function ChatSidebar({
       ) : sidebarTab === "vision" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <VisionDashboard />
+        </div>
+      ) : sidebarTab === "day_in_life" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <DayInLifePanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
