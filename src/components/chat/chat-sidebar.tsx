@@ -29,6 +29,7 @@ import {
   Workflow,
   TrendingUp,
   Radar,
+  Wrench,
   Download,
   FileJson,
 } from "lucide-react"
@@ -71,6 +72,7 @@ import { ReliabilityPanel } from "./reliability-panel"
 import { AutonomousSEPanel } from "./autonomous-se-panel"
 import { SelfImprovementPanel } from "./self-improvement-panel"
 import { ObservabilityPanel } from "./observability-panel"
+import { DevExperiencePanel } from "./dev-experience-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -529,6 +531,7 @@ export function ChatSidebar({
         <TabButton icon={<Workflow className="h-4 w-4" />} label="ذاتية" active={sidebarTab === "autonomous_se"} onClick={() => setSidebarTab("autonomous_se")} title="هندسة ذاتية / Autonomous SE" />
         <TabButton icon={<TrendingUp className="h-4 w-4" />} label="تحسين" active={sidebarTab === "self_improvement"} onClick={() => setSidebarTab("self_improvement")} title="تحسين الذات / Self-Improvement" />
         <TabButton icon={<Radar className="h-4 w-4" />} label="رصد" active={sidebarTab === "observability"} onClick={() => setSidebarTab("observability")} title="المراقبة / Observability" />
+        <TabButton icon={<Wrench className="h-4 w-4" />} label="مطور" active={sidebarTab === "dev_experience"} onClick={() => setSidebarTab("dev_experience")} title="تجربة المطور / Dev Experience" />
       </div>
       )}
 
@@ -629,6 +632,10 @@ export function ChatSidebar({
       ) : sidebarTab === "observability" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <ObservabilityPanel />
+        </div>
+      ) : sidebarTab === "dev_experience" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <DevExperiencePanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

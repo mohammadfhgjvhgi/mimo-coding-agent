@@ -2441,3 +2441,81 @@ Stage Summary:
 - 0 lint errors, 0 new type errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
 - Live auto-refresh (5s) for system metrics
+
+---
+Task ID: DEX-FINAL
+Agent: ZAI Code (main)
+Task: Build Developer Experience OS (section 28) — 13 features, fully wired to UI, persisted to DB
+
+Work Log:
+- Audited existing code:
+  • No dev-experience lib, no API, no UI panel existed
+  • Reused src/lib/tools/workspace.ts (WORKSPACE_ROOT) + src/lib/code-intel/graphs/repo-scanner.ts (scanFiles)
+
+- Added 2 new Prisma models (prisma/schema.prisma):
+  • DevProjectTemplate — name, description, framework, language, packageManager, testFramework, files JSON, commands JSON, builtin
+  • DevConstitution — type (instruction/critical_file/dangerous_op/definition_of_done/runbook), title, content, severity, enabled, builtin
+  • Ran `bun run db:push` — schema synced ✅
+
+- Created src/lib/dev-experience/os.ts (~570 lines, 13 operations + helpers):
+  1. listProjectTemplates() + createProjectTemplate() + deleteProjectTemplate() (393) — 4 builtin templates (nextjs-typescript, express-typescript, fastapi-python, react-vite)
+  2. projectScaffolding() (394) — creates files from template in target path
+  3. frameworkDetection() (395) — 12 framework signatures (nextjs, react, vue, express, fastify, nest, fastapi, django, flask, svelte, astro, remix) via deps + config files
+  4. packageManagerDetection() (396) — detects bun/npm/pnpm/yarn/pip/poetry via lock files
+  5. testFrameworkDetection() (397) — detects vitest/jest/mocha/playwright/pytest via deps + config files
+  6. commandDiscovery() (398) — from package.json scripts + pyproject.toml + Makefile + inferred
+  7. listConstitution() + addConstitution() + deleteConstitution() (399) — 10 builtin rules
+  8. repositoryProfile() (400) — combines framework + PM + test + commands + languages + git repo
+  9. projectInstructions() (401) — delegates to listConstitution("instruction")
+  10. criticalFiles() (402) — delegates to listConstitution("critical_file")
+  11. dangerousOperations() (403) — delegates to listConstitution("dangerous_op")
+  12. definitionOfDoneTemplates() (404) — delegates to listConstitution("definition_of_done")
+  13. engineeringRunbooks() (405) — delegates to listConstitution("runbook")
+  Plus: dexSnapshot()
+
+- Created src/app/api/dev-experience/route.ts — POST (8 actions) + GET (12 modes)
+- Created src/components/chat/dev-experience-panel.tsx (~660 lines):
+  • 4 tabs: قوالب / كشف / دستور / ملف
+  • Tab 1 (Templates): list of 4 builtin templates with framework/language/PM/test badges + "أنشئ مشروع (394)" button + create new template form
+  • Tab 2 (Detection): 4 detectors (Framework #395, Package Manager #396, Test Framework #397, Command Discovery #398) with "كشف" buttons + inline results
+  • Tab 3 (Constitution): 5 subtabs (Instructions #401, Critical Files #402, Dangerous Ops #403, DoD #404, Runbooks #405) + add/delete rules
+  • Tab 4 (Profile): Repository Profile with framework + PM + test + commands + languages (with progress bars) + git repo + total files/lines
+- Added "مطور" tab to chat-sidebar.tsx (with Wrench icon)
+- Added "dev_experience" to sidebarTab type in chat-store.ts
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- bun run db:push: schema synced ✅
+- snapshot API: detectedFramework=nextjs, detectedPackageManager=bun, totalCommands=14 ✅
+- framework API: nextjs v16.1.1, confidence 95% ✅
+- package_manager API: bun (bun.lockb) ✅
+- templates API: 4 builtin templates (express, fastapi, nextjs, react-vite) ✅
+- commands API: 14 commands from package.json ✅
+- critical_files API: 3 builtin critical files (package.json, prisma/schema.prisma, .env) ✅
+- profile API: nextjs + bun + 439 files + 92,397 lines + 8 languages (TypeScript 61%) ✅
+- Agent Browser:
+  • "مطور" tab visible in sidebar ✅
+  • Click → DevExperiencePanel renders with 4 tabs ✅
+  • Templates tab: 4 builtin templates with framework/language/PM/test badges ✅
+  • Detection tab: 4 detectors (#395-#398) ✅
+  • Constitution tab: 5 subtabs (#401-#405) + 10 builtin rules ✅
+  • Profile tab: Repository Profile with real data (439 files, 92K lines, TypeScript 61%) ✅
+
+Stage Summary:
+- All 13 Dev Experience features (section 28) FULLY wired to UI:
+  393. Project Templates → Templates tab (4 builtin + create custom)
+  394. Project Scaffolding → per-template "أنشئ مشروع" button
+  395. Framework Detection → Detection tab > Framework (nextjs 95% confidence)
+  396. Package Manager Detection → Detection tab > PM (bun via lock file)
+  397. Test Framework Detection → Detection tab > Test (vitest/jest/pytest)
+  398. Command Discovery → Detection tab > Commands (14 from package.json)
+  399. Project Constitution → Constitution tab (add/delete rules)
+  400. Repository Profile → Profile tab (framework + PM + test + commands + languages + git)
+  401. Project Instructions → Constitution > تعليمات
+  402. Critical Files → Constitution > ملفات محمية (package.json, schema.prisma, .env)
+  403. Dangerous Operations → Constitution > عمليات ممنوعة (rm -rf, force push, DROP)
+  404. Definition of Done Templates → Constitution > DoD
+  405. Engineering Runbooks → Constitution > خطط تنفيذ
+- All data PERSISTED to DB (DevProjectTemplate + DevConstitution)
+- 0 lint errors, 0 new type errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware

@@ -1638,3 +1638,40 @@ model SelfImprovementHypothesis {
   @@index([status])
   @@index([createdAt])
 }
+
+// Developer Experience OS — Project templates (reusable scaffolds).
+model DevProjectTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  framework   String   // "nextjs" | "react" | "express" | "fastapi" | "django" | ...
+  language    String   @default("typescript") // "typescript" | "javascript" | "python" | ...
+  packageManager String @default("bun") // "npm" | "bun" | "pnpm" | "yarn" | "pip" | "poetry"
+  testFramework String @default("vitest") // "vitest" | "jest" | "pytest" | ...
+  // JSON: file tree to scaffold { "src/app/page.tsx": "content...", ... }
+  files       String   @default("{}")
+  // JSON: commands { "dev": "bun run dev", "build": "...", "test": "..." }
+  commands   String   @default("{}")
+  builtin    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([framework])
+}
+
+// Developer Experience OS — Project constitution (rules per workspace).
+model DevConstitution {
+  id          String   @id @default(cuid())
+  // Rule type
+  type        String   // "instruction" | "critical_file" | "dangerous_op" | "definition_of_done" | "runbook"
+  title       String
+  content     String   // the rule/instruction content
+  severity    String   @default("medium") // "low" | "medium" | "high" | "critical"
+  enabled     Boolean  @default(true)
+  builtin     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([enabled])
+}
