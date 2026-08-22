@@ -3101,3 +3101,32 @@ Stage Summary:
   16:00 Execution → 18:00 Web → 20:00 Organize → 22:00 Automate
 - 10 separate AI tools → 1 unified environment = MiMo X
 - "بدي أستغني عن كل أدوات الذكاء الاصطناعي وأخلي MiMo هو البيئة الأساسية لكل شغلي." ✅
+
+---
+Task ID: ENGINES-FINAL
+Agent: ZAI Code (main)
+Task: Build "20 Core Engines" panel — proving 484 features come from 20 engines, not 484 systems
+
+Work Log:
+- Created src/app/api/engines/route.ts — maps 20 engines to capabilities with real DB counts
+- Created src/components/chat/engines-panel.tsx (~200 lines):
+  • Expandable cards for each of the 20 engines
+  • Each shows: name (Arabic + English), icon, description, capabilities (badges), feature range, source code path, real data counts
+  • Header: "20 محركات ← 173 قدرات ← 484 ميزة"
+  • Footer: "الرقم الكبير لا يعني مئات الأنظمة المنفصلة"
+- Added "محركات" tab with Cog icon
+
+Verification:
+- bun run lint: 0 errors ✅
+- API: 20 engines, 173 capabilities total ✅
+- Agent Browser: All 20 engines visible with real data (95 conversations, 123 memories, 5 models, etc.) ✅
+
+Stage Summary:
+- The "20 Engines" panel proves the key architectural insight:
+  Memory Engine → 13 capabilities (Personal, Project, Failure, Decision...)
+  Tool Engine → 9 capabilities (Terminal, Git, Browser, MCP, APIs...)
+  Knowledge Engine → 8 capabilities (RAG, Search, Citations, Research...)
+  Agent Engine → 8 capabilities (Coding, Research, Automation, Debugging...)
+  etc.
+- 20 engines → 173 capabilities → 484 features
+- "عدد قليل من المحركات القوية يُنتج مئات الاستخدامات — لا 484 نظاماً منفصلاً" ✅
