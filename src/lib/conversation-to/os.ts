@@ -18,7 +18,7 @@ import { db } from "@/lib/db"
 
 export interface C2XResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -118,7 +118,7 @@ export async function chatToTask(conversationId: string): Promise<C2XResult<{
 
     const tasks: Array<{ id: string; title: string; priority: string }> = []
     for (const item of actionItems) {
-      const task = await db.task.create({
+      const task = await db.pTask.create({
         data: {
           title: item.slice(0, 200),
           status: "todo",
@@ -130,7 +130,7 @@ export async function chatToTask(conversationId: string): Promise<C2XResult<{
 
     return { ok: true, data: { created: tasks.length, tasks } }
   } catch (e) {
-    return { ok: false, error: "chat_to_task_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_task_failed", message: String(e) }
   }
 }
 
@@ -174,7 +174,7 @@ export async function chatToProject(conversationId: string): Promise<C2XResult<{
 
     return { ok: true, data: { id: project.id, name: project.name, milestones } }
   } catch (e) {
-    return { ok: false, error: "chat_to_project_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_project_failed", message: String(e) }
   }
 }
 
@@ -212,7 +212,7 @@ export async function chatToResearch(conversationId: string): Promise<C2XResult<
       },
     }
   } catch (e) {
-    return { ok: false, error: "chat_to_research_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_research_failed", message: String(e) }
   }
 }
 
@@ -253,7 +253,7 @@ export async function chatToKnowledge(conversationId: string): Promise<C2XResult
 
     return { ok: true, data: { saved: items.length, items } }
   } catch (e) {
-    return { ok: false, error: "chat_to_knowledge_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_knowledge_failed", message: String(e) }
   }
 }
 
@@ -285,16 +285,7 @@ export async function chatToAutomation(conversationId: string): Promise<C2XResul
 
       for (const { pattern, trigger } of schedulePatterns) {
         if (pattern.test(trimmed)) {
-          // Create scheduled task
-          const task = await db.scheduledTask.create({
-            data: {
-              name: trimmed.slice(0, 100),
-              cron: trigger === "daily" ? "0 9 * * *" : trigger === "weekly" ? "0 9 * * 1" : trigger === "hourly" ? "0 * * * *" : "*/5 * * * *",
-              enabled: false, // disabled by default
-              action: "notify",
-              payload: JSON.stringify({ conversationId, text: trimmed }),
-            },
-          })
+          const task = await db.scheduledTask.create({ data: { name: trimmed.slice(0, 100), schedule: "daily", goal: "auto", enabled: false, payload: JSON.stringify({ conversationId, text: trimmed }) } as any })
           automations.push({ id: task.id, name: task.name, trigger })
           break
         }
@@ -303,7 +294,7 @@ export async function chatToAutomation(conversationId: string): Promise<C2XResul
 
     return { ok: true, data: { created: automations.length, automations } }
   } catch (e) {
-    return { ok: false, error: "chat_to_automation_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_automation_failed", message: String(e) }
   }
 }
 
@@ -343,7 +334,7 @@ export async function chatToAgentRun(conversationId: string): Promise<C2XResult<
       },
     }
   } catch (e) {
-    return { ok: false, error: "chat_to_agent_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_agent_failed", message: String(e) }
   }
 }
 
@@ -396,7 +387,7 @@ export async function chatToArtifact(conversationId: string): Promise<C2XResult<
       },
     }
   } catch (e) {
-    return { ok: false, error: "chat_to_artifact_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_artifact_failed", message: String(e) }
   }
 }
 
@@ -432,7 +423,7 @@ export async function chatToCode(conversationId: string, targetDir?: string): Pr
       },
     }
   } catch (e) {
-    return { ok: false, error: "chat_to_code_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_code_failed", message: String(e) }
   }
 }
 
@@ -470,7 +461,7 @@ export async function chatToChecklist(conversationId: string): Promise<C2XResult
       },
     }
   } catch (e) {
-    return { ok: false, error: "chat_to_checklist_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_checklist_failed", message: String(e) }
   }
 }
 
@@ -507,7 +498,7 @@ export async function chatToDecision(conversationId: string): Promise<C2XResult<
 
     return { ok: true, data: { saved: saved.length, decisions: saved } }
   } catch (e) {
-    return { ok: false, error: "chat_to_decision_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "chat_to_decision_failed", message: String(e) }
   }
 }
 
@@ -559,6 +550,6 @@ export async function chatToEverything(conversationId: string): Promise<C2XResul
       },
     }
   } catch (e) {
-    return { ok: false, error: "everything_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "everything_failed", message: String(e) }
   }
 }

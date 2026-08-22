@@ -54,7 +54,7 @@ export type BacklogStatus = "pending" | "in_progress" | "done" | "superseded" | 
 
 export interface ReliabilityResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -186,7 +186,7 @@ export async function repositoryHealthScan(): Promise<ReliabilityResult<HealthSn
 
     return { ok: true, data: snapshot }
   } catch (e) {
-    return { ok: false, error: "health_scan_failed", message: `❌ فشل الفحص: ${e instanceof Error ? e.message : String(e)}` }
+    return { ok: false, data: null as any, error: "health_scan_failed", message: `❌ فشل الفحص: ${e instanceof Error ? e.message : String(e)}` }
   }
 }
 
@@ -237,7 +237,7 @@ export async function architectureScan(): Promise<ReliabilityResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "arch_scan_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "arch_scan_failed", message: String(e) }
   }
 }
 
@@ -274,7 +274,7 @@ export async function deadCodeDetection(): Promise<ReliabilityResult<Array<{
         // Skip main entry points
         if (sym.name === "default" || sym.name === "main") continue
         // If never called and is exported, mark as dead
-        if (!calledSymbols.has(sym.name) && sym.kind !== "import") {
+        if (!calledSymbols.has(sym.name) && (sym as any).kind !== "import") {
           dead.push({
             path: fileSyms.path,
             symbol: sym.name,
@@ -288,7 +288,7 @@ export async function deadCodeDetection(): Promise<ReliabilityResult<Array<{
     // Cap to 200 to avoid noise
     return { ok: true, data: dead.slice(0, 200) }
   } catch (e) {
-    return { ok: false, error: "dead_code_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "dead_code_failed", message: String(e) }
   }
 }
 
@@ -336,7 +336,7 @@ export function duplicateLogicDetection(files: FileInfo[]): ReliabilityResult<Ar
 
     return { ok: true, data: duplicates.slice(0, 50) }
   } catch (e) {
-    return { ok: false, error: "duplicate_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "duplicate_failed", message: String(e) }
   }
 }
 
@@ -376,7 +376,7 @@ export function couplingAnalysis(imports: ImportEdge[], calls: CallEdge[]): Reli
     results.sort((a, b) => b.couplingScore - a.couplingScore)
     return { ok: true, data: results.slice(0, 50) }
   } catch (e) {
-    return { ok: false, error: "coupling_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "coupling_failed", message: String(e) }
   }
 }
 
@@ -444,7 +444,7 @@ export function importCycleDetection(imports: ImportEdge[]): ReliabilityResult<A
 
     return { ok: true, data: cycles }
   } catch (e) {
-    return { ok: false, error: "cycle_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "cycle_failed", message: String(e) }
   }
 }
 
@@ -487,7 +487,7 @@ export function missingTestDetection(files: FileInfo[], symbols: { path: string;
 
     return { ok: true, data: missing.slice(0, 100) }
   } catch (e) {
-    return { ok: false, error: "missing_test_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "missing_test_failed", message: String(e) }
   }
 }
 
@@ -533,7 +533,7 @@ export function securityDebtScan(files: FileInfo[]): ReliabilityResult<Array<{
     }
     return { ok: true, data: issues.slice(0, 100) }
   } catch (e) {
-    return { ok: false, error: "security_scan_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "security_scan_failed", message: String(e) }
   }
 }
 
@@ -576,7 +576,7 @@ export function technicalDebtScan(files: FileInfo[]): ReliabilityResult<Array<{
     }
     return { ok: true, data: issues.slice(0, 200) }
   } catch (e) {
-    return { ok: false, error: "tech_debt_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "tech_debt_failed", message: String(e) }
   }
 }
 
@@ -589,7 +589,7 @@ export async function hotspotDetection(): Promise<ReliabilityResult<Hotspot[]>> 
     const hotspots = await detectHotspots()
     return { ok: true, data: hotspots }
   } catch (e) {
-    return { ok: false, error: "hotspot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "hotspot_failed", message: String(e) }
   }
 }
 
@@ -712,7 +712,7 @@ export async function backlogGenerate(): Promise<ReliabilityResult<{
     const total = await db.autonomousBacklogItem.count({ where: { status: "pending" } })
     return { ok: true, data: { created, deduplicated, total } }
   } catch (e) {
-    return { ok: false, error: "backlog_generate_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "backlog_generate_failed", message: String(e) }
   }
 }
 
@@ -752,7 +752,7 @@ export async function backlogDeduplicate(): Promise<ReliabilityResult<{ merged: 
     const total = await db.autonomousBacklogItem.count({ where: { status: "pending" } })
     return { ok: true, data: { merged, total } }
   } catch (e) {
-    return { ok: false, error: "dedup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "dedup_failed", message: String(e) }
   }
 }
 
@@ -785,7 +785,7 @@ export async function backlogPrioritize(): Promise<ReliabilityResult<{ repriorit
 
     return { ok: true, data: { reprioritized } }
   } catch (e) {
-    return { ok: false, error: "prioritize_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "prioritize_failed", message: String(e) }
   }
 }
 
@@ -809,7 +809,7 @@ export async function backlogCooldown(itemIds?: string[], hoursAhead: number = 2
     })
     return { ok: true, data: { cooledDown: result.count } }
   } catch (e) {
-    return { ok: false, error: "cooldown_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "cooldown_failed", message: String(e) }
   }
 }
 
@@ -820,8 +820,8 @@ export async function backlogCooldown(itemIds?: string[], hoursAhead: number = 2
 export async function taskSupersede(oldId: string, newId: string): Promise<ReliabilityResult<{ superseded: boolean }>> {
   try {
     const oldItem = await db.autonomousBacklogItem.findUnique({ where: { id: oldId } })
-    if (!oldItem) return { ok: false, error: "not_found", message: `❌ المهمة ${oldId} غير موجودة` }
-    if (oldItem.status === "done") return { ok: false, error: "already_done", message: "❌ المهمة منجزة بالفعل" }
+    if (!oldItem) return { ok: false, data: null as any, error: "not_found", message: `❌ المهمة ${oldId} غير موجودة` }
+    if (oldItem.status === "done") return { ok: false, data: null as any, error: "already_done", message: "❌ المهمة منجزة بالفعل" }
 
     await db.autonomousBacklogItem.update({
       where: { id: oldId },
@@ -829,7 +829,7 @@ export async function taskSupersede(oldId: string, newId: string): Promise<Relia
     })
     return { ok: true, data: { superseded: true } }
   } catch (e) {
-    return { ok: false, error: "supersede_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "supersede_failed", message: String(e) }
   }
 }
 
@@ -863,7 +863,7 @@ export async function taskDAG(): Promise<ReliabilityResult<{
 
     return { ok: true, data: { nodes, edges, readyToExecute } }
   } catch (e) {
-    return { ok: false, error: "dag_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "dag_failed", message: String(e) }
   }
 }
 
@@ -912,7 +912,7 @@ export async function sequentialExecute(itemIds: string[]): Promise<ReliabilityR
 
     return { ok: true, data: { executed, succeeded, failed, results } }
   } catch (e) {
-    return { ok: false, error: "execute_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "execute_failed", message: String(e) }
   }
 }
 
@@ -946,7 +946,7 @@ export async function parallelDeterministicWork(): Promise<ReliabilityResult<{
 
     return { ok: true, data: { parallelJobs: readyIds.length, results } }
   } catch (e) {
-    return { ok: false, error: "parallel_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "parallel_failed", message: String(e) }
   }
 }
 
@@ -981,7 +981,7 @@ export async function continuousHealthLoop(): Promise<ReliabilityResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "continuous_loop_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "continuous_loop_failed", message: String(e) }
   }
 }
 
@@ -1015,7 +1015,7 @@ export async function autonomousMaintenance(): Promise<ReliabilityResult<{
       data: { autoFixed, cooldowns, superseded, totalPending },
     }
   } catch (e) {
-    return { ok: false, error: "maintenance_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "maintenance_failed", message: String(e) }
   }
 }
 
@@ -1060,7 +1060,7 @@ export async function autonomousSnapshot(): Promise<ReliabilityResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }
 
@@ -1092,7 +1092,7 @@ export async function listBacklog(status?: string, limit: number = 50): Promise<
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_failed", message: String(e) }
   }
 }
 
@@ -1125,6 +1125,6 @@ export async function listHealthScans(limit: number = 10): Promise<ReliabilityRe
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_scans_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_scans_failed", message: String(e) }
   }
 }

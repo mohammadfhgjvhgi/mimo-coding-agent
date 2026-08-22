@@ -27,7 +27,7 @@ import { PROVIDER_REGISTRY } from "@/lib/llm-providers/registry"
 
 export interface AdminResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -40,7 +40,7 @@ export async function providerManager(): Promise<AdminResult<{
   providers: Array<{
     id: string
     name: string
-    enabled: boolean
+    enabled: boolean | string
     isDefault: boolean
     hasKey: boolean
     baseURL: string | null
@@ -77,7 +77,7 @@ export async function providerManager(): Promise<AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "provider_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "provider_manager_failed", message: String(e) }
   }
 }
 
@@ -91,7 +91,7 @@ export async function modelManager(): Promise<AdminResult<{
     provider: string
     name: string
     contextWindow: number
-    enabled: boolean
+    enabled: boolean | string
   }>
   total: number
   byProvider: Record<string, number>
@@ -100,7 +100,7 @@ export async function modelManager(): Promise<AdminResult<{
     const dbProviders = await db.provider.findMany({ where: { enabled: true } })
     const enabledSet = new Set(dbProviders.map(p => p.providerId))
 
-    const models: Array<{ id: string; provider: string; name: string; contextWindow: number; enabled: boolean }> = []
+    const models: Array<{ id: string; provider: string; name: string; contextWindow: number; enabled: boolean | string }> = []
     for (const reg of Object.values(PROVIDER_REGISTRY)) {
       for (const model of reg.models ?? []) {
         models.push({
@@ -120,7 +120,7 @@ export async function modelManager(): Promise<AdminResult<{
 
     return { ok: true, data: { models, total: models.length, byProvider } }
   } catch (e) {
-    return { ok: false, error: "model_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "model_manager_failed", message: String(e) }
   }
 }
 
@@ -148,7 +148,7 @@ export async function mcpManager(): Promise<AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "mcp_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "mcp_manager_failed", message: String(e) }
   }
 }
 
@@ -162,7 +162,7 @@ export async function pluginManager(): Promise<AdminResult<{
     name: string
     displayName: string
     version: string
-    enabled: boolean
+    enabled: boolean | string
     description: string | null
   }>
   total: number
@@ -170,19 +170,19 @@ export async function pluginManager(): Promise<AdminResult<{
 }>> {
   try {
     const plugins = await db.plugin.findMany({
-      select: { id: true, name: true, displayName: true, version: true, enabled: true, description: true },
+      select: { id: true, name: true, displayName: true, version: true, status: true, description: true },
       orderBy: { displayName: "asc" },
     })
     return {
       ok: true,
       data: {
-        plugins,
+        plugins: plugins.map((p: any) => ({ id: p.id, name: p.name, displayName: p.displayName, version: p.version, enabled: p.status === "enabled", description: p.description })),
         total: plugins.length,
-        enabled: plugins.filter(p => p.enabled).length,
+        enabled: plugins.filter((p: any) => p.status === "enabled").length,
       },
     }
   } catch (e) {
-    return { ok: false, error: "plugin_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "plugin_manager_failed", message: String(e) }
   }
 }
 
@@ -198,7 +198,7 @@ export async function skillManager(): Promise<AdminResult<{
   try {
     const { listSkillLibrary } = await import("@/lib/collaboration/os")
     const result = await listSkillLibrary()
-    const skills = result.ok ? result.data : []
+    const skills = (result.ok ? result.data : []) as any[]
     return {
       ok: true,
       data: {
@@ -208,7 +208,7 @@ export async function skillManager(): Promise<AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "skill_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "skill_manager_failed", message: String(e) }
   }
 }
 
@@ -270,7 +270,7 @@ export function workspaceManager(): AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "workspace_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "workspace_manager_failed", message: String(e) }
   }
 }
 
@@ -365,7 +365,7 @@ export function storageManager(): AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "storage_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "storage_manager_failed", message: String(e) }
   }
 }
 
@@ -382,7 +382,7 @@ export async function backupManager(action: "create" | "list" | "restore" | "del
 
     if (action === "create") {
       const dbPath = path.join(WORKSPACE_ROOT, "db", "custom.db")
-      if (!existsSync(dbPath)) return { ok: false, error: "no_db", message: "❌ قاعدة البيانات غير موجودة" }
+      if (!existsSync(dbPath)) return { ok: false, data: null as any, error: "no_db", message: "❌ قاعدة البيانات غير موجودة" }
 
       const backupName = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.db`
       const backupPath = path.join(backupDir, backupName)
@@ -418,7 +418,7 @@ export async function backupManager(action: "create" | "list" | "restore" | "del
 
     if (action === "restore" && opts?.backupId) {
       const backupPath = path.join(backupDir, opts.backupId)
-      if (!existsSync(backupPath)) return { ok: false, error: "not_found", message: "❌ النسخة الاحتياطية غير موجودة" }
+      if (!existsSync(backupPath)) return { ok: false, data: null as any, error: "not_found", message: "❌ النسخة الاحتياطية غير موجودة" }
       const dbPath = path.join(WORKSPACE_ROOT, "db", "custom.db")
       const data = readFileSync(backupPath)
       await writeFile(dbPath, data)
@@ -427,15 +427,15 @@ export async function backupManager(action: "create" | "list" | "restore" | "del
 
     if (action === "delete" && opts?.backupId) {
       const backupPath = path.join(backupDir, opts.backupId)
-      if (!existsSync(backupPath)) return { ok: false, error: "not_found", message: "❌ النسخة غير موجودة" }
+      if (!existsSync(backupPath)) return { ok: false, data: null as any, error: "not_found", message: "❌ النسخة غير موجودة" }
       const { unlink } = await import("node:fs/promises")
       await unlink(backupPath)
       return { ok: true, data: { deleted: true } }
     }
 
-    return { ok: false, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
+    return { ok: false, data: null as any, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
   } catch (e) {
-    return { ok: false, error: "backup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "backup_failed", message: String(e) }
   }
 }
 
@@ -503,9 +503,9 @@ export async function importExportManager(action: "export" | "import", opts?: { 
       return { ok: true, data: { imported, total: imported } }
     }
 
-    return { ok: false, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
+    return { ok: false, data: null as any, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
   } catch (e) {
-    return { ok: false, error: "import_export_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "import_export_failed", message: String(e) }
   }
 }
 
@@ -591,7 +591,7 @@ export function systemHealth(): AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "health_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "health_failed", message: String(e) }
   }
 }
 
@@ -651,7 +651,7 @@ export function logViewer(opts?: { lines?: number; level?: string }): AdminResul
       },
     }
   } catch (e) {
-    return { ok: false, error: "log_viewer_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "log_viewer_failed", message: String(e) }
   }
 }
 
@@ -713,6 +713,6 @@ export async function adminSnapshot(): Promise<AdminResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }

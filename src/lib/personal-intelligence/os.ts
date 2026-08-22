@@ -19,7 +19,7 @@ import { db } from "@/lib/db"
 
 export interface PIResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -80,7 +80,7 @@ export async function personalProfile(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "profile_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "profile_failed", message: String(e) }
   }
 }
 
@@ -116,7 +116,7 @@ export async function preferenceEngine(action: "get" | "set" | "list", opts?: { 
       })),
     }
   } catch (e) {
-    return { ok: false, error: "preference_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "preference_failed", message: String(e) }
   }
 }
 
@@ -161,7 +161,7 @@ export async function goalEngine(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "goal_engine_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "goal_engine_failed", message: String(e) }
   }
 }
 
@@ -235,7 +235,7 @@ export async function priorityEngine(): Promise<PIResult<{
 
     return { ok: true, data: { ranked: ranked.slice(0, 20), total: ranked.length } }
   } catch (e) {
-    return { ok: false, error: "priority_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "priority_failed", message: String(e) }
   }
 }
 
@@ -274,26 +274,26 @@ export async function routineDetection(): Promise<PIResult<{
 
     // Find peak hours
     const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]
-    if (peakHour && parseInt(peakHour[1]) > 3) {
+    if (peakHour && Number(peakHour[1]) > 3) {
       routines.push({
         pattern: `نشاط في الساعة ${peakHour[0]}:00`,
         frequency: "يومي",
-        occurrences: parseInt(peakHour[1]),
+        occurrences: Number(peakHour[1]),
         lastSeen: conversations[0]?.updatedAt.toISOString() ?? new Date().toISOString(),
-        confidence: Math.min(100, parseInt(peakHour[1]) * 10),
+        confidence: Math.min(100, Number(peakHour[1]) * 10),
       })
     }
 
     // Find peak days
     const dayNames = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"]
     const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0]
-    if (peakDay && parseInt(peakDay[1]) > 3) {
+    if (peakDay && Number(peakDay[1]) > 3) {
       routines.push({
         pattern: `نشاط يوم ${dayNames[parseInt(peakDay[0])]}`,
         frequency: "أسبوعي",
-        occurrences: parseInt(peakDay[1]),
+        occurrences: Number(peakDay[1]),
         lastSeen: conversations[0]?.updatedAt.toISOString() ?? new Date().toISOString(),
-        confidence: Math.min(100, parseInt(peakDay[1]) * 15),
+        confidence: Math.min(100, Number(peakDay[1]) * 15),
       })
     }
 
@@ -305,19 +305,19 @@ export async function routineDetection(): Promise<PIResult<{
       taskHourCounts[h] = (taskHourCounts[h] ?? 0) + 1
     }
     const peakTaskHour = Object.entries(taskHourCounts).sort((a, b) => b[1] - a[1])[0]
-    if (peakTaskHour && parseInt(peakTaskHour[1]) > 2) {
+    if (peakTaskHour && Number(peakTaskHour[1]) > 2) {
       routines.push({
         pattern: `إنشاء مهام في الساعة ${peakTaskHour[0]}:00`,
         frequency: "يومي",
-        occurrences: parseInt(peakTaskHour[1]),
+        occurrences: Number(peakTaskHour[1]),
         lastSeen: new Date().toISOString(),
-        confidence: Math.min(100, parseInt(peakTaskHour[1]) * 20),
+        confidence: Math.min(100, Number(peakTaskHour[1]) * 20),
       })
     }
 
     return { ok: true, data: { routines, total: routines.length } }
   } catch (e) {
-    return { ok: false, error: "routine_detection_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "routine_detection_failed", message: String(e) }
   }
 }
 
@@ -383,7 +383,7 @@ export async function routineSuggestions(): Promise<PIResult<{
 
     return { ok: true, data: { suggestions, total: suggestions.length } }
   } catch (e) {
-    return { ok: false, error: "suggestions_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "suggestions_failed", message: String(e) }
   }
 }
 
@@ -421,7 +421,7 @@ export async function decisionHistory(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "decision_history_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "decision_history_failed", message: String(e) }
   }
 }
 
@@ -477,7 +477,7 @@ export async function projectRelationships(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "project_rels_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "project_rels_failed", message: String(e) }
   }
 }
 
@@ -538,7 +538,7 @@ export async function knowledgeRelationships(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "knowledge_rels_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "knowledge_rels_failed", message: String(e) }
   }
 }
 
@@ -601,7 +601,7 @@ export async function personalTimeline(limit: number = 50): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "timeline_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "timeline_failed", message: String(e) }
   }
 }
 
@@ -641,6 +641,6 @@ export async function personalIntelligenceSnapshot(): Promise<PIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }

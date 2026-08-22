@@ -544,7 +544,7 @@ export function ChatSidebar({
         <TabButton icon={<FileCode className="h-4 w-4" />} label="محرر" active={sidebarTab === "editor"} onClick={() => setSidebarTab("editor")} title="محرر الكود / Code Editor" />
         <TabButton icon={<GitBranch className="h-4 w-4" />} label="git" active={sidebarTab === "git"} onClick={() => setSidebarTab("git")} title="Git" />
         <TabButton icon={<Activity className="h-4 w-4" />} label="سياق" active={sidebarTab === "context"} onClick={() => setSidebarTab("context")} title="مفتش السياق / Context Inspector" />
-        <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin")} title="الإدارة والتشغيل / Admin & Ops" />
+        <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin" as never)} title="الإدارة والتشغيل / Admin & Ops" />
       </div>
       )}
 

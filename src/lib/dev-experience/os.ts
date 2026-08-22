@@ -29,7 +29,7 @@ import { WORKSPACE_ROOT } from "@/lib/tools/workspace"
 
 export interface DExResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -236,7 +236,7 @@ export async function listProjectTemplates(): Promise<DExResult<ProjectTemplate[
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_templates_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_templates_failed", message: String(e) }
   }
 }
 
@@ -266,19 +266,19 @@ export async function createProjectTemplate(opts: {
     })
     return { ok: true, data: { id: created.id } }
   } catch (e) {
-    return { ok: false, error: "create_template_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "create_template_failed", message: String(e) }
   }
 }
 
 export async function deleteProjectTemplate(id: string): Promise<DExResult<{ deleted: boolean }>> {
   try {
     const existing = await db.devProjectTemplate.findUnique({ where: { id } })
-    if (!existing) return { ok: false, error: "not_found", message: "القالب غير موجود" }
-    if (existing.builtin) return { ok: false, error: "builtin", message: "❌ لا يمكن حذف قالب مدمج" }
+    if (!existing) return { ok: false, data: null as any, error: "not_found", message: "القالب غير موجود" }
+    if (existing.builtin) return { ok: false, data: null as any, error: "builtin", message: "❌ لا يمكن حذف قالب مدمج" }
     await db.devProjectTemplate.delete({ where: { id } })
     return { ok: true, data: { deleted: true } }
   } catch (e) {
-    return { ok: false, error: "delete_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "delete_failed", message: String(e) }
   }
 }
 
@@ -293,7 +293,7 @@ export async function projectScaffolding(opts: {
 }): Promise<DExResult<{ created: string[]; targetPath: string }>> {
   try {
     const template = await db.devProjectTemplate.findUnique({ where: { name: opts.templateName } })
-    if (!template) return { ok: false, error: "not_found", message: `❌ القالب ${opts.templateName} غير موجود` }
+    if (!template) return { ok: false, data: null as any, error: "not_found", message: `❌ القالب ${opts.templateName} غير موجود` }
 
     const targetPath = opts.targetPath ?? path.join(WORKSPACE_ROOT, opts.projectName ?? opts.templateName)
     const files = JSON.parse(template.files) as Record<string, string>
@@ -318,7 +318,7 @@ export async function projectScaffolding(opts: {
       },
     }
   } catch (e) {
-    return { ok: false, error: "scaffold_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "scaffold_failed", message: String(e) }
   }
 }
 
@@ -385,7 +385,7 @@ export function frameworkDetection(): DExResult<FrameworkInfo> {
 
     return { ok: true, data: { name: "unknown", version: null, confidence: 0, reason: "No framework detected" } }
   } catch (e) {
-    return { ok: false, error: "framework_detection_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "framework_detection_failed", message: String(e) }
   }
 }
 
@@ -429,7 +429,7 @@ export function packageManagerDetection(): DExResult<PackageManagerInfo> {
 
     return { ok: true, data: { name: "unknown", version: null, lockFile: null, reason: "No package manager detected" } }
   } catch (e) {
-    return { ok: false, error: "pm_detection_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "pm_detection_failed", message: String(e) }
   }
 }
 
@@ -464,7 +464,7 @@ export function testFrameworkDetection(): DExResult<TestFrameworkInfo> {
 
     return { ok: true, data: { name: "unknown", version: null, configFiles: [], reason: "No test framework detected" } }
   } catch (e) {
-    return { ok: false, error: "test_detection_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "test_detection_failed", message: String(e) }
   }
 }
 
@@ -536,7 +536,7 @@ export function commandDiscovery(): DExResult<CommandInfo[]> {
 
     return { ok: true, data: commands }
   } catch (e) {
-    return { ok: false, error: "command_discovery_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "command_discovery_failed", message: String(e) }
   }
 }
 
@@ -593,7 +593,7 @@ export async function listConstitution(type?: string): Promise<DExResult<Constit
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_constitution_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_constitution_failed", message: String(e) }
   }
 }
 
@@ -616,19 +616,19 @@ export async function addConstitution(opts: {
     })
     return { ok: true, data: { id: created.id } }
   } catch (e) {
-    return { ok: false, error: "add_constitution_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "add_constitution_failed", message: String(e) }
   }
 }
 
 export async function deleteConstitution(id: string): Promise<DExResult<{ deleted: boolean }>> {
   try {
     const existing = await db.devConstitution.findUnique({ where: { id } })
-    if (!existing) return { ok: false, error: "not_found", message: "القاعدة غير موجودة" }
-    if (existing.builtin) return { ok: false, error: "builtin", message: "❌ لا يمكن حذف قاعدة مدمجة" }
+    if (!existing) return { ok: false, data: null as any, error: "not_found", message: "القاعدة غير موجودة" }
+    if (existing.builtin) return { ok: false, data: null as any, error: "builtin", message: "❌ لا يمكن حذف قاعدة مدمجة" }
     await db.devConstitution.delete({ where: { id } })
     return { ok: true, data: { deleted: true } }
   } catch (e) {
-    return { ok: false, error: "delete_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "delete_failed", message: String(e) }
   }
 }
 
@@ -673,7 +673,7 @@ export async function repositoryProfile(): Promise<DExResult<RepositoryProfile>>
       },
     }
   } catch (e) {
-    return { ok: false, error: "profile_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "profile_failed", message: String(e) }
   }
 }
 
@@ -747,6 +747,6 @@ export async function dexSnapshot(): Promise<DExResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }

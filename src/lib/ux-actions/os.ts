@@ -23,7 +23,7 @@ import { db } from "@/lib/db"
 
 export interface UXResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -90,7 +90,7 @@ ${after.slice(0, 200)}
       },
     }
   } catch (e) {
-    return { ok: false, error: "inline_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "inline_failed", message: String(e) }
   }
 }
 
@@ -124,7 +124,7 @@ export function selectionActions(opts: { text: string; context?: string }): UXRe
       },
     }
   } catch (e) {
-    return { ok: false, error: "selection_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "selection_failed", message: String(e) }
   }
 }
 
@@ -134,13 +134,13 @@ export function selectionActions(opts: { text: string; context?: string }): UXRe
 
 export function explainSelection(text: string, language?: string): UXResult<{ prompt: string; action: string }> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     const isCode = /```|function|const|class|import|def /.test(text)
     const prompt = isCode
       ? `اشرح الكود التالي خطوة بخطوة بلغة بسيطة. اشرح ما يفعله، المدخلات، المخرجات، والحالات الخاصة:\n\n\`\`\`\n${text}\n\`\`\``
       : `اشرح المحتوى التالي بوضوح مع أمثلة إن أمكن:\n\n${text}`
     return { ok: true, data: { prompt, action: "explain" } }
-  } catch (e) { return { ok: false, error: "explain_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "explain_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -149,11 +149,11 @@ export function explainSelection(text: string, language?: string): UXResult<{ pr
 
 export function refactorSelection(code: string, language?: string): UXResult<{ prompt: string; action: string }> {
   try {
-    if (!code.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد كود محدد" }
+    if (!code.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد كود محدد" }
     const lang = language ?? "typescript"
     const prompt = `أعد هيكلة الكود التالي (${lang}) مع اتباع أفضل الممارسات. اشرح كل تغيير قمت به:\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\nركّز على:\n- قابلية القراءة\n- الأداء\n- الأمان\n- إزالة التكرار`
     return { ok: true, data: { prompt, action: "refactor" } }
-  } catch (e) { return { ok: false, error: "refactor_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "refactor_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -162,12 +162,12 @@ export function refactorSelection(code: string, language?: string): UXResult<{ p
 
 export function translateSelection(text: string, targetLang?: string): UXResult<{ prompt: string; action: string }> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     const isArabic = /[\u0600-\u06FF]/.test(text)
     const target = targetLang ?? (isArabic ? "الإنجليزية" : "العربية")
     const prompt = `ترجم المحتوى التالي إلى ${target}. حافظ على المعنى والسياق:\n\n${text}`
     return { ok: true, data: { prompt, action: "translate" } }
-  } catch (e) { return { ok: false, error: "translate_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "translate_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -176,11 +176,11 @@ export function translateSelection(text: string, targetLang?: string): UXResult<
 
 export function summarizeSelection(text: string): UXResult<{ prompt: string; action: string }> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
-    if (text.length < 100) return { ok: false, error: "too_short", message: "❌ النص قصير جداً للتلخيص" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (text.length < 100) return { ok: false, data: null as any, error: "too_short", message: "❌ النص قصير جداً للتلخيص" }
     const prompt = `لخّص المحتوى التالي في 3-5 نقاط رئيسية:\n\n${text}`
     return { ok: true, data: { prompt, action: "summarize" } }
-  } catch (e) { return { ok: false, error: "summarize_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "summarize_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -189,11 +189,11 @@ export function summarizeSelection(text: string): UXResult<{ prompt: string; act
 
 export function askAboutSelection(text: string, question?: string): UXResult<{ prompt: string; action: string }> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     const q = question ?? "ما هو هذا؟"
     const prompt = `بناءً على المحتوى التالي، أجب عن السؤال:\n\nالمحتوى:\n${text}\n\nالسؤال: ${q}`
     return { ok: true, data: { prompt, action: "ask" } }
-  } catch (e) { return { ok: false, error: "ask_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "ask_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -202,9 +202,9 @@ export function askAboutSelection(text: string, question?: string): UXResult<{ p
 
 export async function convertToTask(text: string, opts?: { priority?: string; projectId?: string }): Promise<UXResult<{ id: string; title: string }>> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     const title = text.slice(0, 100).trim().replace(/\n/g, " ")
-    const task = await db.task.create({
+    const task = await db.pTask.create({
       data: {
         title,
         status: "todo",
@@ -213,7 +213,7 @@ export async function convertToTask(text: string, opts?: { priority?: string; pr
       },
     })
     return { ok: true, data: { id: task.id, title: task.title } }
-  } catch (e) { return { ok: false, error: "task_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "task_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ export async function convertToTask(text: string, opts?: { priority?: string; pr
 
 export async function convertToNote(text: string, opts?: { title?: string; tags?: string[] }): Promise<UXResult<{ id: string; title: string }>> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     // Save as a memory entry (notes are memories with category "note")
     const key = `note_${Date.now()}`
     const title = opts?.title ?? text.slice(0, 50).trim().replace(/\n/g, " ")
@@ -235,7 +235,7 @@ export async function convertToNote(text: string, opts?: { title?: string; tags?
       },
     })
     return { ok: true, data: { id: memory.id, title } }
-  } catch (e) { return { ok: false, error: "note_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "note_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ export async function convertToNote(text: string, opts?: { title?: string; tags?
 
 export async function convertToKnowledge(text: string, opts?: { title?: string; tags?: string[] }): Promise<UXResult<{ id: string; title: string }>> {
   try {
-    if (!text.trim()) return { ok: false, error: "empty", message: "❌ لا يوجد نص محدد" }
+    if (!text.trim()) return { ok: false, data: null as any, error: "empty", message: "❌ لا يوجد نص محدد" }
     const title = opts?.title ?? text.slice(0, 80).trim().replace(/\n/g, " ")
 
     // Save to SharedKnowledge (from collaboration OS)
@@ -261,7 +261,7 @@ export async function convertToKnowledge(text: string, opts?: { title?: string; 
     }) ?? { id: "no-table", title }
 
     return { ok: true, data: { id: knowledge.id, title: knowledge.title ?? title } }
-  } catch (e) { return { ok: false, error: "knowledge_failed", message: String(e) } }
+  } catch (e) { return { ok: false, data: null as any, error: "knowledge_failed", message: String(e) } }
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +285,6 @@ export function uxSnapshot(): UXResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }

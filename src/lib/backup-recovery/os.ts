@@ -22,7 +22,7 @@ import { createHash } from "node:crypto"
 
 export interface BResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -98,7 +98,7 @@ export async function conversationBackup(opts?: { conversationIds?: string[]; la
       },
     }
   } catch (e) {
-    return { ok: false, error: "conversation_backup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "conversation_backup_failed", message: String(e) }
   }
 }
 
@@ -134,7 +134,7 @@ export async function memoryBackup(opts?: { label?: string }): Promise<BResult<{
 
     return { ok: true, data: { archiveId: archive.id, memories: memories.length, sizeBytes } }
   } catch (e) {
-    return { ok: false, error: "memory_backup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "memory_backup_failed", message: String(e) }
   }
 }
 
@@ -147,7 +147,7 @@ export async function projectMetadataBackup(opts?: { label?: string }): Promise<
     const [projects, goals, tasks] = await Promise.all([
       db.project.findMany(),
       db.goal.findMany(),
-      db.task.findMany(),
+      db.pTask.findMany(),
     ])
 
     const content = {
@@ -184,7 +184,7 @@ export async function projectMetadataBackup(opts?: { label?: string }): Promise<
       },
     }
   } catch (e) {
-    return { ok: false, error: "project_backup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "project_backup_failed", message: String(e) }
   }
 }
 
@@ -225,7 +225,7 @@ export async function settingsBackup(opts?: { label?: string }): Promise<BResult
 
     return { ok: true, data: { archiveId: archive.id, providers: providers.length, sizeBytes } }
   } catch (e) {
-    return { ok: false, error: "settings_backup_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "settings_backup_failed", message: String(e) }
   }
 }
 
@@ -261,7 +261,7 @@ export async function checkpointArchive(opts?: { label?: string }): Promise<BRes
 
     return { ok: true, data: { archiveId: archive.id, checkpoints: checkpoints.length, sizeBytes } }
   } catch (e) {
-    return { ok: false, error: "checkpoint_archive_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "checkpoint_archive_failed", message: String(e) }
   }
 }
 
@@ -272,8 +272,8 @@ export async function checkpointArchive(opts?: { label?: string }): Promise<BRes
 export async function recoveryWizard(opts: { archiveId: string }): Promise<BResult<{ restored: number; failed: number; details: string[] }>> {
   try {
     const archive = await db.backupArchive.findUnique({ where: { id: opts.archiveId } })
-    if (!archive) return { ok: false, error: "not_found", message: "❌ الأرشيف غير موجود" }
-    if (archive.status !== "completed") return { ok: false, error: "invalid_status", message: "❌ الأرشيف غير مكتمل" }
+    if (!archive) return { ok: false, data: null as any, error: "not_found", message: "❌ الأرشيف غير موجود" }
+    if (archive.status !== "completed") return { ok: false, data: null as any, error: "invalid_status", message: "❌ الأرشيف غير مكتمل" }
 
     const content = JSON.parse(archive.content)
     let restored = 0
@@ -337,7 +337,7 @@ export async function recoveryWizard(opts: { archiveId: string }): Promise<BResu
       }
       for (const task of content.tasks ?? []) {
         try {
-          await db.task.upsert({
+          await db.pTask.upsert({
             where: { id: task.id },
             create: { id: task.id, title: task.title, status: task.status ?? "todo", priority: task.priority ?? "medium" },
             update: { title: task.title },
@@ -374,7 +374,7 @@ export async function recoveryWizard(opts: { archiveId: string }): Promise<BResu
 
     return { ok: true, data: { restored, failed, details } }
   } catch (e) {
-    return { ok: false, error: "wizard_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "wizard_failed", message: String(e) }
   }
 }
 
@@ -393,7 +393,7 @@ export async function crashRecovery(): Promise<BResult<{
     // 1. Look for in-progress tasks (status = "in_progress" with old updatedAt)
     // 2. Look for the last backup archive
 
-    const inProgressTasks = await db.task.findMany({
+    const inProgressTasks = await db.pTask.findMany({
       where: { status: "in_progress" },
     })
 
@@ -438,7 +438,7 @@ export async function crashRecovery(): Promise<BResult<{
     let restoredCount = 0
     for (const task of inProgressTasks) {
       try {
-        await db.task.update({ where: { id: task.id }, data: { status: "todo" } })
+        await db.pTask.update({ where: { id: task.id }, data: { status: "todo" } })
         restoredCount++
       } catch {}
     }
@@ -465,7 +465,7 @@ export async function crashRecovery(): Promise<BResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "crash_recovery_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "crash_recovery_failed", message: String(e) }
   }
 }
 
@@ -512,7 +512,7 @@ export async function dataIntegrityCheck(): Promise<BResult<{
         if (verifyResult.data.verified) {
           checks.push({ name: "Audit Hash Chain", status: "pass", message: `سلسلة سليمة (${verifyResult.data.totalEntries} مدخل)` })
         } else {
-          checks.push({ name: "Audit Hash Chain", status: "fail", message: `السلسلة مكسورة عند #${verifyResult.data.brokenAt}`, count: verifyResult.data.brokenAt })
+          checks.push({ name: "Audit Hash Chain", status: "fail", message: `السلسلة مكسورة عند #${verifyResult.data.brokenAt}`, count: verifyResult.data.brokenAt ?? 0 })
         }
       } else {
         checks.push({ name: "Audit Hash Chain", status: "pass", message: "لا مدخلات audit" })
@@ -543,7 +543,7 @@ export async function dataIntegrityCheck(): Promise<BResult<{
     // 6. Check DB size (warn if > 100MB)
     const totalRecords = await Promise.all([
       db.conversation.count(), db.message.count(), db.memory.count(),
-      db.task.count(), db.project.count(),
+      db.pTask.count(), db.project.count(),
     ])
     const total = totalRecords.reduce((s, c) => s + c, 0)
     if (total > 10000) {
@@ -560,7 +560,7 @@ export async function dataIntegrityCheck(): Promise<BResult<{
 
     return { ok: true, data: { status, checks, totalIssues } }
   } catch (e) {
-    return { ok: false, error: "integrity_check_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "integrity_check_failed", message: String(e) }
   }
 }
 
@@ -613,7 +613,7 @@ export async function backupRecoverySnapshot(): Promise<BResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }
 
@@ -638,7 +638,7 @@ export async function listBackupArchives(type?: string): Promise<BResult<BackupA
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_failed", message: String(e) }
   }
 }
 
@@ -647,7 +647,7 @@ export async function deleteBackupArchive(id: string): Promise<BResult<{ deleted
     await db.backupArchive.delete({ where: { id } })
     return { ok: true, data: { deleted: true } }
   } catch (e) {
-    return { ok: false, error: "delete_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "delete_failed", message: String(e) }
   }
 }
 
@@ -665,6 +665,6 @@ export async function listRecoveryOperations(): Promise<BResult<any[]>> {
       })),
     }
   } catch (e) {
-    return { ok: false, error: "list_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "list_failed", message: String(e) }
   }
 }

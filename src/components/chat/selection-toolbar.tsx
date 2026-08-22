@@ -172,7 +172,7 @@ export function SelectionToolbar({ selectedText, position, onClose, onSendToChat
                 {loading === action.id ? (
                   <Loader2 className={cn("h-4 w-4 animate-spin", action.color)} />
                 ) : (
-                  React.cloneElement(action.icon as React.ReactElement, { className: cn("h-4 w-4", action.color) })
+                  React.cloneElement(action.icon as any, { className: cn("h-4 w-4", action.color) })
                 )}
                 <span className="text-[0.6rem] font-medium">{action.label}</span>
               </button>

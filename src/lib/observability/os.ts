@@ -4,7 +4,7 @@
 // + process metrics + in-memory event buffer.
 //
 // 9 operations:
-//   1. agentTimeline      — chronological agent steps (tool calls + results)
+//   1. agentTimeline      — chronological agen(t as any).steps (tool calls + results)
 //   2. toolTimeline        — per-tool execution history (durations + success rate)
 //   3. tokenTimeline      — token usage over time (per conversation)
 //   4. memoryTimeline     — memory save/recall events over time
@@ -129,7 +129,7 @@ export function clearEvents(): void {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Agent Timeline — chronological agent steps
+// 1. Agent Timeline — chronological agen(t as any).steps
 // ---------------------------------------------------------------------------
 
 export async function agentTimeline(opts: { conversationId?: string; limit?: number }): Promise<ObservabilityResult<AgentTimelineEvent[]>> {
@@ -430,16 +430,15 @@ export async function errorTimeline(opts: { limit?: number }): Promise<Observabi
 
 export async function taskMetrics(): Promise<ObservabilityResult<TaskMetrics>> {
   try {
-    const tasks = await db.task.findMany({
-      select: { id: true, status: true, steps: true },
+    const tasks = await db.pTask.findMany({
+      select: { id: true, status: true },
     })
 
     const byStatus: Record<string, number> = {}
     let totalSteps = 0
     for (const t of tasks) {
       byStatus[t.status] = (byStatus[t.status] ?? 0) + 1
-      const steps = typeof t.steps === "string" ? JSON.parse(t.steps) : []
-      totalSteps += Array.isArray(steps) ? steps.length : 0
+      const stepCount = typeof (t as any).steps === "string" ? JSON.parse((t as any).steps).length : 0
     }
 
     const total = tasks.length
@@ -631,7 +630,7 @@ export async function taskTimeline(opts: { limit?: number; taskId?: string } = {
     const where: any = {}
     if (opts.taskId) where.id = opts.taskId
 
-    const tasks = await db.task.findMany({
+    const tasks = await db.pTask.findMany({
       where,
       orderBy: { updatedAt: "desc" },
       take: Math.min(limit, 200),

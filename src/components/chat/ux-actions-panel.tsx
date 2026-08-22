@@ -156,7 +156,7 @@ function QuickActionsTab() {
 function SelectionTestTab() {
   const [text, setText] = React.useState("// Example: function to check palindrome\nfunction isPalindrome(str) {\n  const reversed = str.split('').reverse().join('')\n  return str === reversed\n}")
   const [availableActions, setAvailableActions] = React.useState<any[]>([])
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = React.useState<string | null | boolean>(false)
   const [result, setResult] = React.useState<string | null>(null)
   const [copied, setCopied] = React.useState(false)
 
@@ -224,7 +224,7 @@ function SelectionTestTab() {
             />
           </div>
 
-          <Button onClick={handleCheck} disabled={!!loading} size="sm" className="w-full h-7 text-xs gap-1">
+          <Button onClick={handleCheck} disabled={!!loading as any} size="sm" className="w-full h-7 text-xs gap-1">
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
             افحص الإجراءات المتاحة
           </Button>
@@ -295,7 +295,7 @@ function SelectionTestTab() {
 function InlineAITab() {
   const [context, setContext] = React.useState("const numbers = [1, 2, 3, 4, 5]\n// cursor here\nconst sum = numbers.reduce((a, b) => a + b, 0)")
   const [suggestion, setSuggestion] = React.useState<string | null>(null)
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = React.useState<string | null | boolean>(false)
 
   const handleGenerate = async () => {
     setLoading(true)
@@ -342,7 +342,7 @@ function InlineAITab() {
           />
         </div>
 
-        <Button onClick={handleGenerate} disabled={loading} size="sm" className="w-full h-7 text-xs gap-1">
+        <Button onClick={handleGenerate} disabled={Boolean(loading)} size="sm" className="w-full h-7 text-xs gap-1">
           {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Lightbulb className="h-3 w-3" />}
           ولّد اقتراح inline
         </Button>

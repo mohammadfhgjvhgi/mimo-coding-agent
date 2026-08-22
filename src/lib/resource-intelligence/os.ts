@@ -23,7 +23,7 @@ const execAsync = promisify(exec)
 
 export interface RIResult<T> {
   ok: boolean
-  data?: T
+  data: T
   error?: string
   message?: string
 }
@@ -127,7 +127,7 @@ export function adaptiveThreads(): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "adaptive_threads_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "adaptive_threads_failed", message: String(e) }
   }
 }
 
@@ -176,7 +176,7 @@ export function adaptiveContext(defaultContextLimit: number = 32768): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "adaptive_context_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "adaptive_context_failed", message: String(e) }
   }
 }
 
@@ -227,7 +227,7 @@ export function ramPressureDetection(): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "ram_pressure_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "ram_pressure_failed", message: String(e) }
   }
 }
 
@@ -308,7 +308,7 @@ export async function vramPressureDetection(): Promise<RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "vram_pressure_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "vram_pressure_failed", message: String(e) }
   }
 }
 
@@ -364,7 +364,7 @@ export function processManager(): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "process_manager_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "process_manager_failed", message: String(e) }
   }
 }
 
@@ -404,7 +404,7 @@ export function idleProcessKiller(idleThresholdMs: number = 60000): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "idle_killer_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "idle_killer_failed", message: String(e) }
   }
 }
 
@@ -473,7 +473,7 @@ export function backgroundWorkThrottling(): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "throttle_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "throttle_failed", message: String(e) }
   }
 }
 
@@ -543,12 +543,12 @@ export function indexingScheduler(action: "schedule" | "list" | "runDue" | "canc
         job.status = "skipped"
         return { ok: true, data: { cancelled: true, jobId: opts.id } }
       }
-      return { ok: false, error: "not_found", message: "الفهرسة غير موجودة أو ليست مجدولة" }
+      return { ok: false, data: null as any, error: "not_found", message: "الفهرسة غير موجودة أو ليست مجدولة" }
     }
 
-    return { ok: false, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
+    return { ok: false, data: null as any, error: "invalid_action", message: `إجراء غير صالح: ${action}` }
   } catch (e) {
-    return { ok: false, error: "indexing_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "indexing_failed", message: String(e) }
   }
 }
 
@@ -613,7 +613,7 @@ export function memoryPressureModes(): RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "pressure_modes_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "pressure_modes_failed", message: String(e) }
   }
 }
 
@@ -665,6 +665,6 @@ export async function resourceIntelligenceSnapshot(): Promise<RIResult<{
       },
     }
   } catch (e) {
-    return { ok: false, error: "snapshot_failed", message: String(e) }
+    return { ok: false, data: null as any, error: "snapshot_failed", message: String(e) }
   }
 }

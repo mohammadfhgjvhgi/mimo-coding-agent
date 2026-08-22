@@ -231,7 +231,7 @@ function IndividualTab({ conversationId }: { conversationId: string }) {
           return (
             <div key={conv.id} className="rounded-md border border-border/60 bg-card/50 p-2">
               <div className="flex items-center gap-2 mb-1">
-                {React.cloneElement(conv.icon as React.ReactElement, { className: cn("h-3.5 w-3.5", conv.color) })}
+                {React.cloneElement(conv.icon as any, { className: cn("h-3.5 w-3.5", conv.color) })}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium">{conv.label}</span>
