@@ -533,35 +533,18 @@ export function ChatSidebar({
         </button>
       </div>
 
-      {/* Engineering tabs — Linear-style icon grid with active indicator */}
+      {/* Engineering tabs — simplified to core essentials */}
       {sidebarMode === "engineering" && (
       <div className="mx-3 mb-2 grid grid-cols-3 gap-1">
         <TabButton icon={<MessageSquare className="h-4 w-4" />} label="محادثات" active={sidebarTab === "conversations"} onClick={() => setSidebarTab("conversations")} />
         <TabButton icon={<FolderTree className="h-4 w-4" />} label="ملفات" active={sidebarTab === "explorer"} onClick={() => setSidebarTab("explorer")} />
-        <TabButton icon={<Code2 className="h-4 w-4" />} label="رموز" active={sidebarTab === "symbols"} onClick={() => setSidebarTab("symbols")} />
         <TabButton icon={<Brain className="h-4 w-4" />} label="ذاكرة" active={sidebarTab === "memory"} onClick={() => setSidebarTab("memory")} />
-        <TabButton icon={<Target className="h-4 w-4" />} label="أهداف" active={sidebarTab === "goals"} onClick={() => setSidebarTab("goals")} />
+        <TabButton icon={<Target className="h-4 w-4" />} label="مهام" active={sidebarTab === "goals"} onClick={() => setSidebarTab("goals")} />
         <TabButton icon={<Sparkles className="h-4 w-4" />} label="أدوات" active={sidebarTab === "smart_tools"} onClick={() => setSidebarTab("smart_tools")} />
         <TabButton icon={<FileCode className="h-4 w-4" />} label="محرر" active={sidebarTab === "editor"} onClick={() => setSidebarTab("editor")} title="محرر الكود / Code Editor" />
         <TabButton icon={<GitBranch className="h-4 w-4" />} label="git" active={sidebarTab === "git"} onClick={() => setSidebarTab("git")} title="Git" />
         <TabButton icon={<Activity className="h-4 w-4" />} label="سياق" active={sidebarTab === "context"} onClick={() => setSidebarTab("context")} title="مفتش السياق / Context Inspector" />
-        <TabButton icon={<Shield className="h-4 w-4" />} label="أمان" active={sidebarTab === "security"} onClick={() => setSidebarTab("security")} title="نظام الأمان / Security OS" />
-        <TabButton icon={<ShieldAlert className="h-4 w-4" />} label="موثوقية" active={sidebarTab === "reliability"} onClick={() => setSidebarTab("reliability")} title="الموثوقية / Reliability OS" />
-        <TabButton icon={<Workflow className="h-4 w-4" />} label="ذاتية" active={sidebarTab === "autonomous_se"} onClick={() => setSidebarTab("autonomous_se")} title="هندسة ذاتية / Autonomous SE" />
-        <TabButton icon={<TrendingUp className="h-4 w-4" />} label="تحسين" active={sidebarTab === "self_improvement"} onClick={() => setSidebarTab("self_improvement")} title="تحسين الذات / Self-Improvement" />
-        <TabButton icon={<Radar className="h-4 w-4" />} label="رصد" active={sidebarTab === "observability"} onClick={() => setSidebarTab("observability")} title="المراقبة / Observability" />
-        <TabButton icon={<Wrench className="h-4 w-4" />} label="مطور" active={sidebarTab === "dev_experience"} onClick={() => setSidebarTab("dev_experience")} title="تجربة المطور / Dev Experience" />
-        <TabButton icon={<Users className="h-4 w-4" />} label="تعاون" active={sidebarTab === "collaboration"} onClick={() => setSidebarTab("collaboration")} title="التعاون / Collaboration" />
         <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin")} title="الإدارة والتشغيل / Admin & Ops" />
-        <TabButton icon={<Archive className="h-4 w-4" />} label="نسخ" active={sidebarTab === "backup_recovery"} onClick={() => setSidebarTab("backup_recovery")} title="نسخ احتياطي / Backup & Recovery" />
-        <TabButton icon={<Brain className="h-4 w-4" />} label="نماذج" active={sidebarTab === "model_intel"} onClick={() => setSidebarTab("model_intel")} title="ذكاء النماذج / Model Intelligence" />
-        <TabButton icon={<Gauge className="h-4 w-4" />} label="موارد" active={sidebarTab === "resource_intel"} onClick={() => setSidebarTab("resource_intel")} title="ذكاء الموارد / Resource Intelligence" />
-        <TabButton icon={<ZapIcon className="h-4 w-4" />} label="UX" active={sidebarTab === "ux_actions"} onClick={() => setSidebarTab("ux_actions")} title="UX متقدم / Advanced UX" />
-        <TabButton icon={<Sparkles className="h-4 w-4" />} label="تحويل" active={sidebarTab === "conversation_to"} onClick={() => setSidebarTab("conversation_to")} title="محادثة ← كل شيء / Conversation-to-Everything" />
-        <TabButton icon={<Fingerprint className="h-4 w-4" />} label="شخصي" active={sidebarTab === "personal_intel"} onClick={() => setSidebarTab("personal_intel")} title="ذكاء شخصي / Personal Intelligence" />
-        <TabButton icon={<Crown className="h-4 w-4" />} label="رؤية" active={sidebarTab === "vision"} onClick={() => setSidebarTab("vision")} title="الرؤية الكاملة / Vision Dashboard" />
-        <TabButton icon={<Sunrise className="h-4 w-4" />} label="يوم" active={sidebarTab === "day_in_life"} onClick={() => setSidebarTab("day_in_life")} title="يوم في حياة MiMo X" />
-        <TabButton icon={<Cog className="h-4 w-4" />} label="محركات" active={sidebarTab === "engines"} onClick={() => setSidebarTab("engines")} title="المحركات العشرون / 20 Core Engines" />
       </div>
       )}
 

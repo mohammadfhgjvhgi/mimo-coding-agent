@@ -5,29 +5,16 @@ import { Volume2, VolumeX, Loader2, Pause, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useTts } from "@/hooks/use-tts"
-import { useTtsSettings } from "@/store/tts-settings-store"
-import { sanitizeForTts } from "@/lib/tts/mixed-language"
 
-// Lazy-loaded TTS button — only initializes the useTts hook when mounted
-// This prevents crashes if TTS dependencies fail to load
 export function TtsButton({ text }: { text: string }) {
-  const { engine, voice, rate, pitch, mixedLanguage } = useTtsSettings()
-
-  const tts = useTts({
-    engine,
-    voice,
-    rate,
-    pitch,
-    mixedLanguage,
-    onError: (err) => console.warn("[TTS]", err.message),
-  })
+  const tts = useTts({ voice: "ar-EG-SalmaNeural", rate: 1.05 })
 
   const handleSpeakToggle = async () => {
     if (tts.status === "speaking" || tts.status === "loading") {
       tts.stop()
       return
     }
-    const cleaned = sanitizeForTts(text).slice(0, 1500)
+    const cleaned = text.replace(/```[\s\S]*?```/g, " كود ").replace(/`[^`]+`/g, " ").replace(/[#*_~>|]/g, "").slice(0, 1000)
     if (!cleaned.trim()) return
     await tts.speak(cleaned)
   }
@@ -46,7 +33,7 @@ export function TtsButton({ text }: { text: string }) {
           "h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60",
           (isSpeaking || isLoading) && "text-primary hover:text-primary"
         )}
-        title={isSpeaking ? "إيقاف / Stop" : "استمع / Listen"}
+        title={isSpeaking ? "إيقاف" : "استمع"}
       >
         {isLoading ? (
           <><Loader2 className="h-3 w-3 animate-spin" /> تحميل…</>
@@ -61,8 +48,7 @@ export function TtsButton({ text }: { text: string }) {
           variant="ghost"
           size="sm"
           onClick={() => isPaused ? tts.resume() : tts.pause()}
-          className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/60"
-          title={isPaused ? "استئناف" : "إيقاف مؤقت"}
+          className="h-7 gap-1 px-2 text-xs"
         >
           {isPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
         </Button>

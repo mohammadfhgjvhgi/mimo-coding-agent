@@ -177,7 +177,6 @@ export function EnhancedMessage({
                   <RefreshCw className="h-3 w-3" /> إعادة
                 </Button>
               )}
-              {/* TTS button */}
               {!isUser && (
                 <TtsButton text={message.content} />
               )}
