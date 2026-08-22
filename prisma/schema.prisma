@@ -1436,3 +1436,82 @@ model ConversationShare {
   @@index([token])
   @@index([conversationId])
 }
+
+// Reliability OS — Failure memory: each time a task/tool fails, we persist the
+// failure + classification + recovery action + lesson learned. Future calls
+// can look up similar failures to avoid repeating the same mistake.
+model ReliabilityFailure {
+  id            String   @id @default(cuid())
+  // fingerprint of the failure (hash of task+error+context) for dedup
+  fingerprint   String   @unique
+  task          String   // user/agent task description
+  error         String   // error message
+  // "tool_malformed" | "tool_wrong" | "argument_invalid" | "timeout" | "oom" | "crash"
+  //  | "loop" | "unknown_state" | "unknown"
+  category      String   @default("unknown")
+  // "transient" | "permanent" | "partial" | "fatal"
+  severity      String   @default("transient")
+  // What was attempted to recover (JSON: action, params, result)
+  recoveryAction String?
+  // Did the recovery succeed?
+  recovered     Boolean  @default(false)
+  // Lesson learned ("don't do X" — used by negative learning)
+  lesson        String?
+  // Number of times this failure pattern has been seen (dedup counter)
+  occurrences   Int      @default(1)
+  // Optional context: conversationId, toolName, args JSON
+  context       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([category])
+  @@index([severity])
+  @@index([recovered])
+  @@index([createdAt])
+}
+
+// Reliability OS — Checkpoints: snapshot of conversation/agent state at a safe
+// point. Used by Crash Recovery + Checkpoint Rollback to resume from a known
+// good state after a failure.
+model ReliabilityCheckpoint {
+  id              String   @id @default(cuid())
+  conversationId  String?
+  // "auto" | "manual" | "pre_tool" | "pre_destructive"
+  kind            String   @default("auto")
+  // Serialized state JSON (messages, tools, context, working memory)
+  state           String
+  // Git hash at checkpoint time (if workspace available)
+  gitHash         String?
+  // Token count at checkpoint (for budget tracking)
+  tokens          Int      @default(0)
+  // Optional label for human-friendly reference
+  label           String?
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([kind])
+  @@index([createdAt])
+}
+
+// Reliability OS — Loop detection: tracks recent tool-call outcomes per
+// conversation to detect infinite loops (same tool called repeatedly with
+// same args + same failure).
+model ReliabilityLoopEvent {
+  id              String   @id @default(cuid())
+  conversationId  String?
+  // Tool that was called in the loop
+  toolName        String
+  // Args hash (SHA-256 of canonical args) — for dedup detection
+  argsHash        String
+  // Number of consecutive identical calls
+  count           Int      @default(1)
+  // Whether the loop was broken by the guard
+  broken          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([toolName])
+  @@index([argsHash])
+  @@index([createdAt])
+}
+

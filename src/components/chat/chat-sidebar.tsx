@@ -24,6 +24,8 @@ import {
   Activity,
   Gauge,
   Zap,
+  Shield,
+  ShieldAlert,
   Download,
   FileJson,
 } from "lucide-react"
@@ -61,6 +63,8 @@ import { ResearchPanel } from "./research-panel"
 import { CodeEditorPanel } from "./code-editor-panel"
 import { GitPanel } from "./git-panel"
 import { ContextInspectorPanel } from "./context-inspector-panel"
+import { SecurityPanel } from "./security-panel"
+import { ReliabilityPanel } from "./reliability-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -514,6 +518,8 @@ export function ChatSidebar({
         <TabButton icon={<FileCode className="h-4 w-4" />} label="محرر" active={sidebarTab === "editor"} onClick={() => setSidebarTab("editor")} title="محرر الكود / Code Editor" />
         <TabButton icon={<GitBranch className="h-4 w-4" />} label="git" active={sidebarTab === "git"} onClick={() => setSidebarTab("git")} title="Git" />
         <TabButton icon={<Activity className="h-4 w-4" />} label="سياق" active={sidebarTab === "context"} onClick={() => setSidebarTab("context")} title="مفتش السياق / Context Inspector" />
+        <TabButton icon={<Shield className="h-4 w-4" />} label="أمان" active={sidebarTab === "security"} onClick={() => setSidebarTab("security")} title="نظام الأمان / Security OS" />
+        <TabButton icon={<ShieldAlert className="h-4 w-4" />} label="موثوقية" active={sidebarTab === "reliability"} onClick={() => setSidebarTab("reliability")} title="الموثوقية / Reliability OS" />
       </div>
       )}
 
@@ -594,6 +600,14 @@ export function ChatSidebar({
       ) : sidebarTab === "context" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <ContextInspectorPanel />
+        </div>
+      ) : sidebarTab === "security" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <SecurityPanel />
+        </div>
+      ) : sidebarTab === "reliability" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <ReliabilityPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
