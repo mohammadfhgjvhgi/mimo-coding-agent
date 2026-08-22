@@ -24,7 +24,6 @@ model Conversation {
 
   messages Message[]
   tasks   Task[]
-  shares  ConversationShare[]
 
   @@index([updatedAt])
   @@index([folder])
@@ -1424,490 +1423,60 @@ model Provider {
 }
 
 // Conversation Share — public shareable link
-model ConversationShare {
-  id             String   @id @default(cuid())
-  conversationId String
-  token          String   @unique
-  expiresAt      DateTime?
-  viewCount      Int      @default(0)
-  createdAt      DateTime @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([token])
-  @@index([conversationId])
-}
 
 // Reliability OS — Failure memory: each time a task/tool fails, we persist the
 // failure + classification + recovery action + lesson learned. Future calls
 // can look up similar failures to avoid repeating the same mistake.
-model ReliabilityFailure {
-  id            String   @id @default(cuid())
-  // fingerprint of the failure (hash of task+error+context) for dedup
-  fingerprint   String   @unique
-  task          String   // user/agent task description
-  error         String   // error message
-  // "tool_malformed" | "tool_wrong" | "argument_invalid" | "timeout" | "oom" | "crash"
-  //  | "loop" | "unknown_state" | "unknown"
-  category      String   @default("unknown")
-  // "transient" | "permanent" | "partial" | "fatal"
-  severity      String   @default("transient")
-  // What was attempted to recover (JSON: action, params, result)
-  recoveryAction String?
-  // Did the recovery succeed?
-  recovered     Boolean  @default(false)
-  // Lesson learned ("don't do X" — used by negative learning)
-  lesson        String?
-  // Number of times this failure pattern has been seen (dedup counter)
-  occurrences   Int      @default(1)
-  // Optional context: conversationId, toolName, args JSON
-  context       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([category])
-  @@index([severity])
-  @@index([recovered])
-  @@index([createdAt])
-}
 
 // Reliability OS — Checkpoints: snapshot of conversation/agent state at a safe
 // point. Used by Crash Recovery + Checkpoint Rollback to resume from a known
 // good state after a failure.
-model ReliabilityCheckpoint {
-  id              String   @id @default(cuid())
-  conversationId  String?
-  // "auto" | "manual" | "pre_tool" | "pre_destructive"
-  kind            String   @default("auto")
-  // Serialized state JSON (messages, tools, context, working memory)
-  state           String
-  // Git hash at checkpoint time (if workspace available)
-  gitHash         String?
-  // Token count at checkpoint (for budget tracking)
-  tokens          Int      @default(0)
-  // Optional label for human-friendly reference
-  label           String?
-  createdAt       DateTime @default(now())
-
-  @@index([conversationId])
-  @@index([kind])
-  @@index([createdAt])
-}
 
 // Reliability OS — Loop detection: tracks recent tool-call outcomes per
 // conversation to detect infinite loops (same tool called repeatedly with
 // same args + same failure).
-model ReliabilityLoopEvent {
-  id              String   @id @default(cuid())
-  conversationId  String?
-  // Tool that was called in the loop
-  toolName        String
-  // Args hash (SHA-256 of canonical args) — for dedup detection
-  argsHash        String
-  // Number of consecutive identical calls
-  count           Int      @default(1)
-  // Whether the loop was broken by the guard
-  broken          Boolean  @default(false)
-  createdAt       DateTime @default(now())
-
-  @@index([conversationId])
-  @@index([toolName])
-  @@index([argsHash])
-  @@index([createdAt])
-}
 
 
 // Autonomous Software Engineering — Backlog items generated from health scans.
 // Each item: type (dead_code/duplicate/coupling/cycle/missing_test/security_debt/tech_debt/hotspot),
 // severity, file path, description, status (pending/in_progress/done/superseded/cooldown),
 // priority score, dependencies (DAG), supersededBy.
-model AutonomousBacklogItem {
-  id              String   @id @default(cuid())
-  // "dead_code" | "duplicate_logic" | "coupling" | "import_cycle" | "missing_test"
-  // | "security_debt" | "tech_debt" | "hotspot" | "architecture" | "health"
-  type            String
-  severity        String   @default("medium") // "low" | "medium" | "high" | "critical"
-  // The file or symbol this item refers to
-  targetPath      String
-  // Human-readable description (bilingual)
-  description     String
-  // "pending" | "in_progress" | "done" | "superseded" | "cooldown" | "skipped"
-  status          String   @default("pending")
-  // Priority 0-100 (higher = more urgent)
-  priority        Int      @default(50)
-  // JSON array of backlog item IDs that must be done first (DAG deps)
-  dependencies    String   @default("[]")
-  // If this item was superseded by another, that item's ID
-  supersededBy    String?
-  // Cooldown: don't re-raise until this date
-  cooldownUntil   DateTime?
-  // Fingerprint for dedup (hash of type+targetPath+description)
-  fingerprint     String   @unique
-  // How many times this issue has been detected (dedup counter)
-  occurrences     Int      @default(1)
-  // Optional estimated effort in minutes
-  estimatedMin    Int?
-  // Optional metadata JSON (line numbers, symbol names, etc.)
-  metadata        String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([type])
-  @@index([status])
-  @@index([priority])
-  @@index([targetPath])
-  @@index([createdAt])
-}
 
 // Autonomous Software Engineering — Health scan snapshots.
 // Each scan records: total files, total lines, dead code %, duplicate %,
 // coupling score, cycle count, missing test %, tech debt items, hotspots.
-model AutonomousHealthScan {
-  id              String   @id @default(cuid())
-  // Snapshot of metrics
-  totalFiles      Int      @default(0)
-  totalLines      Int      @default(0)
-  totalSymbols    Int      @default(0)
-  deadCodeCount   Int      @default(0)
-  duplicateCount  Int      @default(0)
-  cycleCount      Int      @default(0)
-  missingTestCount Int     @default(0)
-  securityDebtCount Int    @default(0)
-  techDebtCount   Int      @default(0)
-  hotspotCount    Int      @default(0)
-  // Overall health score 0-100
-  healthScore     Int      @default(100)
-  // JSON: breakdown by file/severity
-  details         String?
-  // "manual" | "scheduled" | "continuous"
-  trigger         String   @default("manual")
-  createdAt       DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([trigger])
-}
 
 // Self-Improvement OS — Agent metrics snapshots for trend analysis.
 // Each record: totalTasks, successRate, avgDurationMs, avgTokensPerTask,
 // toolCallsCount, failureCount, contextWasteTokens, modelDistribution.
-model SelfImprovementMetric {
-  id              String   @id @default(cuid())
-  // "daily" | "weekly" | "monthly" | "manual"
-  period          String   @default("manual")
-  totalTasks      Int      @default(0)
-  successfulTasks Int      @default(0)
-  failedTasks     Int      @default(0)
-  avgDurationMs   Int      @default(0)
-  avgTokensPerTask Int     @default(0)
-  toolCallsCount  Int      @default(0)
-  toolFailures    Int      @default(0)
-  contextWasteTokens Int   @default(0)
-  // JSON: { modelId: count }
-  modelDistribution String  @default("{}")
-  // JSON: { toolName: { calls, failures, avgMs } }
-  toolStats      String    @default("{}")
-  // Overall efficiency score 0-100
-  efficiencyScore Int      @default(100)
-  createdAt       DateTime @default(now())
-
-  @@index([period])
-  @@index([createdAt])
-}
 
 // Self-Improvement OS — Hypothesis for improving the agent.
 // Each hypothesis: description, expected improvement, status (proposed/testing/proven/rejected/promoted).
-model SelfImprovementHypothesis {
-  id              String   @id @default(cuid())
-  description     String
-  // "proposed" | "testing" | "proven" | "rejected" | "promoted"
-  status          String   @default("proposed")
-  // What we expect to improve (e.g. "reduce tool failures by 20%")
-  expectedImprovement String?
-  // JSON: metrics before the change
-  baselineMetrics String?
-  // JSON: metrics after the change
-  resultMetrics   String?
-  // A/B test comparison: winner = "A" | "B" | "tie" | null
-  abWinner        String?
-  // Confidence 0-100
-  confidence      Int      @default(0)
-  // If promoted, what config/rule was changed
-  promotionNote   String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([status])
-  @@index([createdAt])
-}
 
 // Developer Experience OS — Project templates (reusable scaffolds).
-model DevProjectTemplate {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String
-  framework   String   // "nextjs" | "react" | "express" | "fastapi" | "django" | ...
-  language    String   @default("typescript") // "typescript" | "javascript" | "python" | ...
-  packageManager String @default("bun") // "npm" | "bun" | "pnpm" | "yarn" | "pip" | "poetry"
-  testFramework String @default("vitest") // "vitest" | "jest" | "pytest" | ...
-  // JSON: file tree to scaffold { "src/app/page.tsx": "content...", ... }
-  files       String   @default("{}")
-  // JSON: commands { "dev": "bun run dev", "build": "...", "test": "..." }
-  commands   String   @default("{}")
-  builtin    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([framework])
-}
 
 // Developer Experience OS — Project constitution (rules per workspace).
-model DevConstitution {
-  id          String   @id @default(cuid())
-  // Rule type
-  type        String   // "instruction" | "critical_file" | "dangerous_op" | "definition_of_done" | "runbook"
-  title       String
-  content     String   // the rule/instruction content
-  severity    String   @default("medium") // "low" | "medium" | "high" | "critical"
-  enabled     Boolean  @default(true)
-  builtin     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([type])
-  @@index([enabled])
-}
 
 // Collaboration OS — Shared projects (406). Local-first; ready for future sync.
-model CollabSharedProject {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
-  // "owner" | "editor" | "viewer"
-  ownerRole   String   @default("owner")
-  // JSON: [{ userId, role, addedAt }]
-  members     String   @default("[]")
-  // JSON: project metadata { framework, path, tags }
-  metadata    String   @default("{}")
-  // Share token for external access
-  shareToken  String?  @unique
-  isPublic    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([ownerRole])
-  @@index([isPublic])
-}
 
 // Collaboration OS — Shared knowledge entries (407).
-model CollabSharedKnowledge {
-  id          String   @id @default(cuid())
-  title       String
-  content     String
-  source      String   @default("manual") // "manual" | "imported" | "agent"
-  tags        String   @default("[]") // JSON array
-  // "public" | "team" | "private"
-  visibility  String   @default("team")
-  // JSON: [{ userId, role }]
-  accessList  String   @default("[]")
-  createdBy   String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([visibility])
-  @@index([createdBy])
-}
 
 // Collaboration OS — Shared agent configurations (408).
-model CollabSharedAgent {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
-  // JSON: agent config { model, systemPrompt, tools, mode, temperature }
-  config      String   @default("{}")
-  // "engineering" | "research" | "review" | "debug" | "custom"
-  agentType   String   @default("custom")
-  tags        String   @default("[]")
-  isPublic    Boolean  @default(false)
-  createdBy   String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([agentType])
-  @@index([isPublic])
-}
 
 // Collaboration OS — Prompt library (409).
-model CollabPromptLibrary {
-  id          String   @id @default(cuid())
-  title       String
-  prompt      String
-  category    String   @default("general") // "code" | "writing" | "analysis" | "research" | "general"
-  tags        String   @default("[]")
-  // "public" | "team" | "private"
-  visibility  String   @default("team")
-  // Usage count (how many times this prompt was used)
-  useCount    Int      @default(0)
-  // Average rating 0-5
-  rating      Float    @default(0)
-  createdBy   String   @default("local")
-  builtin     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([category])
-  @@index([visibility])
-  @@index([useCount])
-}
 
 // Collaboration OS — Skill library (410).
-model CollabSkillLibrary {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @default("")
-  // JSON: skill definition { type, code, inputs, outputs, schema }
-  definition  String   @default("{}")
-  // "tool" | "agent" | "workflow" | "template"
-  skillType   String   @default("tool")
-  tags        String   @default("[]")
-  // "public" | "team" | "private"
-  visibility  String   @default("team")
-  useCount    Int      @default(0)
-  builtin     Boolean  @default(false)
-  createdBy   String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([skillType])
-  @@index([visibility])
-  @@index([useCount])
-}
 
 // Collaboration OS — Shared artifacts (411).
-model CollabSharedArtifact {
-  id          String   @id @default(cuid())
-  title       String
-  // "html" | "react" | "svg" | "mermaid" | "markdown" | "code"
-  artifactType String
-  content     String
-  // JSON: metadata { size, dependencies, preview }
-  metadata    String   @default("{}")
-  tags        String   @default("[]")
-  // "public" | "team" | "private"
-  visibility  String   @default("team")
-  version     Int      @default(1)
-  createdBy   String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([artifactType])
-  @@index([visibility])
-  @@index([version])
-}
 
 // Collaboration OS — Review requests (412).
-model CollabReviewRequest {
-  id          String   @id @default(cuid())
-  title       String
-  // The content being reviewed (file path, code snippet, or artifact ID)
-  targetType   String  // "file" | "snippet" | "artifact" | "diff"
-  targetPath  String
-  // JSON: review context { lines, language, description }
-  context     String   @default("{}")
-  // "pending" | "approved" | "changes_requested" | "rejected" | "closed"
-  status      String   @default("pending")
-  // JSON: [{ reviewerId, status, comment, timestamp }]
-  reviews     String   @default("[]")
-  priority    String   @default("medium") // "low" | "medium" | "high" | "urgent"
-  requestedBy String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([status])
-  @@index([priority])
-  @@index([requestedBy])
-}
 
 // Collaboration OS — Team permissions (413).
-model CollabTeamPermission {
-  id          String   @id @default(cuid())
-  // "local" | userId (for future multi-user)
-  userId      String   @default("local")
-  // Resource type: "project" | "knowledge" | "agent" | "artifact" | "review"
-  resourceType String
-  resourceId  String
-  // "owner" | "editor" | "viewer" | "reviewer"
-  role        String   @default("viewer")
-  // JSON: granular permissions { read, write, delete, share, approve }
-  permissions String  @default("{}")
-  grantedBy   String   @default("local")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, resourceType, resourceId])
-  @@index([userId])
-  @@index([resourceType])
-  @@index([role])
-}
 
 // Collaboration OS — Project roles (414).
-model CollabProjectRole {
-  id          String   @id @default(cuid())
-  projectId   String
-  roleName    String   // "owner" | "maintainer" | "contributor" | "reviewer" | "viewer"
-  // JSON: permissions { canEdit, canDelete, canShare, canApprove, canMerge }
-  permissions String   @default("{}")
-  // JSON: assigned users [{ userId, assignedAt }]
-  assignedTo  String   @default("[]")
-  description String   @default("")
-  builtin     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([roleName])
-}
 
 // Backup / Recovery OS — Archive of all backup operations.
 // Each archive records: type, scope, itemCount, sizeBytes, status, metadata.
-model BackupArchive {
-  id          String   @id @default(cuid())
-  // "conversation" | "memory" | "project" | "settings" | "checkpoint" | "full"
-  type        String
-  // JSON: list of backed-up item IDs
-  itemIds     String   @default("[]")
-  itemCount   Int      @default(0)
-  sizeBytes   Int      @default(0)
-  // "pending" | "completed" | "failed" | "restored"
-  status      String   @default("completed")
-  // JSON: metadata { version, exportedAt, stats }
-  metadata    String   @default("{}")
-  // The backup content (JSON serialized)
-  content     String   @default("{}")
-  // Optional label
-  label       String?
-  createdAt   DateTime @default(now())
-
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-}
 
 // Backup / Recovery OS — Recovery operations log.
 // Each recovery: type, sourceArchiveId, restoredCount, status, details.
-model RecoveryOperation {
-  id              String   @id @default(cuid())
-  // "wizard" | "crash" | "integrity" | "manual"
-  type            String
-  // The backup archive ID used for recovery (if any)
-  sourceArchiveId String?
-  restoredCount   Int      @default(0)
-  failedCount     Int      @default(0)
-  // "success" | "partial" | "failed"
-  status          String   @default("success")
-  // JSON: details { what was restored, errors, duration }
-  details         String   @default("{}")
-  createdAt       DateTime @default(now())
-
-  @@index([type])
-  @@index([status])
-  @@index([createdAt])
-}
