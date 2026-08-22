@@ -282,7 +282,7 @@ export async function createPrompt(opts: {
   }
 }
 
-export async function usePrompt(id: string): Promise<CollabResult<{ prompt: string; useCount: number }>> {
+export async function applyPrompt(id: string): Promise<CollabResult<{ prompt: string; useCount: number }>> {
   try {
     const item = await db.collabPromptLibrary.findUnique({ where: { id } })
     if (!item) return { ok: false, error: "not_found", message: "الـ prompt غير موجود" }

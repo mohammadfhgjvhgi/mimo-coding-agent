@@ -13,13 +13,14 @@
 import * as React from "react"
 import {
   Activity, AlertTriangle, Check, X, RefreshCw, Plus, Trash2,
-  Copy, Code2, Brain, FileCode, Shield, ChevronRight, Loader2, Star,
+  Copy, Code2, Brain, FileCode, Shield, ChevronRight, Loader2, Star, Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -136,7 +137,7 @@ async function apiCall(action: string, body: Record<string, unknown> = {}) {
     body: JSON.stringify({ action, ...body }),
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}: any))
+    const err = await res.json().catch(() => ({ message: "فشل الشبكة" }))
     throw new Error(err.message ?? `HTTP ${res.status}`)
   }
   return res.json()
@@ -563,7 +564,7 @@ function ReviewsTab({ onChange }: { onChange: () => void }) {
   }
 
   const handleResolve = async (id: string, status: string) => {
-    const comment = prompt(`ملاحظة (${status}):", "")
+    const comment = prompt(`ملاحظة (${status}):`) ?? ""
     try {
       await apiCall("review_resolve", { id, status, comment })
       toast.success("تم تحديث المراجعة")
@@ -702,6 +703,7 @@ function RolesList({ onChange }: { onChange: () => void }) {
           ) : (
             items.map(item => {
               const perms = item.permissions || {}
+              return (
               <div key={item.id} className="rounded-md border border-border/60 bg-card/50 p-2">
                 <div className="flex items-center gap-1.5 flex-wrap mb-1">
                   <Badge variant="outline" className="text-[0.55rem] py-0">{item.roleName}</Badge>
@@ -721,7 +723,8 @@ function RolesList({ onChange }: { onChange: () => void }) {
                   <span className={perms.canMerge ? "text-emerald-500" : "text-muted-foreground"}>🔀 دمج</span>
                 </div>
               </div>
-            ))
+              )
+            })
           )}
         </div>
       </ScrollArea>

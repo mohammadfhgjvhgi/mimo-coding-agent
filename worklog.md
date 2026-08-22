@@ -2519,3 +2519,50 @@ Stage Summary:
 - All data PERSISTED to DB (DevProjectTemplate + DevConstitution)
 - 0 lint errors, 0 new type errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: COLLAB-FINAL
+Agent: ZAI Code (main)
+Task: Wire Collaboration OS (section 29) — 9 features, fix lint errors, verify UI
+
+Work Log:
+- Audited existing code — found EVERYTHING already existed:
+  • src/lib/collaboration/os.ts (727 lines, 9 operations)
+  • src/app/api/collaboration/route.ts (110 lines, POST + GET)
+  • src/components/chat/collaboration-panel.tsx (809 lines, 4 tabs)
+  • 9 Prisma models: CollabSharedProject, CollabSharedKnowledge, CollabSharedAgent, CollabPromptLibrary, CollabSkillLibrary, CollabSharedArtifact, CollabReviewRequest, CollabTeamPermission, CollabProjectRole
+  • chat-sidebar already had "تعاون" tab + CollaborationPanel wired
+  • chat-store already had "collaboration" in sidebarTab type
+
+- Fixed 4 lint errors:
+  1. `usePrompt` → `applyPrompt` (renamed to avoid React hook naming conflict)
+  2. `({}: any)` → `({ message: "فشل الشبكة" })` (invalid TypeScript syntax)
+  3. `prompt(\`ملاحظة (${status}):", "")` → `prompt(\`ملاحظة (${status}):\`) ?? ""` (unterminated template literal)
+  4. Missing `return (` in RolesList map + missing imports (Zap, ScrollArea, TabsTrigger)
+
+- bun run lint: 0 errors ✅ (was 13 errors before fix)
+
+Verification (via curl + Agent Browser):
+- snapshot API: all counts at 0 (no user data yet) ✅
+- prompts API: 6 builtin prompts (Summarize, Refactoring, Test Generator, Documentation, Bug Fix, Code Review) ✅
+- roles API: 5 builtin roles (contributor, maintainer, owner, reviewer, viewer) ✅
+- Agent Browser:
+  • "تعاون" tab visible in sidebar ✅
+  • Click → CollaborationPanel renders with 4 tabs (المكتبة/مشاريع/مراجعات/صلاحيات) ✅
+  • Library tab: 6 builtin prompts with category + tags + visibility ✅
+  • Permissions tab: 5 builtin roles with permission matrix (canEdit/canDelete/canShare/canApprove/canMerge) ✅
+
+Stage Summary:
+- All 9 Collaboration features (section 29) FULLY wired to UI (existed + now lint-clean):
+  406. Shared Projects → مشاريع tab
+  407. Shared Knowledge → المكتبة tab (Knowledge subtab)
+  408. Shared Agents → المكتبة tab (Agents subtab)
+  409. Prompt Library → المكتبة tab > Prompts (6 builtin prompts)
+  410. Skill Library → المكتبة tab > Skills
+  411. Shared Artifacts → المكتبة tab > Artifacts
+  412. Review Requests → مراجعات tab
+  413. Team Permissions → صلاحيات tab > Permissions
+  414. Project Roles → صلاحيات tab > Roles (5 builtin roles)
+- 0 lint errors, 0 runtime errors
+- All data persisted to DB (9 Prisma models)
+- Local-first: ready for future sync/collab but works fully as single-user now

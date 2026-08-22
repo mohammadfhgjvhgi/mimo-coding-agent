@@ -4,7 +4,7 @@ import {
   listSharedProjects, createSharedProject, deleteSharedProject,
   listSharedKnowledge, createSharedKnowledge, deleteSharedKnowledge,
   listSharedAgents, createSharedAgent, deleteSharedAgent,
-  listPromptLibrary, createPrompt, usePrompt, deletePrompt,
+  listPromptLibrary, createPrompt, applyPrompt, deletePrompt,
   listSharedArtifacts, createSharedArtifact, deleteSharedArtifact,
   listReviewRequests, createReviewRequest, resolveReviewRequest, deleteReviewRequest,
   listTeamPermissions, grantPermission, revokePermission,
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       case "prompt_create": return wrap(await createPrompt({
         title: body.title, prompt: body.prompt, category: body.category, tags: body.tags, visibility: body.visibility,
       }))
-      case "prompt_use": return wrap(await usePrompt(body.id))
+      case "prompt_use": return wrap(await applyPrompt(body.id))
       case "prompt_delete": return wrap(await deletePrompt(body.id))
 
       // 5. Skill Library (410)
