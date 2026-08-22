@@ -30,6 +30,7 @@ import {
   TrendingUp,
   Radar,
   Wrench,
+  Settings2,
   Users,
   Download,
   FileJson,
@@ -75,6 +76,7 @@ import { SelfImprovementPanel } from "./self-improvement-panel"
 import { ObservabilityPanel } from "./observability-panel"
 import { DevExperiencePanel } from "./dev-experience-panel"
 import { CollaborationPanel } from "./collaboration-panel"
+import { AdminPanel } from "./admin-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -535,6 +537,7 @@ export function ChatSidebar({
         <TabButton icon={<Radar className="h-4 w-4" />} label="رصد" active={sidebarTab === "observability"} onClick={() => setSidebarTab("observability")} title="المراقبة / Observability" />
         <TabButton icon={<Wrench className="h-4 w-4" />} label="مطور" active={sidebarTab === "dev_experience"} onClick={() => setSidebarTab("dev_experience")} title="تجربة المطور / Dev Experience" />
         <TabButton icon={<Users className="h-4 w-4" />} label="تعاون" active={sidebarTab === "collaboration"} onClick={() => setSidebarTab("collaboration")} title="التعاون / Collaboration" />
+        <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin")} title="الإدارة والتشغيل / Admin & Ops" />
       </div>
       )}
 
@@ -643,6 +646,10 @@ export function ChatSidebar({
       ) : sidebarTab === "collaboration" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <CollaborationPanel />
+        </div>
+      ) : sidebarTab === "admin" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <AdminPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

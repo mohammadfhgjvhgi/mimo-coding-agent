@@ -2630,3 +2630,77 @@ Stage Summary:
 - 0 lint errors, 0 runtime errors
 - All data persisted to DB (9 Prisma models)
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: ADMIN-FINAL
+Agent: ZAI Code (main)
+Task: Build Administration & Operations OS (section 30) — 11 features, fully wired to UI
+
+Work Log:
+- Audited existing code:
+  • PROVIDER_REGISTRY (9 providers) existed in src/lib/llm-providers/registry.ts
+  • MCP OS existed in src/lib/mcp/os.ts (mcpListServers)
+  • Plugin model existed in Prisma
+  • Skill library existed in collaboration OS
+  • systemMetrics existed in observability OS
+  • No unified admin panel/lib/API existed
+
+- Created src/lib/admin-os/os.ts (~560 lines, 11 operations):
+  1. providerManager() (415) — lists 9 providers with enabled/hasKey/modelCount
+  2. modelManager() (416) — lists all models from PROVIDER_REGISTRY with byProvider stats
+  3. mcpManager() (417) — delegates to MCP OS, returns servers + toolCount
+  4. pluginManager() (418) — lists plugins from DB with enabled/version
+  5. skillManager() (419) — delegates to collaboration OS skill library
+  6. workspaceManager() (420) — walks WORKSPACE_ROOT recursively, counts files/dirs/size
+  7. storageManager() (421) — disk usage + uploads + database size + logs size
+  8. backupManager() (422) — create/list/restore/delete SQLite DB backups
+  9. importExportManager() (423) — export conversations+memories+knowledge+tasks+projects to JSON, import memories
+  10. systemHealth() (424) — status (healthy/degraded/critical) + memory + CPU + DB + checks array
+  11. logViewer() (425) — reads dev.log with level filter + line count limit
+  Plus: adminSnapshot() — aggregates all 11 managers
+
+- Created src/app/api/admin-os/route.ts — POST (6 actions: backup_create/list/restore/delete, export, import) + GET (9 modes)
+- Created src/components/chat/admin-panel.tsx (~620 lines):
+  • 4 tabs: المدراء / النظام / نسخ احتياطي / سجلات
+  • Tab 1 (Managers): 5 subtabs (Provider #415, Model #416, MCP #417, Plugin #418, Skill #419) with metric cards + item lists
+  • Tab 2 (System): System Health #424 (status + checks), Workspace Manager #420 (root + files + dirs + size), Storage Manager #421 (disk + db + uploads + logs)
+  • Tab 3 (Backup): Backup Manager #422 (create + list + restore + delete), Import/Export #423 (export to JSON + import from JSON)
+  • Tab 4 (Logs): Log Viewer #425 (level filter + line count + colored log lines)
+  • Stats bar: providers, models, MCP, plugins, health, DB size
+- Added "إدارة" tab to chat-sidebar.tsx (with Settings2 icon)
+- Added "admin" to sidebarTab type in chat-store.ts
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- snapshot: providers=9/1, models=28, skills=12, workspace=1230MB, dbSize=4MB, health=healthy, logs=22 lines ✅
+- providers API: 9 providers (OpenAI 4 models, Anthropic 3, Gemini 4, DeepSeek 2, Groq 3, Mistral 3, etc.) ✅
+- health API: healthy, RAM 44%, 2 cores, DB 4MB, 4 checks all pass ✅
+- storage API: disk 44%, uploads 11 files, DB 4MB ✅
+- backup_create API: created 4MB backup ✅
+- backup_list API: shows the created backup ✅
+- export API: 95 conversations, 165 messages, 122 memories, 38 knowledge, 96 tasks ✅
+- logs API: returns recent log lines with level detection ✅
+- Agent Browser:
+  • "إدارة" tab visible in sidebar ✅
+  • Click → AdminPanel renders with 4 tabs + stats ✅
+  • Managers tab: 5 subtabs (#415-#419) with real provider data (9 providers, 28 models) ✅
+  • System tab: System Health "سليم ✅" + Workspace (71042 files, 1234MB) + Storage (disk 47%) ✅
+  • Backup tab: shows created backup + export/import buttons ✅
+  • Logs tab: 81 lines, 24KB, colored log entries with level filter ✅
+
+Stage Summary:
+- All 11 Admin & Operations features (section 30) FULLY wired to UI:
+  415. Provider Manager → Managers > Provider (9 providers, 28 models)
+  416. Model Manager → Managers > Model
+  417. MCP Manager → Managers > MCP
+  418. Plugin Manager → Managers > Plugin
+  419. Skill Manager → Managers > Skill (12 skills)
+  420. Workspace Manager → System > Workspace (71042 files, 1234MB)
+  421. Storage Manager → System > Storage (disk 47%, DB 4MB)
+  422. Backup Manager → Backup tab (create/restore/delete)
+  423. Import/Export → Backup tab (export 95 conversations + 122 memories)
+  424. System Health → System tab (healthy ✅ + 4 checks)
+  425. Log Viewer → Logs tab (81 lines, level filter)
+- Reuses existing subsystems (PROVIDER_REGISTRY, MCP OS, collaboration OS, observability) — no reinventing
+- 0 lint errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware
