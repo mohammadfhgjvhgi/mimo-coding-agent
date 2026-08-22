@@ -27,6 +27,7 @@ import {
   Shield,
   ShieldAlert,
   Workflow,
+  TrendingUp,
   Download,
   FileJson,
 } from "lucide-react"
@@ -67,6 +68,7 @@ import { ContextInspectorPanel } from "./context-inspector-panel"
 import { SecurityPanel } from "./security-panel"
 import { ReliabilityPanel } from "./reliability-panel"
 import { AutonomousSEPanel } from "./autonomous-se-panel"
+import { SelfImprovementPanel } from "./self-improvement-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -523,6 +525,7 @@ export function ChatSidebar({
         <TabButton icon={<Shield className="h-4 w-4" />} label="أمان" active={sidebarTab === "security"} onClick={() => setSidebarTab("security")} title="نظام الأمان / Security OS" />
         <TabButton icon={<ShieldAlert className="h-4 w-4" />} label="موثوقية" active={sidebarTab === "reliability"} onClick={() => setSidebarTab("reliability")} title="الموثوقية / Reliability OS" />
         <TabButton icon={<Workflow className="h-4 w-4" />} label="ذاتية" active={sidebarTab === "autonomous_se"} onClick={() => setSidebarTab("autonomous_se")} title="هندسة ذاتية / Autonomous SE" />
+        <TabButton icon={<TrendingUp className="h-4 w-4" />} label="تحسين" active={sidebarTab === "self_improvement"} onClick={() => setSidebarTab("self_improvement")} title="تحسين الذات / Self-Improvement" />
       </div>
       )}
 
@@ -615,6 +618,10 @@ export function ChatSidebar({
       ) : sidebarTab === "autonomous_se" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <AutonomousSEPanel />
+        </div>
+      ) : sidebarTab === "self_improvement" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <SelfImprovementPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">

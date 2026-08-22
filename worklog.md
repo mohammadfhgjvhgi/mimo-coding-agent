@@ -2298,3 +2298,80 @@ Stage Summary:
 - All data PERSISTED to DB (AutonomousBacklogItem + AutonomousHealthScan)
 - 0 lint errors, 0 new type errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: SI-FINAL
+Agent: ZAI Code (main)
+Task: Build Self-Improvement OS (section 26) — 10 features, fully wired to UI, persisted to DB
+
+Work Log:
+- Audited existing code:
+  • src/lib/cost-os/os.ts existed with 15 functions (contextWaste, modelEfficiency, resourceAwareRoute) — reused
+  • src/lib/reliability/os.ts (failureClassify) — reused for failure patterns
+  • No SelfImprovementMetric / SelfImprovementHypothesis Prisma models
+  • No /api/self-improvement endpoint
+  • No UI panel
+
+- Added 2 new Prisma models (prisma/schema.prisma):
+  • SelfImprovementMetric — period, totalTasks, successRate, avgDurationMs, toolStats JSON, modelDistribution JSON, efficiencyScore
+  • SelfImprovementHypothesis — description, status (proposed/testing/proven/rejected/promoted), expectedImprovement, baselineMetrics, resultMetrics, abWinner, confidence, promotionNote
+  • Ran `bun run db:push` — schema synced ✅
+
+- Created src/lib/self-improvement/os.ts (~650 lines, 10 operations + helpers):
+  1. agentMetrics() — collects from conversations + messages + toolCalls, computes efficiencyScore (weighted: success 40% + toolFailure 30% + waste 30%), persists snapshot
+  2. bottleneckDetection() — finds slowest tools (avgMs * calls impact) + heavily-used models
+  3. failurePatternMining() — groups ReliabilityFailure by category, finds commonError, rootCause, suggestedFix
+  4. toolFailureAnalytics() — per-tool calls/failures/failureRate/avgMs/successRate
+  5. contextWasteAnalysis() — finds duplicate content (first 100 chars fingerprint), computes waste %
+  6. modelRoutingAnalytics() — per-model tasks/percentage/avgEfficiency/avgCost
+  7. improvementHypothesis() + autoGenerateHypotheses() — auto-creates from bottlenecks + patterns + tool failures
+  8. abAgentComparison() — scores A vs B (success*100 - tokens/100 - durationMs/1000), updates hypothesis with winner
+  9. improvementBenchmark() — compares baseline vs result metrics, computes improvement per metric
+  10. promotionRejection() — promote (confidence=100) or reject (confidence-50)
+
+  Plus: siSnapshot(), listHypotheses(), listMetrics()
+
+- Created src/app/api/self-improvement/route.ts — POST (10+2 actions) + GET (3 modes: hypotheses/metrics/snapshot)
+- Created src/components/chat/self-improvement-panel.tsx (~700 lines):
+  • 4 tabs: المقاييس / الأنماط / الفرضيات / السجل
+  • Tab 1 (Metrics): 5 detector cards (Agent Metrics #371, Bottleneck #372, Tool Analytics #374, Context Waste #375, Model Routing #376) with "شغّل" buttons + inline result display
+  • Tab 2 (Patterns): failure pattern list (category, count, %, rootCause, suggestedFix)
+  • Tab 3 (Hypotheses): create form + auto-generate button + list with status badges + A/B compare + promote/reject buttons
+  • Tab 4 (History): metrics snapshots over time with efficiencyScore trend
+  • Stats bar: total hypotheses / testing / promoted / rejected / snapshots / efficiencyScore
+- Added "تحسين" tab to chat-sidebar.tsx (with TrendingUp icon)
+- Added "self_improvement" to sidebarTab type in chat-store.ts
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- bun run db:push: schema synced ✅
+- Snapshot API: 5 hypotheses (4 proposed + 1 promoted), 4 metrics snapshots, 92% efficiency ✅
+- agent_metrics API: 95 tasks, 84% success rate, 47 tool calls, 3 failures, 7 model distributions ✅
+- failure_patterns API: 3 patterns (loop/unknown/oom, each 33%) with rootCause + suggestedFix ✅
+- hypothesis_auto API: created 5 hypotheses from bottlenecks + patterns ✅
+- A/B compare API: B won with 2.5 points, 3% improvement ✅
+- promote API: "تم القبول ✅" ✅
+- Agent Browser:
+  • "تحسين" tab visible in sidebar ✅
+  • Click → SelfImprovementPanel renders with 4 tabs + stats ✅
+  • Stats show real DB data: 5 hypotheses, 1 promoted, 92% efficiency ✅
+  • Metrics tab: 5 detector buttons with feature numbers (#371-#376) ✅
+  • Hypotheses tab: shows 5 real hypotheses with status badges (مقبولة ✅ + مقترحة) ✅
+  • Each hypothesis has confidence % + A/B winner badge ✅
+
+Stage Summary:
+- All 10 Self-Improvement features (section 26) FULLY wired to UI:
+  371. Agent Metrics → Metrics tab > #371 (95 tasks, 84% success, 92% efficiency)
+  372. Bottleneck Detection → Metrics tab > #372
+  373. Failure Pattern Mining → Patterns tab (3 patterns with rootCause + fix)
+  374. Tool Failure Analytics → Metrics tab > #374
+  375. Context Waste Analysis → Metrics tab > #375
+  376. Model Routing Analytics → Metrics tab > #376 (7 models tracked)
+  377. Improvement Hypothesis → Hypotheses tab > create form + auto-generate
+  378. A/B Agent Comparison → per-hypothesis A/B button (B won with 3% improvement)
+  379. Improvement Benchmark → automatic in A/B comparison
+  380. Promotion/Rejection → per-hypothesis promote/reject buttons
+- All data PERSISTED to DB (SelfImprovementMetric + SelfImprovementHypothesis)
+- Reuses cost-os (contextWaste, modelEfficiency) + reliability (failureClassify) — no reinventing
+- 0 lint errors, 0 new type errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware

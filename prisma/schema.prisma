@@ -1585,3 +1585,56 @@ model AutonomousHealthScan {
   @@index([createdAt])
   @@index([trigger])
 }
+
+// Self-Improvement OS — Agent metrics snapshots for trend analysis.
+// Each record: totalTasks, successRate, avgDurationMs, avgTokensPerTask,
+// toolCallsCount, failureCount, contextWasteTokens, modelDistribution.
+model SelfImprovementMetric {
+  id              String   @id @default(cuid())
+  // "daily" | "weekly" | "monthly" | "manual"
+  period          String   @default("manual")
+  totalTasks      Int      @default(0)
+  successfulTasks Int      @default(0)
+  failedTasks     Int      @default(0)
+  avgDurationMs   Int      @default(0)
+  avgTokensPerTask Int     @default(0)
+  toolCallsCount  Int      @default(0)
+  toolFailures    Int      @default(0)
+  contextWasteTokens Int   @default(0)
+  // JSON: { modelId: count }
+  modelDistribution String  @default("{}")
+  // JSON: { toolName: { calls, failures, avgMs } }
+  toolStats      String    @default("{}")
+  // Overall efficiency score 0-100
+  efficiencyScore Int      @default(100)
+  createdAt       DateTime @default(now())
+
+  @@index([period])
+  @@index([createdAt])
+}
+
+// Self-Improvement OS — Hypothesis for improving the agent.
+// Each hypothesis: description, expected improvement, status (proposed/testing/proven/rejected/promoted).
+model SelfImprovementHypothesis {
+  id              String   @id @default(cuid())
+  description     String
+  // "proposed" | "testing" | "proven" | "rejected" | "promoted"
+  status          String   @default("proposed")
+  // What we expect to improve (e.g. "reduce tool failures by 20%")
+  expectedImprovement String?
+  // JSON: metrics before the change
+  baselineMetrics String?
+  // JSON: metrics after the change
+  resultMetrics   String?
+  // A/B test comparison: winner = "A" | "B" | "tie" | null
+  abWinner        String?
+  // Confidence 0-100
+  confidence      Int      @default(0)
+  // If promoted, what config/rule was changed
+  promotionNote   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
