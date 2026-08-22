@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موقعي البسيط</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        main {
+            padding: 3rem 0;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-title {
+            font-size: 1.3rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>مرحباً بكم في موقعي البسيط</h1>
+            <p class="subtitle">موقع بسيط وجذاب يعرض المعلومات بطريقة منظمة</p>
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <section class="section">
+                <h2>عن الموقع</h2>
+                <p>هذا موقع بسيط تم إنشاؤه باستخدام HTML و CSS فقط. يهدف إلى تقديم محتوى جذاب وسهل القراءة مع تصميم متجاوب يعمل على جميع الأجهزة.</p>
+            </section>
+            
+            <section class="section">
+                <h2>المميزات</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3 class="feature-title">تصميم أنيق</h3>
+                        <p>تصميم بسيط وجذاب مع ألوان متناسقة</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3 class="feature-title">متجاوب</h3>
+                        <p>يعمل بشكل مثالي على جميع الأجهزة</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 class="feature-title">سريع</h3>
+                        <p>تحميل سريع للمحتوى دون تعقيدات</p>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="section">
+                <h2>معلومات التواصل</h2>
+                <p>يمكنك التواصل معنا عبر البريد الإلكتروني: contact@example.com</p>
+                <p>تابعنا على وسائل التواصل الاجتماعي للحصول على آخر التحديثات.</p>
+            </section>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 جميع الحقوق محفوظة</p>
+        </div>
+    </footer>
+</body>
+</html>

@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function wrap<T>(result: { ok: true; data: T } | { ok: false; error: string; message: string }) {
+function wrap<T>(result: { ok: boolean; data?: T; error?: string; message?: string }) {
   if (result.ok) {
     return NextResponse.json(result.data)
   }

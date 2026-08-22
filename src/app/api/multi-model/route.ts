@@ -102,7 +102,7 @@ function makeCallLLM(_caller: string) {
   }
 }
 
-function wrap<T>(result: { ok: true; data: T } | { ok: false; error: string; message: string }) {
+function wrap<T>(result: { ok: boolean; data?: T; error?: string; message?: string }) {
   if (result.ok) return NextResponse.json(result.data)
   return NextResponse.json({ error: result.error, message: result.message }, { status: 400 })
 }
