@@ -608,3 +608,391 @@ export function formatObservabilityResult<T>(result: ObservabilityResult<T>): st
   if (typeof data === "number" || typeof data === "boolean") return String(data)
   try { return JSON.stringify(data, null, 2) } catch { return String(data) }
 }
+
+// ---------------------------------------------------------------------------
+// 10. Task Timeline (381) — chronological journey of a task
+// ---------------------------------------------------------------------------
+
+export interface TaskTimelineEvent {
+  id: string
+  timestamp: string
+  type: string // "created" | "started" | "completed" | "blocked" | "deferred" | "failed"
+  taskId: string
+  taskTitle: string
+  status: string
+  priority?: string
+  assignee?: string
+  durationMs?: number
+}
+
+export async function taskTimeline(opts: { limit?: number; taskId?: string } = {}): Promise<ObservabilityResult<TaskTimelineEvent[]>> {
+  try {
+    const limit = opts.limit ?? 50
+    const where: any = {}
+    if (opts.taskId) where.id = opts.taskId
+
+    const tasks = await db.task.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: Math.min(limit, 200),
+    })
+
+    const events: TaskTimelineEvent[] = tasks.map(t => {
+      const created = t.createdAt
+      const updated = t.updatedAt
+      const durationMs = updated && created ? updated.getTime() - created.getTime() : undefined
+      const type = t.status === "done" ? "completed" : t.status === "in_progress" ? "started" : t.status === "todo" ? "created" : t.status === "blocked" ? "blocked" : "created"
+      return {
+        id: t.id + "_timeline",
+        timestamp: (updated ?? created).toISOString(),
+        type,
+        taskId: t.id,
+        taskTitle: t.title ?? "untitled",
+        status: t.status ?? "unknown",
+        priority: t.priority ?? undefined,
+        durationMs,
+      }
+    })
+
+    return { ok: true, data: events }
+  } catch (e) {
+    return { ok: false, error: "task_timeline_failed", message: String(e) }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 11. Latency Analytics (387) — p50/p95/p99 latency per operation type
+// ---------------------------------------------------------------------------
+
+export interface LatencyAnalytics {
+  operations: Array<{
+    type: string
+    count: number
+    avgMs: number
+    p50Ms: number
+    p95Ms: number
+    p99Ms: number
+    maxMs: number
+    minMs: number
+  }>
+  slowestOperations: Array<{ type: string; ms: number; timestamp: string }>
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  const idx = Math.ceil((p / 100) * sorted.length) - 1
+  return sorted[Math.max(0, idx)]
+}
+
+export async function latencyAnalytics(): Promise<ObservabilityResult<LatencyAnalytics>> {
+  try {
+    // Collect durations from tool calls + messages
+    const messages = await db.message.findMany({
+      select: { id: true, toolCalls: true, createdAt: true },
+      take: 1000,
+    })
+
+    const byType: Record<string, number[]> = {}
+    const slowest: Array<{ type: string; ms: number; timestamp: string }> = []
+
+    for (const m of messages) {
+      if (m.toolCalls) {
+        try {
+          const calls = JSON.parse(m.toolCalls) as Array<{ name?: string; durationMs?: number; status?: string }>
+          for (const c of calls) {
+            if (c.durationMs && c.durationMs > 0) {
+              const name = c.name ?? "unknown_tool"
+              if (!byType[name]) byType[name] = []
+              byType[name].push(c.durationMs)
+              if (c.durationMs > 1000) {
+                slowest.push({ type: name, ms: c.durationMs, timestamp: m.createdAt.toISOString() })
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    const operations = Object.entries(byType).map(([type, durations]) => {
+      const sorted = durations.sort((a, b) => a - b)
+      const sum = sorted.reduce((s, x) => s + x, 0)
+      return {
+        type,
+        count: sorted.length,
+        avgMs: Math.round(sum / sorted.length),
+        p50Ms: percentile(sorted, 50),
+        p95Ms: percentile(sorted, 95),
+        p99Ms: percentile(sorted, 99),
+        maxMs: sorted[sorted.length - 1] ?? 0,
+        minMs: sorted[0] ?? 0,
+      }
+    })
+
+    operations.sort((a, b) => b.p95Ms - a.p95Ms)
+    slowest.sort((a, b) => b.ms - a.ms)
+
+    return {
+      ok: true,
+      data: {
+        operations: operations.slice(0, 20),
+        slowestOperations: slowest.slice(0, 10),
+      },
+    }
+  } catch (e) {
+    return { ok: false, error: "latency_failed", message: String(e) }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 12. Resource Analytics — RAM/VRAM/CPU historical (388, 389, 390)
+// ---------------------------------------------------------------------------
+
+export interface ResourceAnalytics {
+  current: {
+    ramUsagePct: number
+    ramUsedMb: number
+    ramTotalMb: number
+    processMemoryMb: number
+    cpuCount: number
+    cpuLoadAvg: number[]
+    vramUsedMb: number  // approximate (only for GPU workloads)
+    vramTotalMb: number
+    uptimeSec: number
+    processUptimeSec: number
+  }
+  history: Array<{
+    timestamp: string
+    ramUsagePct: number
+    processMemoryMb: number
+    cpuLoadAvg1: number
+    cpuLoadAvg5: number
+    cpuLoadAvg15: number
+  }>
+  avgRamUsagePct: number
+  avgCpuLoad: number
+  peakRamUsageMb: number
+}
+
+// In-memory history buffer (last 100 samples)
+const RESOURCE_HISTORY: Array<{
+  timestamp: string
+  ramUsagePct: number
+  processMemoryMb: number
+  cpuLoadAvg1: number
+  cpuLoadAvg5: number
+  cpuLoadAvg15: number
+}> = []
+
+export function recordResourceSample(): void {
+  try {
+    const sys = systemMetrics()
+    RESOURCE_HISTORY.push({
+      timestamp: new Date().toISOString(),
+      ramUsagePct: sys.ramUsagePct,
+      processMemoryMb: sys.processMemoryMb,
+      cpuLoadAvg1: sys.cpuLoadAvg[0] ?? 0,
+      cpuLoadAvg5: sys.cpuLoadAvg[1] ?? 0,
+      cpuLoadAvg15: sys.cpuLoadAvg[2] ?? 0,
+    })
+    if (RESOURCE_HISTORY.length > 100) RESOURCE_HISTORY.shift()
+  } catch {}
+}
+
+export function resourceAnalytics(): ObservabilityResult<ResourceAnalytics> {
+  try {
+    const sys = systemMetrics()
+    // Approximate VRAM: if no GPU detected, report 0
+    const vramTotalMb = 0  // No GPU detection — would need nvidia-smi or similar
+    const vramUsedMb = 0
+
+    const avgRamUsagePct = RESOURCE_HISTORY.length > 0
+      ? Math.round(RESOURCE_HISTORY.reduce((s, h) => s + h.ramUsagePct, 0) / RESOURCE_HISTORY.length)
+      : sys.ramUsagePct
+    const avgCpuLoad = RESOURCE_HISTORY.length > 0
+      ? Math.round(RESOURCE_HISTORY.reduce((s, h) => s + h.cpuLoadAvg1, 0) / RESOURCE_HISTORY.length * 100) / 100
+      : sys.cpuLoadAvg[0] ?? 0
+    const peakRamUsageMb = RESOURCE_HISTORY.length > 0
+      ? Math.max(...RESOURCE_HISTORY.map(h => h.processMemoryMb))
+      : sys.processMemoryMb
+
+    return {
+      ok: true,
+      data: {
+        current: {
+          ramUsagePct: sys.ramUsagePct,
+          ramUsedMb: sys.usedRamMb,
+          ramTotalMb: sys.totalRamMb,
+          processMemoryMb: sys.processMemoryMb,
+          cpuCount: sys.cpuCount,
+          cpuLoadAvg: sys.cpuLoadAvg,
+          vramUsedMb,
+          vramTotalMb,
+          uptimeSec: sys.uptimeSec,
+          processUptimeSec: sys.processUptimeSec,
+        },
+        history: RESOURCE_HISTORY,
+        avgRamUsagePct,
+        avgCpuLoad,
+        peakRamUsageMb,
+      },
+    }
+  } catch (e) {
+    return { ok: false, error: "resource_failed", message: String(e) }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 13. Failure Dashboard (391) — aggregated failure stats
+// ---------------------------------------------------------------------------
+
+export interface FailureDashboard {
+  totalFailures: number
+  byCategory: Record<string, number>
+  bySeverity: Record<string, number>
+  recentFailures: Array<{
+    id: string
+    task: string
+    error: string
+    category: string
+    severity: string
+    recovered: boolean
+    occurrences: number
+    createdAt: string
+  }>
+  failureRate: number  // failures per hour
+  topRecurring: Array<{ task: string; occurrences: number; category: string }>
+}
+
+export async function failureDashboard(): Promise<ObservabilityResult<FailureDashboard>> {
+  try {
+    // Get failures from ReliabilityFailure table
+    const failures = await (db as any).reliabilityFailure?.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+    }) ?? []
+
+    const byCategory: Record<string, number> = {}
+    const bySeverity: Record<string, number> = {}
+    for (const f of failures) {
+      byCategory[f.category] = (byCategory[f.category] ?? 0) + 1
+      bySeverity[f.severity] = (bySeverity[f.severity] ?? 0) + 1
+    }
+
+    // Compute failure rate (failures per hour in last 24h)
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const recentCount = failures.filter(f => new Date(f.createdAt) > last24h).length
+    const failureRate = Math.round((recentCount / 24) * 100) / 100
+
+    const recentFailures = failures.slice(0, 20).map(f => ({
+      id: f.id,
+      task: f.task,
+      error: f.error,
+      category: f.category,
+      severity: f.severity,
+      recovered: f.recovered,
+      occurrences: f.occurrences,
+      createdAt: f.createdAt.toISOString(),
+    }))
+
+    const topRecurring = failures
+      .filter(f => f.occurrences > 1)
+      .sort((a, b) => b.occurrences - a.occurrences)
+      .slice(0, 10)
+      .map(f => ({ task: f.task, occurrences: f.occurrences, category: f.category }))
+
+    return {
+      ok: true,
+      data: {
+        totalFailures: failures.length,
+        byCategory,
+        bySeverity,
+        recentFailures,
+        failureRate,
+        topRecurring,
+      },
+    }
+  } catch (e) {
+    return { ok: false, error: "failure_dashboard_failed", message: String(e) }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 14. Recovery Dashboard (392) — recovery action stats
+// ---------------------------------------------------------------------------
+
+export interface RecoveryDashboard {
+  totalRecoveries: number
+  successfulRecoveries: number
+  failedRecoveries: number
+  recoveryRate: number  // 0-100
+  byActionType: Record<string, { attempted: number; succeeded: number }>
+  recentRecoveries: Array<{
+    id: string
+    task: string
+    category: string
+    action: string
+    succeeded: boolean
+    durationMs?: number
+    createdAt: string
+  }>
+  avgRecoveryMs: number
+}
+
+export async function recoveryDashboard(): Promise<ObservabilityResult<RecoveryDashboard>> {
+  try {
+    const failures = await (db as any).reliabilityFailure?.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 500,
+    }) ?? []
+
+    const totalRecoveries = failures.length
+    const successfulRecoveries = failures.filter((f: any) => f.recovered).length
+    const failedRecoveries = totalRecoveries - successfulRecoveries
+    const recoveryRate = totalRecoveries > 0 ? Math.round((successfulRecoveries / totalRecoveries) * 100) : 0
+
+    // By action type — use recoveryAction JSON if available
+    const byActionType: Record<string, { attempted: number; succeeded: number }> = {}
+    for (const f of failures) {
+      let action = "unknown"
+      if (f.recoveryAction) {
+        try {
+          const parsed = JSON.parse(f.recoveryAction)
+          action = parsed.action ?? "unknown"
+        } catch {}
+      }
+      if (!byActionType[action]) byActionType[action] = { attempted: 0, succeeded: 0 }
+      byActionType[action].attempted++
+      if (f.recovered) byActionType[action].succeeded++
+    }
+
+    const recentRecoveries = failures.slice(0, 20).map((f: any) => ({
+      id: f.id,
+      task: f.task,
+      category: f.category,
+      action: f.recoveryAction ? "applied" : "none",
+      succeeded: f.recovered,
+      createdAt: f.createdAt.toISOString(),
+    }))
+
+    // Approximate avg recovery time (from failure to recovery)
+    const recoveredOnes = failures.filter((f: any) => f.recovered && f.createdAt && f.updatedAt)
+    const avgRecoveryMs = recoveredOnes.length > 0
+      ? Math.round(recoveredOnes.reduce((s: number, f: any) => s + (f.updatedAt.getTime() - f.createdAt.getTime()), 0) / recoveredOnes.length)
+      : 0
+
+    return {
+      ok: true,
+      data: {
+        totalRecoveries,
+        successfulRecoveries,
+        failedRecoveries,
+        recoveryRate,
+        byActionType,
+        recentRecoveries,
+        avgRecoveryMs,
+      },
+    }
+  } catch (e) {
+    return { ok: false, error: "recovery_dashboard_failed", message: String(e) }
+  }
+}

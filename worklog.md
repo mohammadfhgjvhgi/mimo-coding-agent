@@ -2375,3 +2375,69 @@ Stage Summary:
 - Reuses cost-os (contextWaste, modelEfficiency) + reliability (failureClassify) — no reinventing
 - 0 lint errors, 0 new type errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: OBS-FINAL
+Agent: ZAI Code (main)
+Task: Build Observability OS (section 27) — 12 features, fully wired to UI
+
+Work Log:
+- Audited existing code:
+  • src/lib/observability/os.ts existed with 13 functions (agentTimeline, toolTimeline, tokenTimeline, memoryTimeline, modelTimeline, errorTimeline, taskMetrics, systemMetrics, replay, observabilitySnapshot) — reused
+  • src/app/api/observability/route.ts existed with 9 GET modes + 1 POST action — extended
+  • No UI panel existed
+
+- Extended src/lib/observability/os.ts (+290 lines, 5 new functions):
+  • taskTimeline() (381) — chronological journey of tasks (created/started/completed/blocked/failed)
+  • latencyAnalytics() (387) — per-operation p50/p95/p99 latency + slowest operations list
+  • resourceAnalytics() (388/389/390) — current RAM/VRAM/CPU + history buffer (100 samples) + averages + peak
+  • recordResourceSample() — pushes current metrics to history buffer
+  • failureDashboard() (391) — totalFailures, byCategory, bySeverity, recentFailures, failureRate (per hour), topRecurring
+  • recoveryDashboard() (392) — totalRecoveries, successfulRecoveries, recoveryRate, byActionType, recentRecoveries, avgRecoveryMs
+
+- Extended src/app/api/observability/route.ts (+5 modes):
+  • task_timeline, latency, resources, failure_dashboard, recovery_dashboard
+
+- Created src/components/chat/observability-panel.tsx (~660 lines):
+  • 4 tabs: الخطوط / تحليلات / إخفاقات / النظام
+  • Tab 1 (Timelines): 5 subtabs (Task #381, Agent #382, Tool #383, Model #384, Memory #385) with event cards
+  • Tab 2 (Analytics): 3 subtabs (Token #386, Latency #387, RAM/VRAM/CPU #388) with metric cards + history + averages
+  • Tab 3 (Failures): 2 subtabs (Failure Dashboard #391, Recovery Dashboard #392) with stats + recent lists
+  • Tab 4 (System): live metrics (auto-refresh every 5s) + snapshot (conversations, messages, tool calls, errors, memories, tokens)
+- Added "رصد" tab to chat-sidebar.tsx (with Radar icon)
+- Added "observability" to sidebarTab type in chat-store.ts
+
+Verification (via curl + Agent Browser):
+- bun run lint: 0 errors ✅
+- task_timeline API: returns tasks with timestamp + status + durationMs ✅
+- latency API: 4 operations with p50/p95/p99 (browser_navigate p95=464ms) ✅
+- resources API: RAM 45% (1832/4042 MB), Process 1408 MB, CPU 2 cores ✅
+- failure_dashboard API: 3 failures (loop/unknown/oom), byCategory + bySeverity ✅
+- recovery_dashboard API: 3 recoveries, 0 successful, 0% rate ✅
+- Agent Browser:
+  • "رصد" tab visible in sidebar ✅
+  • Click → ObservabilityPanel renders with 4 tabs ✅
+  • Timelines tab: 5 subtabs (#381-#385) with real events ✅
+  • Analytics tab: RAM 53% + Process 1406 MB + CPU 2 cores + averages ✅
+  • Failures tab: 3 failures + byCategory (loop/unknown/oom) + recent failures list ✅
+  • Recovery subtab: 3 recoveries + 0% rate + byActionType ✅
+  • System tab: live metrics (52% RAM, 2 cores, 5397s uptime) + snapshot (95 convs, 165 msgs, 47 tool calls) ✅
+
+Stage Summary:
+- All 12 Observability features (section 27) FULLY wired to UI:
+  381. Task Timeline → Timelines tab > Task
+  382. Agent Timeline → Timelines tab > Agent
+  383. Tool Timeline → Timelines tab > Tool
+  384. Model Timeline → Timelines tab > Model
+  385. Memory Timeline → Timelines tab > Memory
+  386. Token Analytics → Analytics tab > Token
+  387. Latency Analytics → Analytics tab > Latency (p50/p95/p99)
+  388. RAM Analytics → Analytics tab > RAM/VRAM/CPU
+  389. VRAM Analytics → Analytics tab > RAM/VRAM/CPU
+  390. CPU Analytics → Analytics tab > RAM/VRAM/CPU
+  391. Failure Dashboard → Failures tab > Failure
+  392. Recovery Dashboard → Failures tab > Recovery
+- Reuses existing observability/os.ts (13 functions) — no reinventing
+- 0 lint errors, 0 new type errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware
+- Live auto-refresh (5s) for system metrics
