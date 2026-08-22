@@ -2977,3 +2977,60 @@ Stage Summary:
 - "المحادثة ليست المكان الذي تنتهي فيه الأعمال؛ هي نقطة انطلاق الأعمال." ✅
 - 0 lint errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: PERSONAL-INTEL-FINAL
+Agent: ZAI Code (main)
+Task: Build Personal Intelligence OS (section 36) — 10 features, fully wired to UI
+
+Work Log:
+- Created src/lib/personal-intelligence/os.ts (~480 lines, 10 operations + snapshot):
+  1. personalProfile (475) — name, language, timezone, work hours from Memory + DB stats
+  2. preferenceEngine (476) — get/set/list preferences (stored as Memory category="preference")
+  3. goalEngine (477) — goals with key results + progress bars
+  4. priorityEngine (478) — score tasks (priority + due date + in_progress) + projects
+  5. routineDetection (479) — analyze conversation/task creation patterns by hour/day
+  6. routineSuggestions (480) — suggest automations from detected routines
+  7. decisionHistory (481) — decisions from Memory category="decision"
+  8. projectRelationships (482) — find projects sharing milestones/tags
+  9. knowledgeRelationships (483) — cluster knowledge by category/tags
+  10. personalTimeline (484) — unified timeline from conversations + tasks + memories + projects + goals
+  Plus: personalIntelligenceSnapshot()
+- Created src/app/api/personal-intelligence/route.ts — POST (3 pref actions) + GET (10 modes)
+- Created src/components/chat/personal-intelligence-panel.tsx (~400 lines, 3 tabs):
+  • Tab 1 (Profile): Profile #475 + Preferences #476 (add new) + Goals #477 (progress bars) + Priorities #478 (ranked list)
+  • Tab 2 (Insights): 5 subtabs — Routines #479 + Suggestions #480 + Decisions #481 + Project Rels #482 + Knowledge Rels #483
+  • Tab 3 (Timeline): #484 unified timeline with type icons + chronological order
+- Added "شخصي" tab to chat-sidebar + "personal_intel" to store type
+- Fixed: Task model doesn't have `priority`/`completedAt` — used PTask instead. Memory doesn't have `tags` — used `source` instead.
+
+Verification:
+- bun run lint: 0 errors ✅
+- snapshot: userName=أحمد, conversations=95, memories=123, tasks=69, projects=23, goals=1, routines=3, preferences=2 ✅
+- profile: name=أحمد, language=العربية, timezone=UTC, workHours=09:00-17:00, memberSince=18/8 ✅
+- routines: 3 detected (activity at 16:00 daily 29× 100%, Thursday weekly 61×, task creation at 0:00 34×) ✅
+- suggestions: "جلسة عمل يومية الساعة 16:00" (100% confidence) ✅
+- priorities: ranked list (Code review=90, Buy groceries=80, ...) ✅
+- goals: "تعلم TypeScript" in_progress 50% 1/2 KR ✅
+- knowledge_rels: clusters (research=95, automation=20, ...) ✅
+- timeline: unified events (projects + memories + tasks) ✅
+- Agent Browser:
+  • "شخصي" tab visible in sidebar ✅
+  • Profile tab: shows "أحمد" + 2 preferences + 1 goal (TypeScript 50%) + 70 prioritized items ✅
+  • Insights tab: 5 subtabs with 3 routines detected (100% confidence) ✅
+  • Timeline tab: unified chronological events (projects + memories) ✅
+
+Stage Summary:
+- All 10 Personal Intelligence features (section 36) FULLY wired to UI:
+  475. Personal Profile → ملف > Profile (name=أحمد, lang=العربية, since 18/8)
+  476. Preference Engine → ملف > Preferences (2 prefs, add new)
+  477. Goal Engine → ملف > Goals (تعلم TypeScript, 50%, 1/2 KR)
+  478. Priority Engine → ملف > Priorities (70 items ranked, Code review #1)
+  479. Routine Detection → رؤى > روتين (3 patterns, 100% confidence)
+  480. Routine Suggestions → رؤى > اقتراحات (daily work session at 16:00)
+  481. Decision History → رؤى > قرارات
+  482. Project Relationships → رؤى > مشاريع
+  483. Knowledge Relationships → رؤى > معرفة (research=95, automation=20)
+  484. Personal Timeline → خط زمني (unified chronological events)
+- 0 lint errors, 0 runtime errors
+- Bilingual UI (Arabic + English), RTL-aware
