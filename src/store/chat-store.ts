@@ -28,7 +28,7 @@ interface ChatState {
   memoryRefreshSignal: number
   goalsRefreshSignal: number
   symbolsRefreshSignal: number
-  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools" | "editor" | "git" | "context" | "evidence" | "benchmarks" | "autonomous" | "security" | "reliability" | "autonomous_se" | "self_improvement" | "observability" | "dev_experience"
+  sidebarTab: "conversations" | "explorer" | "memory" | "goals" | "symbols" | "skills" | "eval" | "smart_tools" | "editor" | "git" | "context" | "evidence" | "benchmarks" | "autonomous" | "security" | "reliability" | "autonomous_se" | "self_improvement" | "observability" | "dev_experience" | "collaboration" | "dev_experience"
   currentWorker: "cpu" | "gpu" | "zai" | null
   workerReason: string | null
   sidebarMode: "engineering" | "personal"

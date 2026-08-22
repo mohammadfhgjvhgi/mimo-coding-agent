@@ -1675,3 +1675,193 @@ model DevConstitution {
   @@index([type])
   @@index([enabled])
 }
+
+// Collaboration OS — Shared projects (406). Local-first; ready for future sync.
+model CollabSharedProject {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  // "owner" | "editor" | "viewer"
+  ownerRole   String   @default("owner")
+  // JSON: [{ userId, role, addedAt }]
+  members     String   @default("[]")
+  // JSON: project metadata { framework, path, tags }
+  metadata    String   @default("{}")
+  // Share token for external access
+  shareToken  String?  @unique
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerRole])
+  @@index([isPublic])
+}
+
+// Collaboration OS — Shared knowledge entries (407).
+model CollabSharedKnowledge {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  source      String   @default("manual") // "manual" | "imported" | "agent"
+  tags        String   @default("[]") // JSON array
+  // "public" | "team" | "private"
+  visibility  String   @default("team")
+  // JSON: [{ userId, role }]
+  accessList  String   @default("[]")
+  createdBy   String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([visibility])
+  @@index([createdBy])
+}
+
+// Collaboration OS — Shared agent configurations (408).
+model CollabSharedAgent {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  // JSON: agent config { model, systemPrompt, tools, mode, temperature }
+  config      String   @default("{}")
+  // "engineering" | "research" | "review" | "debug" | "custom"
+  agentType   String   @default("custom")
+  tags        String   @default("[]")
+  isPublic    Boolean  @default(false)
+  createdBy   String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([agentType])
+  @@index([isPublic])
+}
+
+// Collaboration OS — Prompt library (409).
+model CollabPromptLibrary {
+  id          String   @id @default(cuid())
+  title       String
+  prompt      String
+  category    String   @default("general") // "code" | "writing" | "analysis" | "research" | "general"
+  tags        String   @default("[]")
+  // "public" | "team" | "private"
+  visibility  String   @default("team")
+  // Usage count (how many times this prompt was used)
+  useCount    Int      @default(0)
+  // Average rating 0-5
+  rating      Float    @default(0)
+  createdBy   String   @default("local")
+  builtin     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([visibility])
+  @@index([useCount])
+}
+
+// Collaboration OS — Skill library (410).
+model CollabSkillLibrary {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  // JSON: skill definition { type, code, inputs, outputs, schema }
+  definition  String   @default("{}")
+  // "tool" | "agent" | "workflow" | "template"
+  skillType   String   @default("tool")
+  tags        String   @default("[]")
+  // "public" | "team" | "private"
+  visibility  String   @default("team")
+  useCount    Int      @default(0)
+  builtin     Boolean  @default(false)
+  createdBy   String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([skillType])
+  @@index([visibility])
+  @@index([useCount])
+}
+
+// Collaboration OS — Shared artifacts (411).
+model CollabSharedArtifact {
+  id          String   @id @default(cuid())
+  title       String
+  // "html" | "react" | "svg" | "mermaid" | "markdown" | "code"
+  artifactType String
+  content     String
+  // JSON: metadata { size, dependencies, preview }
+  metadata    String   @default("{}")
+  tags        String   @default("[]")
+  // "public" | "team" | "private"
+  visibility  String   @default("team")
+  version     Int      @default(1)
+  createdBy   String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([artifactType])
+  @@index([visibility])
+  @@index([version])
+}
+
+// Collaboration OS — Review requests (412).
+model CollabReviewRequest {
+  id          String   @id @default(cuid())
+  title       String
+  // The content being reviewed (file path, code snippet, or artifact ID)
+  targetType   String  // "file" | "snippet" | "artifact" | "diff"
+  targetPath  String
+  // JSON: review context { lines, language, description }
+  context     String   @default("{}")
+  // "pending" | "approved" | "changes_requested" | "rejected" | "closed"
+  status      String   @default("pending")
+  // JSON: [{ reviewerId, status, comment, timestamp }]
+  reviews     String   @default("[]")
+  priority    String   @default("medium") // "low" | "medium" | "high" | "urgent"
+  requestedBy String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([requestedBy])
+}
+
+// Collaboration OS — Team permissions (413).
+model CollabTeamPermission {
+  id          String   @id @default(cuid())
+  // "local" | userId (for future multi-user)
+  userId      String   @default("local")
+  // Resource type: "project" | "knowledge" | "agent" | "artifact" | "review"
+  resourceType String
+  resourceId  String
+  // "owner" | "editor" | "viewer" | "reviewer"
+  role        String   @default("viewer")
+  // JSON: granular permissions { read, write, delete, share, approve }
+  permissions String  @default("{}")
+  grantedBy   String   @default("local")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, resourceType, resourceId])
+  @@index([userId])
+  @@index([resourceType])
+  @@index([role])
+}
+
+// Collaboration OS — Project roles (414).
+model CollabProjectRole {
+  id          String   @id @default(cuid())
+  projectId   String
+  roleName    String   // "owner" | "maintainer" | "contributor" | "reviewer" | "viewer"
+  // JSON: permissions { canEdit, canDelete, canShare, canApprove, canMerge }
+  permissions String   @default("{}")
+  // JSON: assigned users [{ userId, assignedAt }]
+  assignedTo  String   @default("[]")
+  description String   @default("")
+  builtin     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([roleName])
+}
