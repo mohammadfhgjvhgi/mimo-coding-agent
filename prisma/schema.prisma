@@ -1865,3 +1865,49 @@ model CollabProjectRole {
   @@index([projectId])
   @@index([roleName])
 }
+
+// Backup / Recovery OS — Archive of all backup operations.
+// Each archive records: type, scope, itemCount, sizeBytes, status, metadata.
+model BackupArchive {
+  id          String   @id @default(cuid())
+  // "conversation" | "memory" | "project" | "settings" | "checkpoint" | "full"
+  type        String
+  // JSON: list of backed-up item IDs
+  itemIds     String   @default("[]")
+  itemCount   Int      @default(0)
+  sizeBytes   Int      @default(0)
+  // "pending" | "completed" | "failed" | "restored"
+  status      String   @default("completed")
+  // JSON: metadata { version, exportedAt, stats }
+  metadata    String   @default("{}")
+  // The backup content (JSON serialized)
+  content     String   @default("{}")
+  // Optional label
+  label       String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Backup / Recovery OS — Recovery operations log.
+// Each recovery: type, sourceArchiveId, restoredCount, status, details.
+model RecoveryOperation {
+  id              String   @id @default(cuid())
+  // "wizard" | "crash" | "integrity" | "manual"
+  type            String
+  // The backup archive ID used for recovery (if any)
+  sourceArchiveId String?
+  restoredCount   Int      @default(0)
+  failedCount     Int      @default(0)
+  // "success" | "partial" | "failed"
+  status          String   @default("success")
+  // JSON: details { what was restored, errors, duration }
+  details         String   @default("{}")
+  createdAt       DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}

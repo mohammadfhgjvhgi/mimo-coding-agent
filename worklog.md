@@ -2704,3 +2704,51 @@ Stage Summary:
 - Reuses existing subsystems (PROVIDER_REGISTRY, MCP OS, collaboration OS, observability) — no reinventing
 - 0 lint errors, 0 runtime errors
 - Bilingual UI (Arabic + English), RTL-aware
+
+---
+Task ID: BACKUP-RECOVERY-FINAL
+Agent: ZAI Code (main)
+Task: Build Backup / Recovery OS (section 31) — 8 features, fully wired to UI, persisted to DB
+
+Work Log:
+- Added 2 Prisma models (BackupArchive + RecoveryOperation) + ran db:push ✅
+- Created src/lib/backup-recovery/os.ts (~530 lines, 8 operations):
+  1. conversationBackup (426) — exports conversations + messages to JSON archive
+  2. memoryBackup (427) — exports all memories
+  3. projectMetadataBackup (428) — exports projects + goals + tasks
+  4. settingsBackup (429) — exports providers + conversation settings
+  5. checkpointArchive (430) — archives ReliabilityCheckpoints
+  6. recoveryWizard (431) — guided restore from any archive (upserts items)
+  7. crashRecovery (432) — detects crashes (in_progress tasks + recent checkpoints)
+  8. dataIntegrityCheck (433) — 6 checks (orphans, empty, audit chain, duplicates, failed backups, record count)
+- Created src/app/api/backup-recovery/route.ts — POST (8 actions + delete) + GET (3 modes)
+- Created src/components/chat/backup-recovery-panel.tsx (~580 lines, 3 tabs):
+  • Tab 1 (Backup): 5 backup operations + "نسخ الكل" button + result display
+  • Tab 2 (Recovery): Recovery Wizard #431 + Crash Recovery #432 + Integrity Check #433
+  • Tab 3 (Archives): list + restore + delete
+- Added "نسخ" tab to chat-sidebar + "backup_recovery" to store type
+
+Verification:
+- bun run lint: 0 errors ✅
+- conversation_backup: 95 conversations, 165 messages, 225KB ✅
+- memory_backup: 122 memories, 64KB ✅
+- project_backup: 21 projects, 96 tasks, 214KB ✅
+- settings_backup: 1 provider, 9KB ✅
+- checkpoint_archive: 0 checkpoints ✅
+- crash_recovery: "✅ لا يوجد دليل على crash" ✅
+- integrity_check: warnings (15 empty conversations), audit chain سليمة (50 entries) ✅
+- Agent Browser: 3 tabs + 5 archives visible with restore buttons ✅
+
+Stage Summary:
+- All 8 Backup/Recovery features (section 31) FULLY wired to UI:
+  426. Conversation Backup → Backup tab > #426
+  427. Memory Backup → Backup tab > #427
+  428. Project Metadata Backup → Backup tab > #428
+  429. Settings Backup → Backup tab > #429
+  430. Checkpoint Archive → Backup tab > #430
+  431. Recovery Wizard → Recovery tab > Wizard
+  432. Crash Recovery → Recovery tab > Crash
+  433. Data Integrity Check → Recovery tab > Integrity
+- 5 backup archives created during testing (real data)
+- 0 lint errors, 0 runtime errors
+- Bilingual UI, RTL-aware

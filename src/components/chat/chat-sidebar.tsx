@@ -31,6 +31,7 @@ import {
   Radar,
   Wrench,
   Settings2,
+  Archive,
   Users,
   Download,
   FileJson,
@@ -77,6 +78,7 @@ import { ObservabilityPanel } from "./observability-panel"
 import { DevExperiencePanel } from "./dev-experience-panel"
 import { CollaborationPanel } from "./collaboration-panel"
 import { AdminPanel } from "./admin-panel"
+import { BackupRecoveryPanel } from "./backup-recovery-panel"
 import type { Conversation } from "@/types/chat"
 
 interface ChatSidebarProps {
@@ -538,6 +540,7 @@ export function ChatSidebar({
         <TabButton icon={<Wrench className="h-4 w-4" />} label="مطور" active={sidebarTab === "dev_experience"} onClick={() => setSidebarTab("dev_experience")} title="تجربة المطور / Dev Experience" />
         <TabButton icon={<Users className="h-4 w-4" />} label="تعاون" active={sidebarTab === "collaboration"} onClick={() => setSidebarTab("collaboration")} title="التعاون / Collaboration" />
         <TabButton icon={<Settings2 className="h-4 w-4" />} label="إدارة" active={sidebarTab === "admin"} onClick={() => setSidebarTab("admin")} title="الإدارة والتشغيل / Admin & Ops" />
+        <TabButton icon={<Archive className="h-4 w-4" />} label="نسخ" active={sidebarTab === "backup_recovery"} onClick={() => setSidebarTab("backup_recovery")} title="نسخ احتياطي / Backup & Recovery" />
       </div>
       )}
 
@@ -650,6 +653,10 @@ export function ChatSidebar({
       ) : sidebarTab === "admin" ? (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
           <AdminPanel />
+        </div>
+      ) : sidebarTab === "backup_recovery" ? (
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+          <BackupRecoveryPanel />
         </div>
       ) : (
         <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
